@@ -10,6 +10,7 @@ from tree_sitter_language_pack import get_language
 # 从我们的数据模型模块中导入 dataclasses
 # 假设 models.py 与 indexer.py 在同一个目录下
 from .models import CodeLocation, FunctionDefinition, FunctionReference, FunctionInfo
+from .language_processor import LanguageProcessor, language_processor_factory
 
 
 class CodeIndexer:
@@ -18,88 +19,36 @@ class CodeIndexer:
     它可以找到函数定义及其所有引用。
     """
 
-    def __init__(self, languages: List[str] = ['python', 'c', 'cpp']):
+    def __init__(
+        self,
+        language: str = "python",
+     ):
         """
         初始化索引器。
 
         Args:
-            languages: 一个包含要支持的语言名称的列表。
-                       例如: ['python', 'javascript', 'go']
+            language: str: 要使用的编程语言名称，默认为 "python"。
         """
         print("Initializing CodeIndexer...")
-        self.parsers: Dict[str, Parser] = {}
-        self.language_map: Dict[str, Language] = {}
 
-        # 为每种支持的语言创建一个解析器
-        for lang_name in languages:
-            try:
-                language = get_language(lang_name)
-                parser = Parser(language=language)
-                self.parsers[lang_name] = parser
-                self.language_map[lang_name] = language
-                print(f"✅ Language '{lang_name}' loaded successfully.")
-            except Exception as e:
-                print(f"⚠️ Could not load language '{lang_name}': {e}")
+        self.processor = language_processor_factory(language)
+        assert self.processor is not None, f"Unsupported language: {language}"
 
         # 用于存储索引数据的主数据结构
         self.index: Dict[str, FunctionInfo] = defaultdict(lambda: FunctionInfo())
 
-        # 定义 tree-sitter 查询语句
-        self._setup_queries()
-
-    def _setup_queries(self):
-        """为支持的语言编译 tree-sitter 查询。"""
-        self.queries: Dict[str, Dict[str, Language.Query]] = {}
-
-        # Python 的查询语句
-        if 'python' in self.language_map:
-            self.queries['python'] = {
-                "definitions": Query(self.language_map['python'], """
-                    (function_definition
-                        name: (identifier) @function.name) @function.definition
-                """),
-                "references": Query(self.language_map['python'], """
-                    (call
-                        function: [(identifier) @function.call
-                                   (attribute attribute: (identifier) @method.call)])
-                """)
-            }
-
-        # C 和 C++ 的查询语句 (C++ 查询可以更复杂，但这里用一个通用的)
-        c_like_def_query = """
-            (function_definition
-                declarator: (function_declarator
-                    declarator: (identifier) @function.name
-                )
-            ) @function.definition
-        """
-        c_like_ref_query = """
-            (call_expression
-                function: (identifier) @function.call
-            )
-        """
-        if 'c' in self.language_map:
-            self.queries['c'] = {
-                # "definitions": self.language_map['c'].query(c_like_def_query),
-                "definitions": Query(self.language_map['c'], c_like_def_query),
-                "references": Query(self.language_map['c'], c_like_ref_query)
-            }
-        if 'cpp' in self.language_map:
-            self.queries['cpp'] = {
-                "definitions": Query(self.language_map['cpp'], c_like_def_query),
-                "references": Query(self.language_map['cpp'], c_like_ref_query)
-            }
-        # 你可以在这里为其他语言添加查询...
 
     def _get_node_text(self, node: Node, source_bytes: bytes) -> str:
         """从源代码字节中提取节点的文本。"""
         return source_bytes[node.start_byte:node.end_byte].decode('utf8', errors='ignore')
 
-    def _process_definitions(self, tree: Tree, source_bytes: bytes, file_path: Path, lang_name: str):
+    def _process_definitions(self, tree: Tree, source_bytes: bytes, file_path: Path, processor: Optional[LanguageProcessor] = None):
         """处理文件中的所有函数定义。"""
-        lang_queries = self.queries.get(lang_name, {})
-        def_query = lang_queries.get("definitions")
-        if not def_query: return
+        if processor is None:
+            processor = self.processor
+        def_query = processor.get_definition_query()
+        if not def_query:
+            return
 
         query_cursor = QueryCursor(query=def_query)
         captures = query_cursor.captures(tree.root_node)
@@ -134,10 +83,11 @@ class CodeIndexer:
                 # 这仍然会覆盖重载的函数，但现在能正确配对
                 self.index[func_name].definition.append(new_definition)
 
-    def _process_references(self, tree: Tree, source_bytes: bytes, file_path: Path, lang_name: str):
+    def _process_references(self, tree: Tree, source_bytes: bytes, file_path: Path, processor: Optional[LanguageProcessor] = None):
         """处理文件中的所有函数引用。"""
-        lang_queries = self.queries.get(lang_name, {})
-        ref_query = lang_queries.get("references")
+        if processor is None:
+            processor = self.processor
+        ref_query = processor.get_reference_query()
         if not ref_query: return
 
         query_cursor = QueryCursor(query=ref_query)
@@ -163,22 +113,22 @@ class CodeIndexer:
             )
             self.index[ref_name].references.append(new_reference)
 
-    def index_file(self, file_path: Path):
+    def index_file(self, file_path: Path, processor: Optional[LanguageProcessor] = None):
         """
         解析并索引单个文件。
-        它会根据文件扩展名自动选择合适的解析器。
+        即使文件扩展名不在支持的列表中，也会尝试解析。
         """
-        file_extension_map = {
-            '.py': 'python',
-            '.c': 'c', '.h': 'c',
-            '.cpp': 'cpp', '.hpp': 'cpp',
-        }
-
-        lang_name = file_extension_map.get(file_path.suffix)
-        if not lang_name or lang_name not in self.parsers:
+        if not file_path.is_file():
+            print(f"Skipping non-file path: {file_path}")
             return
+        if not file_path.suffix in self.processor.extensions:
+            print(f"warning: Unsupported file extension {file_path.suffix} for file {file_path}. Trying to parse anyway.")
 
-        parser = self.parsers[lang_name]
+        if processor is None:
+            processor = self.processor
+
+        parser = processor.parser
+        lang_name = processor.name
         try:
             source_bytes = file_path.read_bytes()
             print(f"Indexing file: {file_path} as {lang_name}")
@@ -188,8 +138,8 @@ class CodeIndexer:
 
         tree = parser.parse(source_bytes)
 
-        self._process_definitions(tree, source_bytes, file_path, lang_name)
-        self._process_references(tree, source_bytes, file_path, lang_name)
+        self._process_definitions(tree, source_bytes, file_path, self.processor)
+        self._process_references(tree, source_bytes, file_path, self.processor)
 
     def index_project(self, project_path: str):
         """
@@ -199,8 +149,11 @@ class CodeIndexer:
         print(f"\nStarting to index project at: {project_path}")
         root_path = Path(project_path)
         for file_path in root_path.rglob('*'):
-            if file_path.is_file():
-                self.index_file(file_path)
+            if not file_path.is_file():
+                continue
+            if not file_path.suffix in self.processor.extensions:
+                continue
+            self.index_file(file_path)
         print("Project indexing complete.")
 
     def find_definitions(self, name: str) -> List[FunctionDefinition]:
@@ -220,11 +173,11 @@ class CodeIndexer:
 if __name__ == '__main__':
     from .config import PROJECT_ROOT
     # 创建一个索引器实例，它将自动加载 python, c, cpp 语言
-    indexer = CodeIndexer()
+    indexer = CodeIndexer("c")
 
     # 指定要索引的项目路径 (例如，当前目录 '.')
     # 为了演示，我们假设有一个名为 'sample_project' 的目录
-    project_to_index = PROJECT_ROOT / "example" / "python"
+    project_to_index = PROJECT_ROOT / "example" / "c"
     if not os.path.exists(project_to_index):
         print(f"示例目录 '{project_to_index}' 不存在，请创建一个或修改路径。")
     else:
@@ -233,7 +186,7 @@ if __name__ == '__main__':
         print("\n--- 查询结果示例 ---")
 
         # 示例查询: 查找 'index_file' 这个函数
-        func_to_find = "func1"
+        func_to_find = "SomeFunction"
 
         definition = indexer.find_definitions(func_to_find)
         if definition:
