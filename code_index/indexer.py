@@ -2,13 +2,14 @@ import os
 from pathlib import Path
 from pprint import pprint
 from typing import Dict, List, Optional
+from collections import defaultdict
 
 from tree_sitter import Language, Parser, Node, Query, QueryCursor, Tree
 from tree_sitter_language_pack import get_language
 
 # 从我们的数据模型模块中导入 dataclasses
 # 假设 models.py 与 indexer.py 在同一个目录下
-from .models import CodeLocation, FunctionDefinition, FunctionReference
+from .models import CodeLocation, FunctionDefinition, FunctionReference, FunctionInfo
 
 
 class CodeIndexer:
@@ -41,8 +42,7 @@ class CodeIndexer:
                 print(f"⚠️ Could not load language '{lang_name}': {e}")
 
         # 用于存储索引数据的主数据结构
-        # 结构: { "function_name": {"definition": FunctionDefinition, "references": [FunctionReference, ...]} }
-        self.index: Dict[str, Dict] = {}
+        self.index: Dict[str, FunctionInfo] = defaultdict(lambda: FunctionInfo())
 
         # 定义 tree-sitter 查询语句
         self._setup_queries()
@@ -119,8 +119,6 @@ class CodeIndexer:
 
             if child_name_node:
                 func_name = self._get_node_text(child_name_node, source_bytes)
-                if func_name not in self.index:
-                    self.index[func_name] = {"definition": None, "references": []}
 
                 location = CodeLocation(
                     file_path=file_path,
@@ -129,12 +127,12 @@ class CodeIndexer:
                     end_lineno=def_node.end_point[0] + 1,
                     end_col=def_node.end_point[1]
                 )
-                definition = FunctionDefinition(
+                new_definition = FunctionDefinition(
                     name=func_name,
                     location=location
                 )
                 # 这仍然会覆盖重载的函数，但现在能正确配对
-                self.index[func_name]["definition"] = definition
+                self.index[func_name].definition.append(new_definition)
 
     def _process_references(self, tree: Tree, source_bytes: bytes, file_path: Path, lang_name: str):
         """处理文件中的所有函数引用。"""
@@ -151,8 +149,6 @@ class CodeIndexer:
 
         for node in call_nodes:
             ref_name = self._get_node_text(node, source_bytes)
-            if ref_name not in self.index:
-                self.index[ref_name] = {"definition": None, "references": []}
 
             location = CodeLocation(
                 file_path=file_path,
@@ -161,11 +157,11 @@ class CodeIndexer:
                 end_lineno=node.end_point[0] + 1,
                 end_col=node.end_point[1]
             )
-            reference = FunctionReference(
+            new_reference = FunctionReference(
                 name=ref_name,
                 location=location
             )
-            self.index[ref_name]["references"].append(reference)
+            self.index[ref_name].references.append(new_reference)
 
     def index_file(self, file_path: Path):
         """
@@ -207,13 +203,17 @@ class CodeIndexer:
                 self.index_file(file_path)
         print("Project indexing complete.")
 
-    def find_definition(self, name: str) -> Optional[FunctionDefinition]:
+    def find_definitions(self, name: str) -> List[FunctionDefinition]:
         """按名称查找函数的定义。"""
-        return self.index.get(name, {}).get("definition")
+        if name not in self.index:
+            return []
+        return self.index[name].definition
 
     def find_references(self, name: str) -> List[FunctionReference]:
         """按名称查找函数的所有引用。"""
-        return self.index.get(name, {}).get("references", [])
+        if name not in self.index:
+            return []
+        return self.index[name].references
 
 
 # --- 如何使用这个类的示例 ---
@@ -235,7 +235,7 @@ if __name__ == '__main__':
         # 示例查询: 查找 'index_file' 这个函数
         func_to_find = "func1"
 
-        definition = indexer.find_definition(func_to_find)
+        definition = indexer.find_definitions(func_to_find)
         if definition:
             print(f"\n✅ Definition of '{func_to_find}':")
             pprint(definition)

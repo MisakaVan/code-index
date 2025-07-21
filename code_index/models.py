@@ -27,3 +27,12 @@ class FunctionReference:
     """
     name: str # The name of the function
     location: CodeLocation
+
+
+@dataclass
+class FunctionInfo:
+    """
+    Represents information about a function, including its definition(s) and references.
+    """
+    definition: list[FunctionDefinition] = field(default_factory=list)
+    references: list[FunctionReference] = field(default_factory=list)
