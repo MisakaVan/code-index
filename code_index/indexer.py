@@ -53,7 +53,7 @@ class CodeIndexer:
         query_cursor = QueryCursor(query=def_query)
         captures = query_cursor.captures(tree.root_node)
 
-        pprint(captures)  # 调试输出，查看捕获的节点
+        # pprint(captures)  # 调试输出，查看捕获的节点
 
         definition_nodes = captures.get('function.definition', [])
         name_nodes = captures.get('function.name', [])
@@ -93,7 +93,7 @@ class CodeIndexer:
         query_cursor = QueryCursor(query=ref_query)
         captures = query_cursor.captures(tree.root_node)
 
-        pprint(captures)  # 调试输出，查看捕获的节点
+        # pprint(captures)  # 调试输出，查看捕获的节点
 
         call_nodes = captures.get('function.call', [])
 
