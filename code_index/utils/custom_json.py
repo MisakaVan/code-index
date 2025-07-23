@@ -30,6 +30,6 @@ def dump_index_to_json(index: Dict[str, FunctionInfo], output_path: Path):
     """
     将索引数据以 JSON 格式写入文件。
     """
-    with output_path.open('w', encoding='utf-8') as f:
-        json.dump(index, f, indent=4, ensure_ascii=False, cls=EnhancedJSONEncoder)
+    with output_path.open("w", encoding="utf-8") as f:
+        json.dump(index, f, indent=2, ensure_ascii=False, cls=EnhancedJSONEncoder)
     print(f"Index data dumped to {output_path}")

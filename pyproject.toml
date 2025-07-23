@@ -16,3 +16,23 @@ code-index = "code_index.__main__:main"
 test = [
     "pytest"
 ]
+
+dev = [
+    "black>=25.1.0",
+]
+
+
+[tool.black]
+# 设置每行的最大长度，100 或 120 是常见选择
+line-length = 100
+# 排除你不想被格式化的目录
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | _build
+  | build
+  | dist
+  | example
+)/
+'''

@@ -8,4 +8,3 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent.resolve()
 
 BUILD_DIR = PROJECT_ROOT / "build"
-

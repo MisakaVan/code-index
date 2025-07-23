@@ -20,11 +20,7 @@ class CodeIndexer:
     它可以找到函数定义及其所有引用。
     """
 
-    def __init__(
-        self,
-        language: str = "python",
-        store_relative_paths: bool = True
-     ):
+    def __init__(self, language: str = "python", store_relative_paths: bool = True):
         """
         初始化索引器。
 
@@ -42,12 +38,17 @@ class CodeIndexer:
         # 用于存储索引数据的主数据结构
         self.index: Dict[str, FunctionInfo] = defaultdict(lambda: FunctionInfo())
 
-
     def _get_node_text(self, node: Node, source_bytes: bytes) -> str:
         """从源代码字节中提取节点的文本。"""
-        return source_bytes[node.start_byte:node.end_byte].decode('utf8', errors='ignore')
+        return source_bytes[node.start_byte : node.end_byte].decode("utf8", errors="ignore")
 
-    def _process_definitions(self, tree: Tree, source_bytes: bytes, file_path: Path, processor: Optional[LanguageProcessor] = None):
+    def _process_definitions(
+        self,
+        tree: Tree,
+        source_bytes: bytes,
+        file_path: Path,
+        processor: Optional[LanguageProcessor] = None,
+    ):
         """处理文件中的所有函数定义。"""
         if processor is None:
             processor = self.processor
@@ -60,15 +61,19 @@ class CodeIndexer:
 
         # pprint(captures)  # 调试输出，查看捕获的节点
 
-        definition_nodes = captures.get('function.definition', [])
-        name_nodes = captures.get('function.name', [])
+        definition_nodes = captures.get("function.definition", [])
+        name_nodes = captures.get("function.name", [])
 
         # 遍历所有找到的定义节点
         for def_node in definition_nodes:
             # 在所有名称节点中，找到那个被当前定义节点包含的子节点
             child_name_node = next(
-                (n for n in name_nodes if n.start_byte >= def_node.start_byte and n.end_byte <= def_node.end_byte),
-                None
+                (
+                    n
+                    for n in name_nodes
+                    if n.start_byte >= def_node.start_byte and n.end_byte <= def_node.end_byte
+                ),
+                None,
             )
 
             if child_name_node:
@@ -79,28 +84,32 @@ class CodeIndexer:
                     start_lineno=def_node.start_point[0] + 1,
                     start_col=def_node.start_point[1],
                     end_lineno=def_node.end_point[0] + 1,
-                    end_col=def_node.end_point[1]
+                    end_col=def_node.end_point[1],
                 )
-                new_definition = FunctionDefinition(
-                    name=func_name,
-                    location=location
-                )
+                new_definition = FunctionDefinition(name=func_name, location=location)
                 # 这仍然会覆盖重载的函数，但现在能正确配对
                 self.index[func_name].definition.append(new_definition)
 
-    def _process_references(self, tree: Tree, source_bytes: bytes, file_path: Path, processor: Optional[LanguageProcessor] = None):
+    def _process_references(
+        self,
+        tree: Tree,
+        source_bytes: bytes,
+        file_path: Path,
+        processor: Optional[LanguageProcessor] = None,
+    ):
         """处理文件中的所有函数引用。"""
         if processor is None:
             processor = self.processor
         ref_query = processor.get_reference_query()
-        if not ref_query: return
+        if not ref_query:
+            return
 
         query_cursor = QueryCursor(query=ref_query)
         captures = query_cursor.captures(tree.root_node)
 
         # pprint(captures)  # 调试输出，查看捕获的节点
 
-        call_nodes = captures.get('function.call', [])
+        call_nodes = captures.get("function.call", [])
 
         for node in call_nodes:
             ref_name = self._get_node_text(node, source_bytes)
@@ -110,15 +119,14 @@ class CodeIndexer:
                 start_lineno=node.start_point[0] + 1,
                 start_col=node.start_point[1],
                 end_lineno=node.end_point[0] + 1,
-                end_col=node.end_point[1]
+                end_col=node.end_point[1],
             )
-            new_reference = FunctionReference(
-                name=ref_name,
-                location=location
-            )
+            new_reference = FunctionReference(name=ref_name, location=location)
             self.index[ref_name].references.append(new_reference)
 
-    def index_file(self, file_path: Path, project_path: Path, processor: Optional[LanguageProcessor] = None):
+    def index_file(
+        self, file_path: Path, project_path: Path, processor: Optional[LanguageProcessor] = None
+    ):
         """
         解析并索引单个文件。
         即使文件扩展名不在支持的列表中，也会尝试解析。
@@ -127,7 +135,9 @@ class CodeIndexer:
             print(f"Skipping non-file path: {file_path}")
             return
         if not file_path.suffix in self.processor.extensions:
-            print(f"warning: Unsupported file extension {file_path.suffix} for file {file_path}. Trying to parse anyway.")
+            print(
+                f"warning: Unsupported file extension {file_path.suffix} for file {file_path}. Trying to parse anyway."
+            )
 
         if processor is None:
             processor = self.processor
@@ -155,7 +165,7 @@ class CodeIndexer:
         递归地索引一个项目目录下的所有支持的文件。
         """
         print(f"\nStarting to index project at: {project_path}")
-        for file_path in project_path.rglob('*'):
+        for file_path in project_path.rglob("*"):
             if not file_path.is_file():
                 continue
             if not file_path.suffix in self.processor.extensions:
@@ -182,10 +192,10 @@ class CodeIndexer:
         dump_index_to_json(self.index, output_path)
 
 
-
 # --- 如何使用这个类的示例 ---
-if __name__ == '__main__':
+if __name__ == "__main__":
     from .config import PROJECT_ROOT
+
     # 创建一个索引器实例，它将自动加载 python, c, cpp 语言
     indexer = CodeIndexer("c")
 
@@ -221,4 +231,3 @@ if __name__ == '__main__':
         # 将索引数据导出为 JSON 文件
         output_file = project_to_index / "index.json"
         dump_index_to_json(indexer.index, output_file)
-

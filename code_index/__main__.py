@@ -5,6 +5,7 @@ from pprint import pprint
 # 使用相对导入，从同一个包中导入 CodeIndexer
 from .indexer import CodeIndexer
 
+
 def main():
     """
     命令行接口的主函数。
@@ -13,37 +14,32 @@ def main():
         description="CodeIndex: 一个用于索引源代码中函数定义和引用的命令行工具。"
     )
 
-    parser.add_argument(
-        "repo_path",
-        type=Path,
-        help="需要被索引的代码仓库或目录的路径。"
-    )
+    parser.add_argument("repo_path", type=Path, help="需要被索引的代码仓库或目录的路径。")
 
     parser.add_argument(
-        "-l", "--language",
+        "-l",
+        "--language",
         type=str,
         default="python",
         choices=["python", "c", "cpp"],
-        help="指定要索引的编程语言。默认为 'python'。"
+        help="指定要索引的编程语言。默认为 'python'。",
     )
 
-    parser.add_argument(
-        "-f", "--find",
-        type=str,
-        help="索引完成后，要查找的特定函数名。"
-    )
+    parser.add_argument("-f", "--find", type=str, help="索引完成后，要查找的特定函数名。")
 
     parser.add_argument(
-        "-d", "--dump",
+        "-d",
+        "--dump",
         action="store_true",
-        help="将索引结果导出为 JSON 文件。默认导出到 repo_path/index.json。"
+        help="将索引结果导出为 JSON 文件。默认导出到 repo_path/index.json。",
     )
 
     parser.add_argument(
-        "-o", "--output",
+        "-o",
+        "--output",
         type=Path,
         default=None,
-        help="指定导出索引结果的 JSON 文件路径。如果未指定，则默认为 repo_path/index.json。"
+        help="指定导出索引结果的 JSON 文件路径。如果未指定，则默认为 repo_path/index.json。",
     )
 
     args = parser.parse_args()
@@ -58,7 +54,6 @@ def main():
     if args.output.is_dir():
         print(f"错误：提供的输出路径 '{args.output}' 是一个目录，请指定一个文件路径。")
         return
-
 
     # 检查仓库路径是否存在
     if not args.repo_path.exists() or not args.repo_path.is_dir():
@@ -107,5 +102,6 @@ def main():
 
         print(f"\n索引数据已导出到 {args.output}")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

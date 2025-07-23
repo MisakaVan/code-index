@@ -84,7 +84,7 @@ class PythonProcessor(BaseLanguageProcessor):
     def __init__(self):
         super().__init__(
             name="python",
-            extensions=['.py'],
+            extensions=[".py"],
             def_query_str="""
                 (function_definition
                     name: (identifier) @function.name) @function.definition
@@ -93,7 +93,7 @@ class PythonProcessor(BaseLanguageProcessor):
                 (call
                     function: [(identifier) @function.call
                                (attribute attribute: (identifier) @method.call)])
-            """
+            """,
         )
 
 
@@ -120,9 +120,9 @@ class CProcessor(BaseLanguageProcessor):
     def __init__(self):
         super().__init__(
             name="c",
-            extensions=['.c', '.h'],
+            extensions=[".c", ".h"],
             def_query_str=C_LIKE_DEF_QUERY,
-            ref_query_str=C_LIKE_REF_QUERY
+            ref_query_str=C_LIKE_REF_QUERY,
         )
 
 
@@ -134,9 +134,9 @@ class CppProcessor(BaseLanguageProcessor):
     def __init__(self):
         super().__init__(
             name="cpp",
-            extensions=['.cpp', '.hpp', '.cc', '.h'],
+            extensions=[".cpp", ".hpp", ".cc", ".h"],
             def_query_str=C_LIKE_DEF_QUERY,
-            ref_query_str=C_LIKE_REF_QUERY
+            ref_query_str=C_LIKE_REF_QUERY,
         )
 
 
