@@ -1,0 +1,18 @@
+[project]
+name = "code-index"
+version = "0.1.0"
+description = "一个用于索引源代码中函数定义和引用的命令行工具。"
+requires-python = ">=3.12"
+
+dependencies = [
+    "tree-sitter==0.25.0",
+    "tree-sitter-language-pack==0.9.0",
+]
+
+[project.scripts]
+code-index = "code_index.__main__:main"
+
+[project.optional-dependencies]
+test = [
+    "pytest"
+]
