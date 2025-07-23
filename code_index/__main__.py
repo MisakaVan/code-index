@@ -33,7 +33,32 @@ def main():
         help="索引完成后，要查找的特定函数名。"
     )
 
+    parser.add_argument(
+        "-d", "--dump",
+        action="store_true",
+        help="将索引结果导出为 JSON 文件。默认导出到 repo_path/index.json。"
+    )
+
+    parser.add_argument(
+        "-o", "--output",
+        type=Path,
+        default=None,
+        help="指定导出索引结果的 JSON 文件路径。如果未指定，则默认为 repo_path/index.json。"
+    )
+
     args = parser.parse_args()
+
+    if args.output is None:
+        # 如果没有指定输出路径，则使用 repo_path/index.json
+        args.output = args.repo_path / "index.json"
+    else:
+        args.dump = True  # 如果指定了输出路径，则默认启用导出功能
+
+    # make sure the output path is a file
+    if args.output.is_dir():
+        print(f"错误：提供的输出路径 '{args.output}' 是一个目录，请指定一个文件路径。")
+        return
+
 
     # 检查仓库路径是否存在
     if not args.repo_path.exists() or not args.repo_path.is_dir():
@@ -48,7 +73,7 @@ def main():
         return
 
     # 2. 对指定的项目路径进行索引
-    indexer.index_project(str(args.repo_path))
+    indexer.index_project(args.repo_path)
 
     print("\n--- 索引结果 ---")
     pprint(indexer.index)  # 打印索引结果
@@ -71,6 +96,16 @@ def main():
             pprint(references)
         else:
             print(f"\n❌ 未找到 '{func_to_find}' 的引用。")
+
+    # 4. 如果用户指定了导出索引，则将索引数据导出为 JSON 文件
+    if args.dump:
+        try:
+            indexer.dump_index(args.output)
+        except Exception as e:
+            print(f"错误：导出索引失败。{e}")
+            return
+
+        print(f"\n索引数据已导出到 {args.output}")
 
 if __name__ == '__main__':
     main()

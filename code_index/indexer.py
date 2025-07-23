@@ -1,16 +1,17 @@
 import os
+import json
 from pathlib import Path
 from pprint import pprint
 from typing import Dict, List, Optional
 from collections import defaultdict
 
-from tree_sitter import Language, Parser, Node, Query, QueryCursor, Tree
-from tree_sitter_language_pack import get_language
+from tree_sitter import Language, Parser, Node, QueryCursor, Tree
 
 # 从我们的数据模型模块中导入 dataclasses
 # 假设 models.py 与 indexer.py 在同一个目录下
 from .models import CodeLocation, FunctionDefinition, FunctionReference, FunctionInfo
 from .language_processor import LanguageProcessor, language_processor_factory
+from .utils.custom_json import dump_index_to_json
 
 
 class CodeIndexer:
@@ -22,17 +23,21 @@ class CodeIndexer:
     def __init__(
         self,
         language: str = "python",
+        store_relative_paths: bool = True
      ):
         """
         初始化索引器。
 
         Args:
             language: str: 要使用的编程语言名称，默认为 "python"。
+            store_relative_paths: bool: 是否存储相对于project_root的路径，默认为 True。否则，索引将使用绝对路径。
         """
         print("Initializing CodeIndexer...")
 
         self.processor = language_processor_factory(language)
         assert self.processor is not None, f"Unsupported language: {language}"
+
+        self.store_relative_paths = store_relative_paths
 
         # 用于存储索引数据的主数据结构
         self.index: Dict[str, FunctionInfo] = defaultdict(lambda: FunctionInfo())
@@ -113,7 +118,7 @@ class CodeIndexer:
             )
             self.index[ref_name].references.append(new_reference)
 
-    def index_file(self, file_path: Path, processor: Optional[LanguageProcessor] = None):
+    def index_file(self, file_path: Path, project_path: Path, processor: Optional[LanguageProcessor] = None):
         """
         解析并索引单个文件。
         即使文件扩展名不在支持的列表中，也会尝试解析。
@@ -138,22 +143,24 @@ class CodeIndexer:
 
         tree = parser.parse(source_bytes)
 
+        if self.store_relative_paths:
+            file_path = file_path.relative_to(project_path)
+
         self._process_definitions(tree, source_bytes, file_path, self.processor)
         self._process_references(tree, source_bytes, file_path, self.processor)
 
-    def index_project(self, project_path: str):
+    def index_project(self, project_path: Path):
         """
 
         递归地索引一个项目目录下的所有支持的文件。
         """
         print(f"\nStarting to index project at: {project_path}")
-        root_path = Path(project_path)
-        for file_path in root_path.rglob('*'):
+        for file_path in project_path.rglob('*'):
             if not file_path.is_file():
                 continue
             if not file_path.suffix in self.processor.extensions:
                 continue
-            self.index_file(file_path)
+            self.index_file(file_path, project_path, self.processor)
         print("Project indexing complete.")
 
     def find_definitions(self, name: str) -> List[FunctionDefinition]:
@@ -167,6 +174,13 @@ class CodeIndexer:
         if name not in self.index:
             return []
         return self.index[name].references
+
+    def dump_index(self, output_path: Path):
+        """
+        将索引数据以 JSON 格式写入文件。
+        """
+        dump_index_to_json(self.index, output_path)
+
 
 
 # --- 如何使用这个类的示例 ---
@@ -203,4 +217,8 @@ if __name__ == '__main__':
             print(f"\n❌ No references found for '{func_to_find}'.")
 
         pprint(indexer.index)
+
+        # 将索引数据导出为 JSON 文件
+        output_file = project_to_index / "index.json"
+        dump_index_to_json(indexer.index, output_file)
 
