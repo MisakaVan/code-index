@@ -2,6 +2,8 @@ import argparse
 from pathlib import Path
 from pprint import pprint
 
+from code_index.language_processor import language_processor_factory
+
 # 使用相对导入，从同一个包中导入 CodeIndexer
 from .indexer import CodeIndexer
 
@@ -60,9 +62,10 @@ def main():
         print(f"错误：提供的路径 '{args.repo_path}' 不是一个有效的目录。")
         return
 
-    # 1. 根据指定的语言初始化 CodeIndexer
     try:
-        indexer = CodeIndexer(language=args.language)
+        processor = language_processor_factory(args.language)
+        assert processor is not None, f"未找到适用于 '{args.language}' 的语言处理器。"
+        indexer = CodeIndexer(processor)
     except AssertionError as e:
         print(f"错误：初始化索引器失败。{e}")
         return

@@ -20,18 +20,17 @@ class CodeIndexer:
     它可以找到函数定义及其所有引用。
     """
 
-    def __init__(self, language: str = "python", store_relative_paths: bool = True):
+    def __init__(self, processor: LanguageProcessor, store_relative_paths: bool = True):
         """
         初始化索引器。
 
         Args:
-            language: str: 要使用的编程语言名称，默认为 "python"。
+            processor: LanguageProcessor: 用于解析源代码的语言处理器实例。
             store_relative_paths: bool: 是否存储相对于project_root的路径，默认为 True。否则，索引将使用绝对路径。
         """
         print("Initializing CodeIndexer...")
 
-        self.processor = language_processor_factory(language)
-        assert self.processor is not None, f"Unsupported language: {language}"
+        self.processor = processor
 
         self.store_relative_paths = store_relative_paths
 
@@ -197,7 +196,7 @@ if __name__ == "__main__":
     from .config import PROJECT_ROOT
 
     # 创建一个索引器实例，它将自动加载 python, c, cpp 语言
-    indexer = CodeIndexer("c")
+    indexer = CodeIndexer(language_processor_factory("c"))
 
     # 指定要索引的项目路径 (例如，当前目录 '.')
     # 为了演示，我们假设有一个名为 'sample_project' 的目录
