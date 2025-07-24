@@ -7,8 +7,6 @@ from collections import defaultdict
 
 from tree_sitter import Language, Parser, Node, QueryCursor, Tree
 
-# 从我们的数据模型模块中导入 dataclasses
-# 假设 models.py 与 indexer.py 在同一个目录下
 from .models import CodeLocation, FunctionDefinition, FunctionReference, FunctionInfo
 from .language_processor import LanguageProcessor, language_processor_factory, QueryContext
 from .utils.custom_json import dump_index_to_json
@@ -57,7 +55,6 @@ class CodeIndexer:
 
             match result:
                 case FunctionDefinition(name, location):
-                    # 将函数定义添加到索引中
                     self.index[name].definition.append(result)
                 case None:
                     pass
@@ -155,11 +152,8 @@ class CodeIndexer:
 if __name__ == "__main__":
     from .config import PROJECT_ROOT
 
-    # 创建一个索引器实例，它将自动加载 python, c, cpp 语言
     indexer = CodeIndexer(language_processor_factory("c"))
 
-    # 指定要索引的项目路径 (例如，当前目录 '.')
-    # 为了演示，我们假设有一个名为 'sample_project' 的目录
     project_to_index = PROJECT_ROOT / "example" / "c"
     if not os.path.exists(project_to_index):
         print(f"示例目录 '{project_to_index}' 不存在，请创建一个或修改路径。")
@@ -168,7 +162,6 @@ if __name__ == "__main__":
 
         print("\n--- 查询结果示例 ---")
 
-        # 示例查询: 查找 'index_file' 这个函数
         func_to_find = "SomeFunction"
 
         definition = indexer.find_definitions(func_to_find)
@@ -187,6 +180,5 @@ if __name__ == "__main__":
 
         pprint(indexer.index)
 
-        # 将索引数据导出为 JSON 文件
         output_file = project_to_index / "index.json"
         dump_index_to_json(indexer.index, output_file)
