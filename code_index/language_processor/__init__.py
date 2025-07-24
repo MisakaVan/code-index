@@ -1,6 +1,21 @@
-from typing import Protocol, List, Optional
-from tree_sitter import Language, Query, Parser
+import pathlib
+from typing import Protocol, List, Optional, Iterable
+from itertools import chain
+from dataclasses import dataclass
+from tree_sitter import Language, Query, Parser, Node, Tree, QueryCursor
 from tree_sitter_language_pack import get_language
+
+from ..models import FunctionDefinition, FunctionReference, CodeLocation
+
+
+@dataclass
+class QueryContext:
+    """
+    用于存储查询时需要查询的信息，包括文件地址、文件bytes等。
+    """
+
+    file_path: pathlib.Path
+    source_bytes: bytes
 
 
 class LanguageProcessor(Protocol):
@@ -35,6 +50,36 @@ class LanguageProcessor(Protocol):
 
     def get_reference_query(self) -> Query:
         """获取用于查找函数/方法引用的查询。"""
+        ...
+
+    def get_definition_nodes(self, tree: Tree) -> Iterable[Node]:
+        """从语法树中获取所有定义（函数/方法）的节点。"""
+        ...
+
+    def get_reference_nodes(self, tree: Tree) -> Iterable[Node]:
+        """从语法树中获取所有引用（函数/方法调用）的节点。"""
+        ...
+
+    def handle_definition(
+        self,
+        node: Node,
+        ctx: QueryContext,
+    ) -> Optional[FunctionDefinition]:
+        """
+        处理函数/方法定义节点，返回一个 FunctionDefinition 对象。
+        如果节点不符合预期格式，返回 None。
+        """
+        ...
+
+    def handle_reference(
+        self,
+        node: Node,
+        ctx: QueryContext,
+    ) -> Optional[FunctionReference]:
+        """
+        处理函数/方法引用节点，返回一个 FunctionReference 对象。
+        如果节点不符合预期格式，返回 None。
+        """
         ...
 
 
@@ -74,6 +119,34 @@ class BaseLanguageProcessor(LanguageProcessor):
     def get_reference_query(self) -> Query:
         return self._ref_query
 
+    def get_definition_nodes(self, tree: Tree) -> Iterable[Node]:
+        captures = QueryCursor(self.get_definition_query()).captures(tree.root_node)
+        func_defs = captures.get("function.definition", [])
+        return chain(func_defs)
+
+    def get_reference_nodes(self, tree: Tree) -> Iterable[Node]:
+        captures = QueryCursor(self.get_reference_query()).captures(tree.root_node)
+        func_calls = captures.get("function.call", [])
+        return chain(func_calls)
+
+    def handle_definition(
+        self,
+        node: Node,
+        ctx: QueryContext,
+    ) -> Optional[FunctionDefinition]:
+        raise NotImplementedError(
+            f"{self.__class__.__name__} must implement handle_definition method."
+        )
+
+    def handle_reference(
+        self,
+        node,
+        ctx: QueryContext,
+    ) -> Optional[FunctionReference]:
+        raise NotImplementedError(
+            f"{self.__class__.__name__} must implement handle_reference method."
+        )
+
 
 class PythonProcessor(BaseLanguageProcessor):
     """
@@ -86,14 +159,61 @@ class PythonProcessor(BaseLanguageProcessor):
             name="python",
             extensions=[".py"],
             def_query_str="""
-                (function_definition
-                    name: (identifier) @function.name) @function.definition
+                (
+                    (function_definition) @function.definition
+                    (#not-has-ancestor? @function.definition class_definition)
+                )
             """,
             ref_query_str="""
                 (call
-                    function: [(identifier) @function.call
-                               (attribute attribute: (identifier) @method.call)])
+                    function: (identifier)) @function.call
             """,
+        )
+
+    def handle_definition(
+        self,
+        node: Node,
+        ctx: QueryContext,
+    ) -> Optional[FunctionDefinition]:
+        name_node = node.child_by_field_name("name")
+        if not name_node:
+            return None
+        func_name = ctx.source_bytes[name_node.start_byte : name_node.end_byte].decode("utf8")
+
+        return FunctionDefinition(
+            name=func_name,
+            # location 信息直接来自整个 function_definition 节点
+            location=CodeLocation(
+                file_path=ctx.file_path,
+                start_lineno=node.start_point[0] + 1,
+                start_col=node.start_point[1],
+                end_lineno=node.end_point[0] + 1,
+                end_col=node.end_point[1],
+            ),
+        )
+
+    def handle_reference(
+        self,
+        node,
+        ctx: QueryContext,
+    ) -> Optional[FunctionReference]:
+        # 从 call 节点中找到名为 'function' 的子节点
+        name_node = node.child_by_field_name("function")
+        if not name_node:
+            print(f"Warning: Expected 'function' node to exist")
+            return None
+        func_name = ctx.source_bytes[name_node.start_byte : name_node.end_byte].decode("utf8")
+
+        return FunctionReference(
+            name=func_name,
+            # location 信息来自调用的名称节点本身
+            location=CodeLocation(
+                file_path=ctx.file_path,
+                start_lineno=name_node.start_point[0] + 1,
+                start_col=name_node.start_point[1],
+                end_lineno=name_node.end_point[0] + 1,
+                end_col=name_node.end_point[1],
+            ),
         )
 
 

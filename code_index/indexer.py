@@ -10,7 +10,7 @@ from tree_sitter import Language, Parser, Node, QueryCursor, Tree
 # 从我们的数据模型模块中导入 dataclasses
 # 假设 models.py 与 indexer.py 在同一个目录下
 from .models import CodeLocation, FunctionDefinition, FunctionReference, FunctionInfo
-from .language_processor import LanguageProcessor, language_processor_factory
+from .language_processor import LanguageProcessor, language_processor_factory, QueryContext
 from .utils.custom_json import dump_index_to_json
 
 
@@ -51,43 +51,16 @@ class CodeIndexer:
         """处理文件中的所有函数定义。"""
         if processor is None:
             processor = self.processor
-        def_query = processor.get_definition_query()
-        if not def_query:
-            return
+        context = QueryContext(file_path=file_path, source_bytes=source_bytes)
+        for node in processor.get_definition_nodes(tree):
+            result = processor.handle_definition(node, context)
 
-        query_cursor = QueryCursor(query=def_query)
-        captures = query_cursor.captures(tree.root_node)
-
-        # pprint(captures)  # 调试输出，查看捕获的节点
-
-        definition_nodes = captures.get("function.definition", [])
-        name_nodes = captures.get("function.name", [])
-
-        # 遍历所有找到的定义节点
-        for def_node in definition_nodes:
-            # 在所有名称节点中，找到那个被当前定义节点包含的子节点
-            child_name_node = next(
-                (
-                    n
-                    for n in name_nodes
-                    if n.start_byte >= def_node.start_byte and n.end_byte <= def_node.end_byte
-                ),
-                None,
-            )
-
-            if child_name_node:
-                func_name = self._get_node_text(child_name_node, source_bytes)
-
-                location = CodeLocation(
-                    file_path=file_path,
-                    start_lineno=def_node.start_point[0] + 1,
-                    start_col=def_node.start_point[1],
-                    end_lineno=def_node.end_point[0] + 1,
-                    end_col=def_node.end_point[1],
-                )
-                new_definition = FunctionDefinition(name=func_name, location=location)
-                # 这仍然会覆盖重载的函数，但现在能正确配对
-                self.index[func_name].definition.append(new_definition)
+            match result:
+                case FunctionDefinition(name, location):
+                    # 将函数定义添加到索引中
+                    self.index[name].definition.append(result)
+                case None:
+                    pass
 
     def _process_references(
         self,
@@ -98,30 +71,17 @@ class CodeIndexer:
     ):
         """处理文件中的所有函数引用。"""
         if processor is None:
-            processor = self.processor
-        ref_query = processor.get_reference_query()
-        if not ref_query:
-            return
+            processor: LanguageProcessor = self.processor
+        context = QueryContext(file_path=file_path, source_bytes=source_bytes)
+        for node in processor.get_reference_nodes(tree):
+            result = processor.handle_reference(node, context)
 
-        query_cursor = QueryCursor(query=ref_query)
-        captures = query_cursor.captures(tree.root_node)
-
-        # pprint(captures)  # 调试输出，查看捕获的节点
-
-        call_nodes = captures.get("function.call", [])
-
-        for node in call_nodes:
-            ref_name = self._get_node_text(node, source_bytes)
-
-            location = CodeLocation(
-                file_path=file_path,
-                start_lineno=node.start_point[0] + 1,
-                start_col=node.start_point[1],
-                end_lineno=node.end_point[0] + 1,
-                end_col=node.end_point[1],
-            )
-            new_reference = FunctionReference(name=ref_name, location=location)
-            self.index[ref_name].references.append(new_reference)
+            match result:
+                case FunctionReference(name, location):
+                    # 将函数引用添加到索引中
+                    self.index[name].references.append(result)
+                case None:
+                    pass
 
     def index_file(
         self, file_path: Path, project_path: Path, processor: Optional[LanguageProcessor] = None
