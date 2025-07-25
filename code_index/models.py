@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from enum import Enum
 
 
 @dataclass
@@ -32,7 +31,9 @@ class Method:
     """
 
     name: str
-    class_name: str
+
+    # The name of the class the method belongs to. May not be accessible on calls.
+    class_name: str | None
 
 
 FunctionLike = Function | Method
