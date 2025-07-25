@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from pathlib import Path
+from enum import Enum
 
 
 @dataclass
@@ -16,7 +17,29 @@ class CodeLocation:
 
 
 @dataclass
-class FunctionDefinition:
+class Function:
+    """
+    Represents a function in the codebase.
+    """
+
+    name: str  # The name of the function
+
+
+@dataclass
+class Method:
+    """
+    Represents a method in the codebase.
+    """
+
+    name: str
+    class_name: str
+
+
+FunctionLike = Function | Method
+
+
+@dataclass
+class Definition:
     """
     Represents a function definition in the codebase.
     """
@@ -26,7 +49,7 @@ class FunctionDefinition:
 
 
 @dataclass
-class FunctionReference:
+class Reference:
     """
     Represents a reference to a function in the codebase.
     """
@@ -36,10 +59,10 @@ class FunctionReference:
 
 
 @dataclass
-class FunctionInfo:
+class FunctionLikeInfo:
     """
     Represents information about a function, including its definition(s) and references.
     """
 
-    definition: list[FunctionDefinition] = field(default_factory=list)
-    references: list[FunctionReference] = field(default_factory=list)
+    definition: list[Definition] = field(default_factory=list)
+    references: list[Reference] = field(default_factory=list)

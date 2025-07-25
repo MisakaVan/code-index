@@ -3,7 +3,7 @@
 from tree_sitter import Node, Parser, Language, Query, Tree
 from typing import Optional, Iterable, Dict, List
 
-from ..models import FunctionDefinition, FunctionReference, CodeLocation
+from ..models import Definition, Reference, CodeLocation
 from .base import BaseLanguageProcessor, QueryContext
 
 
@@ -33,13 +33,13 @@ class PythonProcessor(BaseLanguageProcessor):
         self,
         node: Node,
         ctx: QueryContext,
-    ) -> Optional[FunctionDefinition]:
+    ) -> Optional[Definition]:
         name_node = node.child_by_field_name("name")
         if not name_node:
             return None
         func_name = ctx.source_bytes[name_node.start_byte : name_node.end_byte].decode("utf8")
 
-        return FunctionDefinition(
+        return Definition(
             name=func_name,
             # location 信息直接来自整个 function_definition 节点
             location=CodeLocation(
@@ -55,7 +55,7 @@ class PythonProcessor(BaseLanguageProcessor):
         self,
         node,
         ctx: QueryContext,
-    ) -> Optional[FunctionReference]:
+    ) -> Optional[Reference]:
         # 从 call 节点中找到名为 'function' 的子节点
         name_node = node.child_by_field_name("function")
         if not name_node:
@@ -63,7 +63,7 @@ class PythonProcessor(BaseLanguageProcessor):
             return None
         func_name = ctx.source_bytes[name_node.start_byte : name_node.end_byte].decode("utf8")
 
-        return FunctionReference(
+        return Reference(
             name=func_name,
             # location 信息来自调用的名称节点本身
             location=CodeLocation(

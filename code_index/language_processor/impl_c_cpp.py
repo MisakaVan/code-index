@@ -3,7 +3,7 @@
 from tree_sitter import Node, Parser, Language, Query, Tree
 from typing import Optional, Iterable, Dict, List
 
-from ..models import FunctionDefinition, FunctionReference, CodeLocation
+from ..models import Definition, Reference, CodeLocation
 from .base import BaseLanguageProcessor, QueryContext
 
 
@@ -28,7 +28,7 @@ class CProcessor(BaseLanguageProcessor):
         self,
         node: Node,  # 这是一个 function_definition 节点
         ctx: QueryContext,
-    ) -> Optional[FunctionDefinition]:
+    ) -> Optional[Definition]:
         """处理一个 C-style 的函数定义节点。"""
         # C 语法的结构是：function_definition -> declarator -> function_declarator -> declarator -> identifier
         declarator_node = node.child_by_field_name("declarator")
@@ -41,7 +41,7 @@ class CProcessor(BaseLanguageProcessor):
 
         func_name = ctx.source_bytes[name_node.start_byte : name_node.end_byte].decode("utf8")
 
-        return FunctionDefinition(
+        return Definition(
             name=func_name,
             location=CodeLocation(
                 file_path=ctx.file_path,
@@ -56,7 +56,7 @@ class CProcessor(BaseLanguageProcessor):
         self,
         node: Node,  # 这是一个 call_expression 节点
         ctx: QueryContext,
-    ) -> Optional[FunctionReference]:
+    ) -> Optional[Reference]:
         """处理一个 C-style 的函数调用节点。"""
         name_node = node.child_by_field_name("function")
         if not name_node or name_node.type != "identifier":
@@ -64,7 +64,7 @@ class CProcessor(BaseLanguageProcessor):
 
         func_name = ctx.source_bytes[name_node.start_byte : name_node.end_byte].decode("utf8")
 
-        return FunctionReference(
+        return Reference(
             name=func_name,
             location=CodeLocation(
                 file_path=ctx.file_path,
@@ -99,7 +99,7 @@ class CppProcessor(BaseLanguageProcessor):
         self,
         node: Node,  # 这是一个 function_definition 节点
         ctx: QueryContext,
-    ) -> Optional[FunctionDefinition]:
+    ) -> Optional[Definition]:
         """处理 C++ 的函数定义节点。"""
         assert node.type == "function_definition", f"Expected function_definition, got {node.type}"
 
@@ -113,7 +113,7 @@ class CppProcessor(BaseLanguageProcessor):
 
         func_name = ctx.source_bytes[name_node.start_byte : name_node.end_byte].decode("utf8")
 
-        return FunctionDefinition(
+        return Definition(
             name=func_name,
             location=CodeLocation(
                 file_path=ctx.file_path,
@@ -128,7 +128,7 @@ class CppProcessor(BaseLanguageProcessor):
         self,
         node: Node,
         ctx: QueryContext,
-    ) -> Optional[FunctionDefinition]:
+    ) -> Optional[Definition]:
         if node.type == "function_definition":
             return self._handle_function_definition(node, ctx)
 
@@ -138,7 +138,7 @@ class CppProcessor(BaseLanguageProcessor):
         self,
         node: Node,  # 这是一个 call_expression 节点
         ctx: QueryContext,
-    ) -> Optional[FunctionReference]:
+    ) -> Optional[Reference]:
         """处理 C++ 的函数或方法调用节点。"""
         assert node.type == "call_expression", f"Expected call_expression, got {node.type}"
 
@@ -148,7 +148,7 @@ class CppProcessor(BaseLanguageProcessor):
 
         func_name = ctx.source_bytes[name_node.start_byte : name_node.end_byte].decode("utf8")
 
-        return FunctionReference(
+        return Reference(
             name=func_name,
             location=CodeLocation(
                 file_path=ctx.file_path,
@@ -163,7 +163,7 @@ class CppProcessor(BaseLanguageProcessor):
         self,
         node: Node,  # 这是一个 call_expression 节点
         ctx: QueryContext,
-    ) -> Optional[FunctionReference]:
+    ) -> Optional[Reference]:
         """处理 C++ 的函数或方法调用。"""
         name_node = node.child_by_field_name("function")
         if not name_node:
@@ -171,7 +171,7 @@ class CppProcessor(BaseLanguageProcessor):
 
         if name_node.type == "identifier":
             func_name = ctx.source_bytes[name_node.start_byte : name_node.end_byte].decode("utf8")
-            return FunctionReference(
+            return Reference(
                 name=func_name,
                 location=CodeLocation(
                     file_path=ctx.file_path,

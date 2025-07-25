@@ -3,7 +3,7 @@ from pathlib import Path
 from dataclasses import is_dataclass, asdict
 from typing import Dict
 
-from ..models import FunctionInfo
+from ..models import FunctionLikeInfo
 
 
 class EnhancedJSONEncoder(json.JSONEncoder):
@@ -26,7 +26,7 @@ class EnhancedJSONEncoder(json.JSONEncoder):
         return super().default(o)
 
 
-def dump_index_to_json(index: Dict[str, FunctionInfo], output_path: Path):
+def dump_index_to_json(index: Dict[str, FunctionLikeInfo], output_path: Path):
     """
     将索引数据以 JSON 格式写入文件。
     """

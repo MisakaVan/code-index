@@ -7,7 +7,7 @@ from collections import defaultdict
 
 from tree_sitter import Language, Parser, Node, QueryCursor, Tree
 
-from .models import CodeLocation, FunctionDefinition, FunctionReference, FunctionInfo
+from .models import CodeLocation, Definition, Reference, FunctionLikeInfo
 from .language_processor import LanguageProcessor, language_processor_factory, QueryContext
 from .utils.custom_json import dump_index_to_json
 
@@ -33,7 +33,7 @@ class CodeIndexer:
         self.store_relative_paths = store_relative_paths
 
         # 用于存储索引数据的主数据结构
-        self.index: Dict[str, FunctionInfo] = defaultdict(lambda: FunctionInfo())
+        self.index: Dict[str, FunctionLikeInfo] = defaultdict(lambda: FunctionLikeInfo())
 
     def _get_node_text(self, node: Node, source_bytes: bytes) -> str:
         """从源代码字节中提取节点的文本。"""
@@ -54,7 +54,7 @@ class CodeIndexer:
             result = processor.handle_definition(node, context)
 
             match result:
-                case FunctionDefinition(name, location):
+                case Definition(name, location):
                     self.index[name].definition.append(result)
                 case None:
                     pass
@@ -74,7 +74,7 @@ class CodeIndexer:
             result = processor.handle_reference(node, context)
 
             match result:
-                case FunctionReference(name, location):
+                case Reference(name, location):
                     # 将函数引用添加到索引中
                     self.index[name].references.append(result)
                 case None:
@@ -129,13 +129,13 @@ class CodeIndexer:
             self.index_file(file_path, project_path, self.processor)
         print("Project indexing complete.")
 
-    def find_definitions(self, name: str) -> List[FunctionDefinition]:
+    def find_definitions(self, name: str) -> List[Definition]:
         """按名称查找函数的定义。"""
         if name not in self.index:
             return []
         return self.index[name].definition
 
-    def find_references(self, name: str) -> List[FunctionReference]:
+    def find_references(self, name: str) -> List[Reference]:
         """按名称查找函数的所有引用。"""
         if name not in self.index:
             return []
