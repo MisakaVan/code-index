@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from dataclasses import is_dataclass, asdict
+from dataclasses import is_dataclass, fields
 from typing import Dict
 
 from ..models import FunctionLikeInfo
@@ -20,7 +20,10 @@ class EnhancedJSONEncoder(json.JSONEncoder):
             return str(o)
 
         if is_dataclass(o):
-            return asdict(o)
+            # do not use asdict to avoid recursion issues.
+            dict_data = {f.name: getattr(o, f.name) for f in fields(o)}
+            dict_data["__class__"] = o.__class__.__name__  # for deserializing
+            return dict_data
 
         # 对于其他所有类型，使用默认的编码器
         return super().default(o)
