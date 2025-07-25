@@ -7,7 +7,15 @@ from collections import defaultdict
 
 from tree_sitter import Language, Parser, Node, QueryCursor, Tree
 
-from .models import CodeLocation, Definition, Reference, FunctionLikeInfo
+from .models import (
+    CodeLocation,
+    Definition,
+    Reference,
+    FunctionLikeInfo,
+    FunctionLike,
+    Function,
+    Method,
+)
 from .language_processor import LanguageProcessor, language_processor_factory, QueryContext
 from .utils.custom_json import dump_index_to_json
 
@@ -54,8 +62,10 @@ class CodeIndexer:
             result = processor.handle_definition(node, context)
 
             match result:
-                case Definition(name, location):
-                    self.index[name].definition.append(result)
+                case (Function() as func, Definition() as def_):
+                    self.index[func.name].definition.append(def_)
+                case (Method() as method, Definition() as def_):
+                    self.index[method.name].definition.append(def_)
                 case None:
                     pass
 
@@ -74,9 +84,10 @@ class CodeIndexer:
             result = processor.handle_reference(node, context)
 
             match result:
-                case Reference(name, location):
-                    # 将函数引用添加到索引中
-                    self.index[name].references.append(result)
+                case (Function() as func, Reference() as ref):
+                    self.index[func.name].references.append(ref)
+                case (Method() as method, Reference() as ref):
+                    self.index[method.name].references.append(ref)
                 case None:
                     pass
 

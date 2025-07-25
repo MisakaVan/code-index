@@ -52,13 +52,11 @@ int main() {
     # 验证函数定义
     definitions = indexer.find_definitions("print_message")
     assert len(definitions) == 1
-    assert definitions[0].name == "print_message"
     assert definitions[0].location.start_lineno == 3
 
     # 验证函数引用
     references = indexer.find_references("print_message")
     assert len(references) == 1
-    assert references[0].name == "print_message"
     assert references[0].location.start_lineno == 8
 
 
@@ -95,11 +93,9 @@ int main() {
     # 验证函数定义
     definitions = indexer.find_definitions("log_value")
     assert len(definitions) == 1
-    assert definitions[0].name == "log_value"
     assert definitions[0].location.start_lineno == 3
 
     # 验证函数引用
     references = indexer.find_references("log_value")
     assert len(references) == 1
-    assert references[0].name == "log_value"
     assert references[0].location.start_lineno == 8

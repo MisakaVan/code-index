@@ -45,7 +45,6 @@ class Definition:
     Represents a function definition in the codebase.
     """
 
-    name: str  # The name of the function
     location: CodeLocation
 
 
@@ -55,7 +54,6 @@ class Reference:
     Represents a reference to a function in the codebase.
     """
 
-    name: str  # The name of the function
     location: CodeLocation
 
 

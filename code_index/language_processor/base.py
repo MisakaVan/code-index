@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from tree_sitter import Language, Query, Parser, Node, Tree, QueryCursor
 from tree_sitter_language_pack import get_language
 
-from ..models import Definition, Reference, CodeLocation
+from ..models import Definition, Reference, CodeLocation, FunctionLike
 
 
 @dataclass
@@ -64,7 +64,7 @@ class LanguageProcessor(Protocol):
         self,
         node: Node,
         ctx: QueryContext,
-    ) -> Optional[Definition]:
+    ) -> tuple[FunctionLike, Definition] | None:
         """
         处理函数/方法定义节点，返回一个 Definition 对象。
         如果节点不符合预期格式，返回 None。
@@ -75,7 +75,7 @@ class LanguageProcessor(Protocol):
         self,
         node: Node,
         ctx: QueryContext,
-    ) -> Optional[Reference]:
+    ) -> tuple[FunctionLike, Reference] | None:
         """
         处理函数/方法引用节点，返回一个 Reference 对象。
         如果节点不符合预期格式，返回 None。
@@ -133,7 +133,7 @@ class BaseLanguageProcessor(LanguageProcessor):
         self,
         node: Node,
         ctx: QueryContext,
-    ) -> Optional[Definition]:
+    ) -> tuple[FunctionLike, Definition] | None:
         raise NotImplementedError(
             f"{self.__class__.__name__} must implement handle_definition method."
         )
@@ -142,7 +142,7 @@ class BaseLanguageProcessor(LanguageProcessor):
         self,
         node,
         ctx: QueryContext,
-    ) -> Optional[Reference]:
+    ) -> tuple[FunctionLike, Reference] | None:
         raise NotImplementedError(
             f"{self.__class__.__name__} must implement handle_reference method."
         )
