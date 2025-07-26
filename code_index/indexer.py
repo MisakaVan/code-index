@@ -63,9 +63,9 @@ class CodeIndexer:
 
             match result:
                 case (Function() as func, Definition() as def_):
-                    self.index[func.name].definition.append(def_)
+                    self.index[func.name].definitions.append(def_)
                 case (Method() as method, Definition() as def_):
-                    self.index[method.name].definition.append(def_)
+                    self.index[method.name].definitions.append(def_)
                 case None:
                     pass
 
@@ -144,7 +144,7 @@ class CodeIndexer:
         """按名称查找函数的定义。"""
         if name not in self.index:
             return []
-        return self.index[name].definition
+        return self.index[name].definitions
 
     def find_references(self, name: str) -> List[Reference]:
         """按名称查找函数的所有引用。"""

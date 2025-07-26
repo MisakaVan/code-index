@@ -63,5 +63,5 @@ class FunctionLikeInfo:
     Represents information about a function, including its definition(s) and references.
     """
 
-    definition: list[Definition] = field(default_factory=list)
+    definitions: list[Definition] = field(default_factory=list)
     references: list[Reference] = field(default_factory=list)
