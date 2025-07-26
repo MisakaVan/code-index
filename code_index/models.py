@@ -1,8 +1,11 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .utils.custom_json import register_json_type
 
-@dataclass
+
+@register_json_type
+@dataclass(frozen=True)
 class CodeLocation:
     """
     Represents a location in the codebase.
@@ -15,7 +18,8 @@ class CodeLocation:
     end_col: int
 
 
-@dataclass
+@register_json_type
+@dataclass(frozen=True)
 class Function:
     """
     Represents a function in the codebase.
@@ -24,7 +28,8 @@ class Function:
     name: str  # The name of the function
 
 
-@dataclass
+@register_json_type
+@dataclass(frozen=True)
 class Method:
     """
     Represents a method in the codebase.
@@ -39,6 +44,7 @@ class Method:
 FunctionLike = Function | Method
 
 
+@register_json_type
 @dataclass
 class Definition:
     """
@@ -48,6 +54,7 @@ class Definition:
     location: CodeLocation
 
 
+@register_json_type
 @dataclass
 class Reference:
     """
@@ -57,6 +64,7 @@ class Reference:
     location: CodeLocation
 
 
+@register_json_type
 @dataclass
 class FunctionLikeInfo:
     """
