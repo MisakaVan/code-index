@@ -51,6 +51,10 @@ class BaseIndex(ABC):
         pass
 
     @abstractmethod
+    def __repr__(self) -> str:
+        pass
+
+    @abstractmethod
     def add_definition(self, func_like: FunctionLike, definition: Definition):
         """
         Add a function-like definition to the index.

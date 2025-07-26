@@ -1,6 +1,7 @@
 from pathlib import Path
 from collections import defaultdict
 from typing import Iterable, Dict, override
+from pprint import pformat
 
 from ..models import (
     CodeLocation,
@@ -22,6 +23,10 @@ class SimpleIndex(BaseIndex):
     def __init__(self):
         super().__init__()
         self.data = defaultdict(lambda: FunctionLikeInfo())
+
+    @override
+    def __repr__(self):
+        return f"SimpleIndex(data={pformat(self.data, compact=True)})"
 
     @override
     def add_definition(self, func_like: FunctionLike, definition: Definition):
