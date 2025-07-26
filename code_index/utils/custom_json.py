@@ -57,6 +57,16 @@ def custom_json_decoder(dct: Dict, strict=False) -> object:
         class_name = dct.pop("__class__")
         cls = JSON_TYPE_REGISTRY.get(class_name)
         if cls:
+            # 检查数据类的字段，将应该是Path类型的字符串字段转换为Path对象
+            if is_dataclass(cls):
+                for field_info in fields(cls):
+                    field_name = field_info.name
+                    if (
+                        field_name in dct
+                        and isinstance(dct[field_name], str)
+                        and field_info.type == Path
+                    ):
+                        dct[field_name] = Path(dct[field_name])
             return cls(**dct)
         elif strict:
             raise ValueError(f"Class {class_name} not registered in JSON_TYPE_REGISTRY.")
