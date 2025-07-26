@@ -75,7 +75,7 @@ class SimpleIndex(BaseIndex):
 
     @override
     def __iter__(self) -> Iterable[FunctionLike]:
-        return self.data.keys()
+        return iter(self.data.keys())
 
     @override
     def items(self) -> Iterable[tuple[FunctionLike, FunctionLikeInfo]]:

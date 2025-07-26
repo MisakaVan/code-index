@@ -17,7 +17,9 @@ from .models import (
     Method,
 )
 from .language_processor import LanguageProcessor, language_processor_factory, QueryContext
-from .utils.custom_json import dump_index_to_json
+from .index.base import BaseIndex, PersistStrategy
+from .index.simple_index import SimpleIndex
+from .index.persist_json import SingleJsonFilePersistStrategy
 
 
 class CodeIndexer:
@@ -26,22 +28,30 @@ class CodeIndexer:
     它可以找到函数定义及其所有引用。
     """
 
-    def __init__(self, processor: LanguageProcessor, store_relative_paths: bool = True):
+    def __init__(
+        self,
+        processor: LanguageProcessor,
+        index: Optional[BaseIndex] = None,
+        persist_strategy: Optional[PersistStrategy] = None,
+        store_relative_paths: bool = True,
+    ):
         """
         初始化索引器。
 
         Args:
             processor: LanguageProcessor: 用于解析源代码的语言处理器实例。
+            index: BaseIndex: 用于存储索引数据的索引实例，默认使用 SimpleIndex。
+            persist_strategy: PersistStrategy: 用于持久化索引数据的策略，默认使用 SingleJsonFilePersistStrategy。
             store_relative_paths: bool: 是否存储相对于project_root的路径，默认为 True。否则，索引将使用绝对路径。
         """
         print("Initializing CodeIndexer...")
 
-        self.processor = processor
-
-        self.store_relative_paths = store_relative_paths
-
-        # 用于存储索引数据的主数据结构
-        self.index: Dict[str, FunctionLikeInfo] = defaultdict(lambda: FunctionLikeInfo())
+        self.processor: LanguageProcessor = processor
+        self.index: BaseIndex = index if index is not None else SimpleIndex()
+        self.persist_strategy: PersistStrategy = (
+            persist_strategy if persist_strategy is not None else SingleJsonFilePersistStrategy()
+        )
+        self.store_relative_paths: bool = store_relative_paths
 
     def _get_node_text(self, node: Node, source_bytes: bytes) -> str:
         """从源代码字节中提取节点的文本。"""
@@ -63,9 +73,9 @@ class CodeIndexer:
 
             match result:
                 case (Function() as func, Definition() as def_):
-                    self.index[func.name].definitions.append(def_)
+                    self.index.add_definition(func, def_)
                 case (Method() as method, Definition() as def_):
-                    self.index[method.name].definitions.append(def_)
+                    self.index.add_definition(method, def_)
                 case None:
                     pass
 
@@ -85,9 +95,9 @@ class CodeIndexer:
 
             match result:
                 case (Function() as func, Reference() as ref):
-                    self.index[func.name].references.append(ref)
+                    self.index.add_reference(func, ref)
                 case (Method() as method, Reference() as ref):
-                    self.index[method.name].references.append(ref)
+                    self.index.add_reference(method, ref)
                 case None:
                     pass
 
@@ -128,7 +138,6 @@ class CodeIndexer:
 
     def index_project(self, project_path: Path):
         """
-
         递归地索引一个项目目录下的所有支持的文件。
         """
         print(f"\nStarting to index project at: {project_path}")
@@ -142,21 +151,46 @@ class CodeIndexer:
 
     def find_definitions(self, name: str) -> List[Definition]:
         """按名称查找函数的定义。"""
-        if name not in self.index:
-            return []
-        return self.index[name].definitions
+        # 创建一个临时的Function对象来查找
+        func = Function(name=name)
+        return list(self.index.get_definitions(func))
 
     def find_references(self, name: str) -> List[Reference]:
         """按名称查找函数的所有引用。"""
-        if name not in self.index:
-            return []
-        return self.index[name].references
+        # 创建一个临时的Function对象来查找
+        func = Function(name=name)
+        return list(self.index.get_references(func))
 
     def dump_index(self, output_path: Path):
         """
         将索引数据以 JSON 格式写入文件。
         """
-        dump_index_to_json(self.index, output_path)
+        self.index.persist_to(output_path, self.persist_strategy)
+
+    def load_index(self, input_path: Path):
+        """
+        从文件加载索引数据。
+        """
+        self.index = self.index.__class__.load_from(input_path, self.persist_strategy)
+
+    def get_function_info(self, func_like: FunctionLike) -> Optional[FunctionLikeInfo]:
+        """
+        获取函数或方法的完整信息。
+        """
+        return self.index.get_info(func_like)
+
+    def get_all_functions(self) -> List[FunctionLike]:
+        """
+        获取索引中的所有函数和方法。
+        """
+        return list(self.index.__iter__())
+
+    def clear_index(self):
+        """
+        清空索引数据。
+        """
+        # 重新创建一个新的索引实例
+        self.index = self.index.__class__()
 
 
 # --- 如何使用这个类的示例 ---
@@ -189,7 +223,7 @@ if __name__ == "__main__":
         else:
             print(f"\n❌ No references found for '{func_to_find}'.")
 
-        pprint(indexer.index)
+        pprint(indexer.get_all_functions())
 
         output_file = project_to_index / "index.json"
-        dump_index_to_json(indexer.index, output_file)
+        indexer.dump_index(output_file)
