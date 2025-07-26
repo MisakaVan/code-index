@@ -5,6 +5,7 @@ from typing import Optional, Iterable, Dict, List
 
 from ..models import Definition, Reference, CodeLocation, FunctionLike, Function
 from .base import BaseLanguageProcessor, QueryContext
+from ..utils.logger import logger
 
 
 class PythonProcessor(BaseLanguageProcessor):
@@ -61,7 +62,9 @@ class PythonProcessor(BaseLanguageProcessor):
         # 从 call 节点中找到名为 'function' 的子节点
         name_node = node.child_by_field_name("function")
         if not name_node:
-            print(f"Warning: Expected 'function' node to exist")
+            logger.warning(
+                f"Expected 'function' node to exist in call expression at {ctx.file_path}"
+            )
             return None
         func_name = ctx.source_bytes[name_node.start_byte : name_node.end_byte].decode("utf8")
 

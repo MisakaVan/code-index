@@ -1,7 +1,7 @@
 import os
 import json
 from pathlib import Path
-from pprint import pprint
+from pprint import pformat
 from typing import Dict, List, Optional
 from collections import defaultdict
 
@@ -20,6 +20,7 @@ from .language_processor import LanguageProcessor, language_processor_factory, Q
 from .index.base import BaseIndex, PersistStrategy
 from .index.simple_index import SimpleIndex
 from .index.persist_json import SingleJsonFilePersistStrategy
+from .utils.logger import logger
 
 
 class CodeIndexer:
@@ -44,7 +45,7 @@ class CodeIndexer:
             persist_strategy: PersistStrategy: 用于持久化索引数据的策略，默认使用 SingleJsonFilePersistStrategy。
             store_relative_paths: bool: 是否存储相对于project_root的路径，默认为 True。否则，索引将使用绝对路径。
         """
-        print("Initializing CodeIndexer...")
+        logger.debug("Initializing CodeIndexer...")
 
         self.processor: LanguageProcessor = processor
         self.index: BaseIndex = index if index is not None else SimpleIndex()
@@ -109,11 +110,11 @@ class CodeIndexer:
         即使文件扩展名不在支持的列表中，也会尝试解析。
         """
         if not file_path.is_file():
-            print(f"Skipping non-file path: {file_path}")
+            logger.warning(f"Skipping non-file path: {file_path}")
             return
         if not file_path.suffix in self.processor.extensions:
-            print(
-                f"warning: Unsupported file extension {file_path.suffix} for file {file_path}. Trying to parse anyway."
+            logger.warning(
+                f"Unsupported file extension {file_path.suffix} for file {file_path}. Trying to parse anyway."
             )
 
         if processor is None:
@@ -123,9 +124,9 @@ class CodeIndexer:
         lang_name = processor.name
         try:
             source_bytes = file_path.read_bytes()
-            print(f"Indexing file: {file_path} as {lang_name}")
+            logger.debug(f"Indexing file: {file_path} as {lang_name}")
         except IOError as e:
-            print(f"Error reading file {file_path}: {e}")
+            logger.error(f"Error reading file {file_path}: {e}")
             return
 
         tree = parser.parse(source_bytes)
@@ -140,14 +141,14 @@ class CodeIndexer:
         """
         递归地索引一个项目目录下的所有支持的文件。
         """
-        print(f"\nStarting to index project at: {project_path}")
+        logger.info(f"Starting to index project at: {project_path}")
         for file_path in project_path.rglob("*"):
             if not file_path.is_file():
                 continue
             if not file_path.suffix in self.processor.extensions:
                 continue
             self.index_file(file_path, project_path, self.processor)
-        print("Project indexing complete.")
+        logger.info("Project indexing complete.")
 
     def find_definitions(self, name: str) -> List[Definition]:
         """按名称查找函数的定义。"""
@@ -201,29 +202,29 @@ if __name__ == "__main__":
 
     project_to_index = PROJECT_ROOT / "example" / "c"
     if not os.path.exists(project_to_index):
-        print(f"示例目录 '{project_to_index}' 不存在，请创建一个或修改路径。")
+        logger.error(f"示例目录 '{project_to_index}' 不存在，请创建一个或修改路径。")
     else:
         indexer.index_project(project_to_index)
 
-        print("\n--- 查询结果示例 ---")
+        logger.info("--- 查询结果示例 ---")
 
         func_to_find = "SomeFunction"
 
         definition = indexer.find_definitions(func_to_find)
         if definition:
-            print(f"\n✅ Definition of '{func_to_find}':")
-            pprint(definition)
+            logger.info(f"Definition of '{func_to_find}':\n{pformat(definition)}")
         else:
-            print(f"\n❌ No definition found for '{func_to_find}'.")
+            logger.info(f"No definition found for '{func_to_find}'.")
 
         references = indexer.find_references(func_to_find)
         if references:
-            print(f"\n✅ Found {len(references)} references to '{func_to_find}':")
-            pprint(references)
+            logger.info(
+                f"Found {len(references)} references to '{func_to_find}':\n{pformat(references)}"
+            )
         else:
-            print(f"\n❌ No references found for '{func_to_find}'.")
+            logger.info(f"No references found for '{func_to_find}'.")
 
-        pprint(indexer.get_all_functions())
+        logger.info(f"All functions:\n{pformat(indexer.get_all_functions())}")
 
         output_file = project_to_index / "index.json"
         indexer.dump_index(output_file)

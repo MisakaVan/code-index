@@ -79,7 +79,6 @@ def dump_index_to_json(index: dict, output_path: Path):
     """
     with output_path.open("w", encoding="utf-8") as f:
         json.dump(index, f, indent=2, ensure_ascii=False, cls=EnhancedJSONEncoder)
-    print(f"Index data dumped to {output_path}")
 
 
 def load_index_from_json(input_path: Path, strict=False) -> dict:
@@ -92,5 +91,4 @@ def load_index_from_json(input_path: Path, strict=False) -> dict:
     """
     with input_path.open("r", encoding="utf-8") as f:
         data = json.load(f, object_hook=lambda dct: custom_json_decoder(dct, strict))
-    print(f"Index data loaded from {input_path}")
     return data

@@ -5,6 +5,7 @@ description = "一个用于索引源代码中函数定义和引用的命令行�
 requires-python = ">=3.12"
 
 dependencies = [
+    "loguru>=0.7.3",
     "tree-sitter==0.25.0",
     "tree-sitter-language-pack==0.9.0",
 ]
