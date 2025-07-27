@@ -582,6 +582,31 @@ def another_function():
         # 验证函数调用
         assert "get_obj" in function_names
 
+    def test_python_method_definition(self, python_processor):
+        """测试Python方法定义的解析"""
+        method_def_code = """class MyClass:
+    def method1(self):
+        return "method1"
+        
+    def method2(self, arg1, arg2):
+        return arg1 + arg2
+"""
+        source_bytes = method_def_code.encode("utf-8")
+        tree = python_processor.parser.parse(source_bytes)
+        ctx = QueryContext(file_path=Path("method_def.py"), source_bytes=source_bytes)
+
+        definition_nodes = list(python_processor.get_definition_nodes(tree.root_node))
+        my_class_methods = []
+        for def_node in definition_nodes:
+            result = python_processor.handle_definition(def_node, ctx)
+            if result and isinstance(result[0], Method):
+                my_class_methods.append((result[0].name, result[1].location.start_lineno))
+
+        # 验证方法定义被正确解析
+        assert len(my_class_methods) == 2
+        assert ("method1", 2) in my_class_methods
+        assert ("method2", 5) in my_class_methods
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
