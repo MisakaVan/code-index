@@ -52,12 +52,12 @@ class LanguageProcessor(Protocol):
         """获取用于查找函数/方法引用的查询。"""
         ...
 
-    def get_definition_nodes(self, tree: Tree) -> Iterable[Node]:
-        """从语法树中获取所有定义（函数/方法）的节点。"""
+    def get_definition_nodes(self, node: Node) -> Iterable[Node]:
+        """从语法树节点中获取所有定义（函数/方法）的节点。"""
         ...
 
-    def get_reference_nodes(self, tree: Tree) -> Iterable[Node]:
-        """从语法树中获取所有引用（函数/方法调用）的节点。"""
+    def get_reference_nodes(self, node: Node) -> Iterable[Node]:
+        """从语法树节点中获取所有引用（函数/方法调用）的节点。"""
         ...
 
     def handle_definition(
@@ -119,13 +119,13 @@ class BaseLanguageProcessor(LanguageProcessor):
     def get_reference_query(self) -> Query:
         return self._ref_query
 
-    def get_definition_nodes(self, tree: Tree) -> Iterable[Node]:
-        captures = QueryCursor(self.get_definition_query()).captures(tree.root_node)
+    def get_definition_nodes(self, node: Node) -> Iterable[Node]:
+        captures = QueryCursor(self.get_definition_query()).captures(node)
         func_defs = captures.get("function.definition", [])
         return chain(func_defs)
 
-    def get_reference_nodes(self, tree: Tree) -> Iterable[Node]:
-        captures = QueryCursor(self.get_reference_query()).captures(tree.root_node)
+    def get_reference_nodes(self, node: Node) -> Iterable[Node]:
+        captures = QueryCursor(self.get_reference_query()).captures(node)
         func_calls = captures.get("function.call", [])
         return chain(func_calls)
 

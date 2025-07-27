@@ -96,15 +96,11 @@ class TestLanguageProcessorCommonBehavior:
             ctx = QueryContext(file_path=Path(f"empty{file_ext}"), source_bytes=source_bytes)
 
             # 空文件不应该有任何定义或引用
-            definition_nodes = list(processor.get_definition_nodes(tree))
-            reference_nodes = list(processor.get_reference_nodes(tree))
+            definition_nodes = list(processor.get_definition_nodes(tree.root_node))
+            reference_nodes = list(processor.get_reference_nodes(tree.root_node))
 
-            assert (
-                len(definition_nodes) == 0
-            ), f"{processor.name} processor found definitions in empty file"
-            assert (
-                len(reference_nodes) == 0
-            ), f"{processor.name} processor found references in empty file"
+            assert len(definition_nodes) == 0
+            assert len(reference_nodes) == 0
 
     def test_all_processors_handle_malformed_code_gracefully(self, all_processors):
         """测试所有处理器都能优雅地处理格式错误的代码"""
@@ -123,12 +119,12 @@ class TestLanguageProcessorCommonBehavior:
 
             # 即使代码格式错误，处理器也不应该崩溃
             try:
-                definition_nodes = list(processor.get_definition_nodes(tree))
+                definition_nodes = list(processor.get_definition_nodes(tree.root_node))
                 for node in definition_nodes:
                     result = processor.handle_definition(node, ctx)
                     # 结果可能为None，但不应该抛出异常
 
-                reference_nodes = list(processor.get_reference_nodes(tree))
+                reference_nodes = list(processor.get_reference_nodes(tree.root_node))
                 for node in reference_nodes:
                     result = processor.handle_reference(node, ctx)
                     # 结果可能为None，但不应该抛出异常

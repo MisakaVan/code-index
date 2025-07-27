@@ -69,7 +69,7 @@ class CodeIndexer:
         if processor is None:
             processor = self.processor
         context = QueryContext(file_path=file_path, source_bytes=source_bytes)
-        for node in processor.get_definition_nodes(tree):
+        for node in processor.get_definition_nodes(tree.root_node):
             result = processor.handle_definition(node, context)
 
             match result:
@@ -91,7 +91,7 @@ class CodeIndexer:
         if processor is None:
             processor: LanguageProcessor = self.processor
         context = QueryContext(file_path=file_path, source_bytes=source_bytes)
-        for node in processor.get_reference_nodes(tree):
+        for node in processor.get_reference_nodes(tree.root_node):
             result = processor.handle_reference(node, context)
 
             match result:
