@@ -2,7 +2,7 @@ import pytest
 from pathlib import Path
 from code_index.language_processor.impl_c_cpp import CProcessor, CppProcessor
 from code_index.language_processor.base import QueryContext
-from code_index.models import Function, Definition, Reference
+from code_index.models import Function, Definition, Reference, FunctionLikeRef
 
 
 class TestCProcessor:
@@ -97,6 +97,195 @@ int main() {
                 helper_refs.append(result)
 
         assert len(helper_refs) == 2  # 应该有两个helper_func的调用
+
+    def test_c_processor_with_header_file(self, c_processor):
+        """测试C处理器处理头文件"""
+        header_code = """#ifndef MYHEADER_H
+#define MYHEADER_H
+
+void public_func(void);
+int calculate(int a, int b);
+
+#endif
+"""
+        source_bytes = header_code.encode("utf-8")
+        tree = c_processor.parser.parse(source_bytes)
+
+        ctx = QueryContext(file_path=Path("myheader.h"), source_bytes=source_bytes)
+
+        # 头文件中的函数声明不会被当作定义处理
+        definition_nodes = list(c_processor.get_definition_nodes(tree.root_node))
+        assert len(definition_nodes) == 0  # 头文件中只有声明，没有定义
+
+    def test_c_processor_malformed_code(self, c_processor):
+        """测试C处理器处理格式错误的代码"""
+        malformed_c = b"void func( { // missing parameter and closing brace"
+        tree = c_processor.parser.parse(malformed_c)
+
+        ctx = QueryContext(file_path=Path("malformed.c"), source_bytes=malformed_c)
+
+        # 即使代码格式错误，处理器也不应该崩溃
+        definition_nodes = list(c_processor.get_definition_nodes(tree.root_node))
+        reference_nodes = list(c_processor.get_reference_nodes(tree.root_node))
+
+        # 处理器应该优雅地处理错误，不会崩溃
+        assert isinstance(definition_nodes, list)
+        assert isinstance(reference_nodes, list)
+
+    def test_c_processor_empty_file(self, c_processor):
+        """测试C处理器处理空文件"""
+        source_bytes = b""
+        tree = c_processor.parser.parse(source_bytes)
+
+        ctx = QueryContext(file_path=Path("empty.c"), source_bytes=source_bytes)
+
+        # 空文件不应该有任何定义或引用
+        definition_nodes = list(c_processor.get_definition_nodes(tree.root_node))
+        reference_nodes = list(c_processor.get_reference_nodes(tree.root_node))
+
+        assert len(definition_nodes) == 0
+        assert len(reference_nodes) == 0
+
+    def test_c_function_calls_tracking(self, c_processor):
+        """测试C函数定义中的函数调用追踪功能"""
+        code_with_calls = """#include <stdio.h>
+
+void helper_func(int x) {
+    printf("Helper: %d\\n", x);
+}
+
+void utility_func() {
+    printf("Utility called\\n");
+}
+
+int main() {
+    helper_func(5);
+    helper_func(10);
+    utility_func();
+    printf("Main function\\n");
+    return 0;
+}
+
+void another_func() {
+    main();
+    helper_func(100);
+}
+"""
+        source_bytes = code_with_calls.encode("utf-8")
+        tree = c_processor.parser.parse(source_bytes)
+        ctx = QueryContext(file_path=Path("test_calls.c"), source_bytes=source_bytes)
+
+        # 获取main函数的定义节点
+        definition_nodes = list(c_processor.get_definition_nodes(tree.root_node))
+        main_func_result = None
+        another_func_result = None
+
+        for def_node in definition_nodes:
+            result = c_processor.handle_definition(def_node, ctx)
+            if result and result[0].name == "main":
+                main_func_result = result
+            elif result and result[0].name == "another_func":
+                another_func_result = result
+
+        # 验证main函数被找到并包含调用信息
+        assert main_func_result is not None
+        symbol, definition = main_func_result
+        assert symbol.name == "main"
+        assert (
+            len(definition.calls) == 4
+        )  # helper_func(5), helper_func(10), utility_func(), printf()
+
+        # 验证调用的函数名
+        called_functions = [call.symbol.name for call in definition.calls]
+        assert called_functions.count("helper_func") == 2
+        assert called_functions.count("utility_func") == 1
+        assert called_functions.count("printf") == 1
+
+        # 验证another_func的调用
+        assert another_func_result is not None
+        another_symbol, another_definition = another_func_result
+        assert another_symbol.name == "another_func"
+        assert len(another_definition.calls) == 2  # main(), helper_func(100)
+
+        another_called_functions = [call.symbol.name for call in another_definition.calls]
+        assert "main" in another_called_functions
+        assert "helper_func" in another_called_functions
+
+    def test_c_function_calls_location_accuracy(self, c_processor):
+        """测试C函数调用位置信息的准确性"""
+        location_test_code = """void target_func() {
+    return;
+}
+
+void caller_func() {
+    target_func();  // Line 6
+    // comment
+    target_func();  // Line 8
+}
+"""
+        source_bytes = location_test_code.encode("utf-8")
+        tree = c_processor.parser.parse(source_bytes)
+        ctx = QueryContext(file_path=Path("location_test.c"), source_bytes=source_bytes)
+
+        definition_nodes = list(c_processor.get_definition_nodes(tree.root_node))
+        caller_func_result = None
+
+        for def_node in definition_nodes:
+            result = c_processor.handle_definition(def_node, ctx)
+            if result and result[0].name == "caller_func":
+                caller_func_result = result
+                break
+
+        assert caller_func_result is not None
+        symbol, definition = caller_func_result
+
+        # 找到target_func的调用
+        target_calls = [call for call in definition.calls if call.symbol.name == "target_func"]
+        assert len(target_calls) == 2
+
+        # 验证调用位置
+        call_lines = {call.reference.location.start_lineno for call in target_calls}
+        assert 6 in call_lines
+        assert 8 in call_lines
+
+    def test_c_function_calls_empty_function(self, c_processor):
+        """测试C空函数的调用追踪"""
+        empty_func_code = """void empty_func() {}
+
+void func_with_comment() {
+    /* This function only has comments */
+}
+
+void func_calling_empty() {
+    empty_func();
+    func_with_comment();
+}
+"""
+        source_bytes = empty_func_code.encode("utf-8")
+        tree = c_processor.parser.parse(source_bytes)
+        ctx = QueryContext(file_path=Path("empty_test.c"), source_bytes=source_bytes)
+
+        definition_nodes = list(c_processor.get_definition_nodes(tree.root_node))
+
+        # 查找各个函数的定义
+        results = {}
+        for def_node in definition_nodes:
+            result = c_processor.handle_definition(def_node, ctx)
+            if result:
+                results[result[0].name] = result
+
+        # 验证空函数没有调用
+        assert "empty_func" in results
+        assert len(results["empty_func"][1].calls) == 0
+
+        assert "func_with_comment" in results
+        assert len(results["func_with_comment"][1].calls) == 0
+
+        # 验证调用空函数的函数
+        assert "func_calling_empty" in results
+        calling_func_calls = [call.symbol.name for call in results["func_calling_empty"][1].calls]
+        assert "empty_func" in calling_func_calls
+        assert "func_with_comment" in calling_func_calls
 
     def test_c_processor_with_header_file(self, c_processor):
         """测试C处理器处理头文件"""
@@ -282,6 +471,190 @@ void regular_func() {
 
         assert len(definition_nodes) == 0
         assert len(reference_nodes) == 0
+
+    def test_cpp_function_calls_tracking(self, cpp_processor):
+        """测试C++函数定义中的函数调用追踪功能"""
+        code_with_calls = """#include <iostream>
+using namespace std;
+
+void helper_func(int x) {
+    cout << "Helper: " << x << endl;
+}
+
+void utility_func() {
+    cout << "Utility called" << endl;
+}
+
+int main() {
+    helper_func(5);
+    helper_func(10);
+    utility_func();
+    cout << "Main function" << endl;
+    return 0;
+}
+
+void another_func() {
+    main();
+    helper_func(100);
+}
+"""
+        source_bytes = code_with_calls.encode("utf-8")
+        tree = cpp_processor.parser.parse(source_bytes)
+        ctx = QueryContext(file_path=Path("test_calls.cpp"), source_bytes=source_bytes)
+
+        # 获取main函数的定义节点
+        definition_nodes = list(cpp_processor.get_definition_nodes(tree.root_node))
+        main_func_result = None
+        another_func_result = None
+
+        for def_node in definition_nodes:
+            result = cpp_processor.handle_definition(def_node, ctx)
+            if result and result[0].name == "main":
+                main_func_result = result
+            elif result and result[0].name == "another_func":
+                another_func_result = result
+
+        # 验证main函数被找到并包含调用信息
+        assert main_func_result is not None
+        symbol, definition = main_func_result
+        assert symbol.name == "main"
+        # C++可能有更多的函数调用(包括operator<<等)，所以使用>=
+        assert len(definition.calls) >= 3  # 至少helper_func(5), helper_func(10), utility_func()
+
+        # 验证调用的函数名
+        called_functions = [call.symbol.name for call in definition.calls]
+        assert called_functions.count("helper_func") == 2
+        assert called_functions.count("utility_func") == 1
+
+        # 验证another_func的调用
+        assert another_func_result is not None
+        another_symbol, another_definition = another_func_result
+        assert another_symbol.name == "another_func"
+        assert len(another_definition.calls) >= 2  # 至少main(), helper_func(100)
+
+        another_called_functions = [call.symbol.name for call in another_definition.calls]
+        assert "main" in another_called_functions
+        assert "helper_func" in another_called_functions
+
+    def test_cpp_function_calls_with_method_calls(self, cpp_processor):
+        """测试C++函数调用追踪中的方法调用"""
+        method_calls_code = """class Calculator {
+public:
+    int add(int a, int b) {
+        return a + b;
+    }
+    
+    int multiply(int a, int b) {
+        return a * b;
+    }
+};
+
+void helper_func() {
+    return;
+}
+
+int compute() {
+    Calculator calc;
+    helper_func();
+    return calc.add(5, 3);
+}
+"""
+        source_bytes = method_calls_code.encode("utf-8")
+        tree = cpp_processor.parser.parse(source_bytes)
+        ctx = QueryContext(file_path=Path("method_calls.cpp"), source_bytes=source_bytes)
+
+        definition_nodes = list(cpp_processor.get_definition_nodes(tree.root_node))
+
+        # 查找compute函数的定义
+        compute_result = None
+        for def_node in definition_nodes:
+            result = cpp_processor.handle_definition(def_node, ctx)
+            if result and result[0].name == "compute":
+                compute_result = result
+                break
+
+        assert compute_result is not None
+        symbol, definition = compute_result
+
+        # 验证compute函数调用了helper_func
+        called_functions = [call.symbol.name for call in definition.calls]
+        assert "helper_func" in called_functions
+
+    def test_cpp_function_calls_location_accuracy(self, cpp_processor):
+        """测试C++函数调用位置信息的准确性"""
+        location_test_code = """void target_func() {
+    return;
+}
+
+void caller_func() {
+    target_func();  // Line 6
+    /* comment */
+    target_func();  // Line 8
+}
+"""
+        source_bytes = location_test_code.encode("utf-8")
+        tree = cpp_processor.parser.parse(source_bytes)
+        ctx = QueryContext(file_path=Path("location_test.cpp"), source_bytes=source_bytes)
+
+        definition_nodes = list(cpp_processor.get_definition_nodes(tree.root_node))
+        caller_func_result = None
+
+        for def_node in definition_nodes:
+            result = cpp_processor.handle_definition(def_node, ctx)
+            if result and result[0].name == "caller_func":
+                caller_func_result = result
+                break
+
+        assert caller_func_result is not None
+        symbol, definition = caller_func_result
+
+        # 找到target_func的调用
+        target_calls = [call for call in definition.calls if call.symbol.name == "target_func"]
+        assert len(target_calls) == 2
+
+        # 验证调用位置
+        call_lines = {call.reference.location.start_lineno for call in target_calls}
+        assert 6 in call_lines
+        assert 8 in call_lines
+
+    def test_cpp_function_calls_empty_function(self, cpp_processor):
+        """测试C++空函数的调用追踪"""
+        empty_func_code = """void empty_func() {}
+
+void func_with_comment() {
+    // This function only has comments
+}
+
+void func_calling_empty() {
+    empty_func();
+    func_with_comment();
+}
+"""
+        source_bytes = empty_func_code.encode("utf-8")
+        tree = cpp_processor.parser.parse(source_bytes)
+        ctx = QueryContext(file_path=Path("empty_test.cpp"), source_bytes=source_bytes)
+
+        definition_nodes = list(cpp_processor.get_definition_nodes(tree.root_node))
+
+        # 查找各个函数的定义
+        results = {}
+        for def_node in definition_nodes:
+            result = cpp_processor.handle_definition(def_node, ctx)
+            if result:
+                results[result[0].name] = result
+
+        # 验证空函数没有调用
+        assert "empty_func" in results
+        assert len(results["empty_func"][1].calls) == 0
+
+        assert "func_with_comment" in results
+        assert len(results["func_with_comment"][1].calls) == 0
+
+        # 验证调用空函数的函数
+        assert "func_calling_empty" in results
+        calling_func_calls = [call.symbol.name for call in results["func_calling_empty"][1].calls]
+        assert "empty_func" in calling_func_calls
+        assert "func_with_comment" in calling_func_calls
 
 
 if __name__ == "__main__":

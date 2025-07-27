@@ -3,7 +3,7 @@
 from tree_sitter import Node, Parser, Language, Query, Tree
 from typing import Optional, Iterable, Dict, List
 
-from ..models import Definition, Reference, CodeLocation, FunctionLike, Function
+from ..models import Definition, Reference, CodeLocation, FunctionLike, Function, FunctionLikeRef
 from .base import BaseLanguageProcessor, QueryContext
 
 
@@ -41,6 +41,19 @@ class CProcessor(BaseLanguageProcessor):
 
         func_name = ctx.source_bytes[name_node.start_byte : name_node.end_byte].decode("utf8")
 
+        # 查找函数体内的所有函数调用
+        calls = []
+
+        # 获取函数体节点 (compound_statement)
+        body_node = node.child_by_field_name("body")
+        if body_node:
+            # 在函数体内查找所有函数调用
+            for call_node in self.get_reference_nodes(body_node):
+                call_result = self.handle_reference(call_node, ctx)
+                if call_result:
+                    symbol, reference = call_result
+                    calls.append(FunctionLikeRef(symbol=symbol, reference=reference))
+
         return (
             Function(name=func_name),  # 返回一个 Function 对象
             Definition(
@@ -51,6 +64,7 @@ class CProcessor(BaseLanguageProcessor):
                     end_lineno=node.end_point[0] + 1,
                     end_col=node.end_point[1],
                 ),
+                calls=calls,
             ),
         )
 
@@ -117,6 +131,19 @@ class CppProcessor(BaseLanguageProcessor):
 
         func_name = ctx.source_bytes[name_node.start_byte : name_node.end_byte].decode("utf8")
 
+        # 查找函数体内的所有函数调用
+        calls = []
+
+        # 获取函数体节点 (compound_statement)
+        body_node = node.child_by_field_name("body")
+        if body_node:
+            # 在函数体内查找所有函数调用
+            for call_node in self.get_reference_nodes(body_node):
+                call_result = self.handle_reference(call_node, ctx)
+                if call_result:
+                    symbol, reference = call_result
+                    calls.append(FunctionLikeRef(symbol=symbol, reference=reference))
+
         return (
             Function(name=func_name),
             Definition(
@@ -127,6 +154,7 @@ class CppProcessor(BaseLanguageProcessor):
                     end_lineno=node.end_point[0] + 1,
                     end_col=node.end_point[1],
                 ),
+                calls=calls,
             ),
         )
 
@@ -162,7 +190,7 @@ class CppProcessor(BaseLanguageProcessor):
                     start_lineno=name_node.start_point[0] + 1,
                     start_col=name_node.start_point[1],
                     end_lineno=name_node.end_point[0] + 1,
-                    end_col=name_node.end_point[1],
+                    end_col=node.end_point[1],
                 ),
             ),
         )
