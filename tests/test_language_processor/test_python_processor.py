@@ -2,7 +2,7 @@ import pytest
 from pathlib import Path
 from code_index.language_processor.impl_python import PythonProcessor
 from code_index.language_processor.base import QueryContext
-from code_index.models import Function, Definition, Reference, FunctionLikeRef
+from code_index.models import Function, Definition, Reference, FunctionLikeRef, Method
 
 
 class TestPythonProcessor:
@@ -60,8 +60,8 @@ if __name__ == "__main__":
 
         # 验证找到了预期的函数
         function_names = [func[0] for func in found_functions]
-        assert "helper_func" in function_names
-        assert "main" in function_names
+        assert function_names.count("helper_func") == 1
+        assert function_names.count("main") == 1
 
         # 根据Python查询的实际行为，可能包含类方法，所以我们检查至少包含这两个函数
         assert len(found_functions) >= 2
@@ -234,7 +234,6 @@ def another_func():
         # 验证main_func被找到并包含调用信息
         assert main_func_result is not None
         symbol, definition = main_func_result
-        assert symbol.name == "main_func"
         assert (
             len(definition.calls) == 4
         )  # helper_func(5), helper_func(10), utility_func(), print()
@@ -381,8 +380,207 @@ def func_calling_empty():
         # 验证调用空函数的函数
         assert "func_calling_empty" in results
         calling_func_calls = [call.symbol.name for call in results["func_calling_empty"][1].calls]
-        assert "empty_func" in calling_func_calls
-        assert "func_with_docstring" in calling_func_calls
+        # 使用更严格的检查：确保每个函数只被调用一次
+        assert calling_func_calls.count("empty_func") == 1
+        assert calling_func_calls.count("func_with_docstring") == 1
+        assert len(calling_func_calls) == 2  # 总共应该只有2个调用
+
+    def test_python_method_calls_tracking(self, python_processor):
+        """测试Python方法调用追踪功能"""
+        code_with_method_calls = """def test_function():
+    obj = MyClass()
+    result1 = obj.method1()
+    result2 = obj.method2(arg1, arg2)
+    
+    # 链式调用
+    chained = obj.method1().method2()
+    
+    # 静态方法风格调用
+    static_result = MyClass.static_method()
+    
+    # 普通函数调用
+    func_result = regular_function()
+    
+    return result1
+
+def another_function():
+    obj = SomeClass()
+    obj.do_something()
+    print("done")
+"""
+        source_bytes = code_with_method_calls.encode("utf-8")
+        tree = python_processor.parser.parse(source_bytes)
+        ctx = QueryContext(file_path=Path("method_calls.py"), source_bytes=source_bytes)
+
+        # 获取test_function的定义节点
+        definition_nodes = list(python_processor.get_definition_nodes(tree.root_node))
+        test_func_result = None
+        another_func_result = None
+
+        for def_node in definition_nodes:
+            result = python_processor.handle_definition(def_node, ctx)
+            if result and result[0].name == "test_function":
+                test_func_result = result
+            elif result and result[0].name == "another_function":
+                another_func_result = result
+
+        # 验证test_function被找到并包含调用信息
+        assert test_func_result is not None
+        symbol, definition = test_func_result
+        assert symbol.name == "test_function"
+
+        # 验证调用的函数和方法
+        called_functions = []
+        called_methods = []
+
+        for call in definition.calls:
+            if isinstance(call.symbol, Function):
+                called_functions.append(call.symbol.name)
+            elif isinstance(call.symbol, Method):
+                called_methods.append(call.symbol.name)
+
+        # 验证方法调用
+        assert "method1" in called_methods
+        assert "method2" in called_methods
+        assert "static_method" in called_methods
+        assert (
+            called_methods.count("method1") == 2
+        )  # obj.method1() 和 obj.method1().method2()中的第一个
+        assert called_methods.count("method2") == 2  # obj.method2(arg1, arg2) 和链式调用中的第二个
+
+        # 验证函数调用
+        assert "regular_function" in called_functions
+
+        # 验证another_function的调用
+        assert another_func_result is not None
+        another_symbol, another_definition = another_func_result
+        assert another_symbol.name == "another_function"
+
+        another_called_methods = [
+            call.symbol.name for call in another_definition.calls if isinstance(call.symbol, Method)
+        ]
+        another_called_functions = [
+            call.symbol.name
+            for call in another_definition.calls
+            if isinstance(call.symbol, Function)
+        ]
+
+        assert "do_something" in another_called_methods
+        assert "print" in another_called_functions
+
+    def test_python_method_calls_class_name_none(self, python_processor):
+        """测试方法调用的class_name字段为None"""
+        method_call_code = """def test_func():
+    obj.method()
+    MyClass.static_method()
+    some_var.another_method()
+"""
+        source_bytes = method_call_code.encode("utf-8")
+        tree = python_processor.parser.parse(source_bytes)
+        ctx = QueryContext(file_path=Path("class_name_test.py"), source_bytes=source_bytes)
+
+        definition_nodes = list(python_processor.get_definition_nodes(tree.root_node))
+        test_func_result = None
+
+        for def_node in definition_nodes:
+            result = python_processor.handle_definition(def_node, ctx)
+            if result and result[0].name == "test_func":
+                test_func_result = result
+                break
+
+        assert test_func_result is not None
+        symbol, definition = test_func_result
+
+        # 验证所有方法调用的class_name都为None
+        for call in definition.calls:
+            if isinstance(call.symbol, Method):
+                assert call.symbol.class_name is None
+
+    def test_python_mixed_calls_location_accuracy(self, python_processor):
+        """测试混合调用（函数和方法）位置信息的准确性"""
+        location_test_code = """def caller_func():
+    func_call()        # Line 2 - 函数调用
+    obj.method_call()  # Line 3 - 方法调用
+    another_func()     # Line 4 - 函数调用
+    obj.another_method()  # Line 5 - 方法调用
+"""
+        source_bytes = location_test_code.encode("utf-8")
+        tree = python_processor.parser.parse(source_bytes)
+        ctx = QueryContext(file_path=Path("location_test.py"), source_bytes=source_bytes)
+
+        definition_nodes = list(python_processor.get_definition_nodes(tree.root_node))
+        caller_func_result = None
+
+        for def_node in definition_nodes:
+            result = python_processor.handle_definition(def_node, ctx)
+            if result and result[0].name == "caller_func":
+                caller_func_result = result
+                break
+
+        assert caller_func_result is not None
+        symbol, definition = caller_func_result
+
+        # 验证调用位置
+        function_calls = [call for call in definition.calls if isinstance(call.symbol, Function)]
+        method_calls = [call for call in definition.calls if isinstance(call.symbol, Method)]
+
+        # 验证函数调用位置
+        func_call_lines = {call.reference.location.start_lineno for call in function_calls}
+        assert 2 in func_call_lines  # func_call()
+        assert 4 in func_call_lines  # another_func()
+
+        # 验证方法调用位置
+        method_call_lines = {call.reference.location.start_lineno for call in method_calls}
+        assert 3 in method_call_lines  # obj.method_call()
+        assert 5 in method_call_lines  # obj.another_method()
+
+    def test_python_chained_method_calls(self, python_processor):
+        """测试链式方法调用"""
+        chained_calls_code = """def test_chained():
+    # 简单链式调用
+    result1 = obj.method1().method2()
+    
+    # 复杂链式调用
+    result2 = obj.first().second().third()
+    
+    # 混合链式调用
+    result3 = get_obj().process().finalize()
+"""
+        source_bytes = chained_calls_code.encode("utf-8")
+        tree = python_processor.parser.parse(source_bytes)
+        ctx = QueryContext(file_path=Path("chained_calls.py"), source_bytes=source_bytes)
+
+        definition_nodes = list(python_processor.get_definition_nodes(tree.root_node))
+        test_result = None
+
+        for def_node in definition_nodes:
+            result = python_processor.handle_definition(def_node, ctx)
+            if result and result[0].name == "test_chained":
+                test_result = result
+                break
+
+        assert test_result is not None
+        symbol, definition = test_result
+
+        # 统计方法调用
+        method_names = [
+            call.symbol.name for call in definition.calls if isinstance(call.symbol, Method)
+        ]
+        function_names = [
+            call.symbol.name for call in definition.calls if isinstance(call.symbol, Function)
+        ]
+
+        # 验证方法调用
+        assert "method1" in method_names
+        assert "method2" in method_names
+        assert "first" in method_names
+        assert "second" in method_names
+        assert "third" in method_names
+        assert "process" in method_names
+        assert "finalize" in method_names
+
+        # 验证函数调用
+        assert "get_obj" in function_names
 
 
 if __name__ == "__main__":

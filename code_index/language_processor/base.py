@@ -6,6 +6,7 @@ from tree_sitter import Language, Query, Parser, Node, Tree, QueryCursor
 from tree_sitter_language_pack import get_language
 
 from ..models import Definition, Reference, CodeLocation, FunctionLike
+from ..utils.logger import logger
 
 
 @dataclass
@@ -122,12 +123,18 @@ class BaseLanguageProcessor(LanguageProcessor):
     def get_definition_nodes(self, node: Node) -> Iterable[Node]:
         captures = QueryCursor(self.get_definition_query()).captures(node)
         func_defs = captures.get("function.definition", [])
-        return chain(func_defs)
+        # TODO: expand to support other captures, e.g. "method.definition"
+        method_defs = captures.get("method.definition", [])
+        logger.debug(f"Got {len(func_defs)} function defs and {len(method_defs)} method defs.")
+        return chain(func_defs, method_defs)
 
     def get_reference_nodes(self, node: Node) -> Iterable[Node]:
         captures = QueryCursor(self.get_reference_query()).captures(node)
         func_calls = captures.get("function.call", [])
-        return chain(func_calls)
+        # TODO: expand to support other captures, e.g. "method.call"
+        method_calls = captures.get("method.call", [])
+        logger.debug(f"Got {len(func_calls)} function calls and {len(method_calls)} method calls.")
+        return chain(func_calls, method_calls)
 
     def handle_definition(
         self,
