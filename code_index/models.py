@@ -46,9 +46,9 @@ FunctionLike = Function | Method
 
 @register_json_type
 @dataclass
-class Definition:
+class Reference:
     """
-    Represents a function definition in the codebase.
+    Represents a reference to a function in the codebase.
     """
 
     location: CodeLocation
@@ -56,12 +56,24 @@ class Definition:
 
 @register_json_type
 @dataclass
-class Reference:
+class FunctionLikeRef:
     """
-    Represents a reference to a function in the codebase.
+    Represents a reference to a function-like entity (function or method).
+    """
+
+    symbol: FunctionLike
+    reference: Reference
+
+
+@register_json_type
+@dataclass
+class Definition:
+    """
+    Represents a function definition in the codebase.
     """
 
     location: CodeLocation
+    calls: list[FunctionLikeRef] = field(default_factory=list)
 
 
 @register_json_type

@@ -1,9 +1,9 @@
 # code_index/language_processor/impl_python.py
 
-from tree_sitter import Node, Parser, Language, Query, Tree
+from tree_sitter import Node, Parser, Language, Query, Tree, QueryCursor
 from typing import Optional, Iterable, Dict, List
 
-from ..models import Definition, Reference, CodeLocation, FunctionLike, Function
+from ..models import Definition, Reference, CodeLocation, FunctionLike, Function, FunctionLikeRef
 from .base import BaseLanguageProcessor, QueryContext
 from ..utils.logger import logger
 
@@ -40,6 +40,19 @@ class PythonProcessor(BaseLanguageProcessor):
             return None
         func_name = ctx.source_bytes[name_node.start_byte : name_node.end_byte].decode("utf8")
 
+        # 查找函数体内的所有函数调用
+        calls = []
+
+        # 获取函数体节点
+        body_node = node.child_by_field_name("body")
+        if body_node:
+            # 在函数体内查找所有函数调用
+            for call_node in self.get_reference_nodes(body_node):
+                call_result = self.handle_reference(call_node, ctx)
+                if call_result:
+                    symbol, reference = call_result
+                    calls.append(FunctionLikeRef(symbol=symbol, reference=reference))
+
         return (
             Function(name=func_name),
             Definition(
@@ -51,6 +64,7 @@ class PythonProcessor(BaseLanguageProcessor):
                     end_lineno=node.end_point[0] + 1,
                     end_col=node.end_point[1],
                 ),
+                calls=calls,
             ),
         )
 

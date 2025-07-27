@@ -2,7 +2,7 @@ import pytest
 from pathlib import Path
 from code_index.language_processor.impl_python import PythonProcessor
 from code_index.language_processor.base import QueryContext
-from code_index.models import Function, Definition, Reference
+from code_index.models import Function, Definition, Reference, FunctionLikeRef
 
 
 class TestPythonProcessor:
@@ -194,6 +194,195 @@ def normal_func():
 
         assert len(definition_nodes) == 0
         assert len(reference_nodes) == 0
+
+    def test_python_function_calls_tracking(self, python_processor):
+        """测试Python函数定义中的函数调用追踪功能"""
+        code_with_calls = """def helper_func(x):
+    print(f"Helper: {x}")
+    return x * 2
+
+def utility_func():
+    return "utility"
+
+def main_func():
+    result1 = helper_func(5)
+    result2 = helper_func(10)
+    util = utility_func()
+    print(result1, result2, util)
+    return result1 + result2
+
+def another_func():
+    main_func()
+    helper_func(100)
+"""
+        source_bytes = code_with_calls.encode("utf-8")
+        tree = python_processor.parser.parse(source_bytes)
+        ctx = QueryContext(file_path=Path("test_calls.py"), source_bytes=source_bytes)
+
+        # 获取main_func的定义节点
+        definition_nodes = list(python_processor.get_definition_nodes(tree.root_node))
+        main_func_result = None
+        another_func_result = None
+
+        for def_node in definition_nodes:
+            result = python_processor.handle_definition(def_node, ctx)
+            if result and result[0].name == "main_func":
+                main_func_result = result
+            elif result and result[0].name == "another_func":
+                another_func_result = result
+
+        # 验证main_func被找到并包含调用信息
+        assert main_func_result is not None
+        symbol, definition = main_func_result
+        assert symbol.name == "main_func"
+        assert (
+            len(definition.calls) == 4
+        )  # helper_func(5), helper_func(10), utility_func(), print()
+
+        # 验证调用的函数名
+        called_functions = [call.symbol.name for call in definition.calls]
+        assert called_functions.count("helper_func") == 2
+        assert called_functions.count("utility_func") == 1
+        assert called_functions.count("print") == 1
+
+        # 验证another_func的调用
+        assert another_func_result is not None
+        another_symbol, another_definition = another_func_result
+        assert another_symbol.name == "another_func"
+        assert len(another_definition.calls) == 2  # main_func(), helper_func(100)
+
+        another_called_functions = [call.symbol.name for call in another_definition.calls]
+        assert "main_func" in another_called_functions
+        assert "helper_func" in another_called_functions
+
+    def test_python_function_calls_with_nested_calls(self, python_processor):
+        """测试嵌套函数调用的追踪"""
+        nested_calls_code = """def inner_helper():
+    return "inner"
+
+def outer_func():
+    def nested_func():
+        inner_helper()
+        return "nested"
+    
+    result = nested_func()
+    return result
+
+def top_level():
+    outer_func()
+    inner_helper()
+"""
+        source_bytes = nested_calls_code.encode("utf-8")
+        tree = python_processor.parser.parse(source_bytes)
+        ctx = QueryContext(file_path=Path("nested_calls.py"), source_bytes=source_bytes)
+
+        definition_nodes = list(python_processor.get_definition_nodes(tree.root_node))
+
+        # 查找outer_func和nested_func的定义
+        outer_func_result = None
+        nested_func_result = None
+        top_level_result = None
+
+        for def_node in definition_nodes:
+            result = python_processor.handle_definition(def_node, ctx)
+            if result:
+                if result[0].name == "outer_func":
+                    outer_func_result = result
+                elif result[0].name == "nested_func":
+                    nested_func_result = result
+                elif result[0].name == "top_level":
+                    top_level_result = result
+
+        # 验证outer_func调用了nested_func
+        assert outer_func_result is not None
+        outer_calls = [call.symbol.name for call in outer_func_result[1].calls]
+        assert "nested_func" in outer_calls
+
+        # 验证nested_func调用了inner_helper
+        assert nested_func_result is not None
+        nested_calls = [call.symbol.name for call in nested_func_result[1].calls]
+        assert "inner_helper" in nested_calls
+
+        # 验证top_level调用了outer_func和inner_helper
+        assert top_level_result is not None
+        top_calls = [call.symbol.name for call in top_level_result[1].calls]
+        assert "outer_func" in top_calls
+        assert "inner_helper" in top_calls
+
+    def test_python_function_calls_location_accuracy(self, python_processor):
+        """测试函数调用位置信息的准确性"""
+        location_test_code = """def target_func():
+    return "target"
+
+def caller_func():
+    result1 = target_func()  # Line 5
+    print("middle")
+    result2 = target_func()  # Line 7
+    return result1 + result2
+"""
+        source_bytes = location_test_code.encode("utf-8")
+        tree = python_processor.parser.parse(source_bytes)
+        ctx = QueryContext(file_path=Path("location_test.py"), source_bytes=source_bytes)
+
+        definition_nodes = list(python_processor.get_definition_nodes(tree.root_node))
+        caller_func_result = None
+
+        for def_node in definition_nodes:
+            result = python_processor.handle_definition(def_node, ctx)
+            if result and result[0].name == "caller_func":
+                caller_func_result = result
+                break
+
+        assert caller_func_result is not None
+        symbol, definition = caller_func_result
+
+        # 找到target_func的调用
+        target_calls = [call for call in definition.calls if call.symbol.name == "target_func"]
+        assert len(target_calls) == 2
+
+        # 验证调用位置
+        call_lines = {call.reference.location.start_lineno for call in target_calls}
+        assert 5 in call_lines
+        assert 7 in call_lines
+
+    def test_python_function_calls_empty_function(self, python_processor):
+        """测试空函数的调用追踪"""
+        empty_func_code = """def empty_func():
+    pass
+
+def func_with_docstring():
+    '''This function has only a docstring'''
+    pass
+
+def func_calling_empty():
+    empty_func()
+    func_with_docstring()
+"""
+        source_bytes = empty_func_code.encode("utf-8")
+        tree = python_processor.parser.parse(source_bytes)
+        ctx = QueryContext(file_path=Path("empty_test.py"), source_bytes=source_bytes)
+
+        definition_nodes = list(python_processor.get_definition_nodes(tree.root_node))
+
+        # 查找各个函数的定义
+        results = {}
+        for def_node in definition_nodes:
+            result = python_processor.handle_definition(def_node, ctx)
+            if result:
+                results[result[0].name] = result
+
+        # 验证空函数没有调用
+        assert "empty_func" in results
+        assert len(results["empty_func"][1].calls) == 0
+
+        assert "func_with_docstring" in results
+        assert len(results["func_with_docstring"][1].calls) == 0
+
+        # 验证调用空函数的函数
+        assert "func_calling_empty" in results
+        calling_func_calls = [call.symbol.name for call in results["func_calling_empty"][1].calls]
+        assert "empty_func" in calling_func_calls
+        assert "func_with_docstring" in calling_func_calls
 
 
 if __name__ == "__main__":
