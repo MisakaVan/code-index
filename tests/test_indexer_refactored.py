@@ -5,7 +5,7 @@ from pathlib import Path
 from code_index.indexer import CodeIndexer
 from code_index.index.simple_index import SimpleIndex
 from code_index.index.persist_json import SingleJsonFilePersistStrategy
-from code_index.language_processor.impl_c_cpp import CProcessor
+from code_index.language_processor.impl_c import CProcessor
 from code_index.models import Function, Method
 
 

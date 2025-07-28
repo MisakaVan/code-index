@@ -2,7 +2,8 @@ from typing import Optional
 
 from .base import QueryContext, LanguageProcessor
 from .impl_python import PythonProcessor
-from .impl_c_cpp import CProcessor, CppProcessor
+from .impl_c import CProcessor
+from .impl_cpp import CppProcessor
 
 
 def language_processor_factory(name: str) -> Optional[LanguageProcessor]:

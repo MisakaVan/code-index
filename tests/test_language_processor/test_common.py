@@ -1,6 +1,7 @@
 import pytest
 from pathlib import Path
-from code_index.language_processor.impl_c_cpp import CProcessor, CppProcessor
+from code_index.language_processor.impl_c import CProcessor
+from code_index.language_processor.impl_cpp import CppProcessor
 from code_index.language_processor.impl_python import PythonProcessor
 from code_index.language_processor import language_processor_factory
 from code_index.language_processor.base import QueryContext
