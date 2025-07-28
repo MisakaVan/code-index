@@ -1,7 +1,6 @@
 import pytest
 from pathlib import Path
 
-# 导入我们需要测试的类和我们将要用到的辅���类
 from code_index.indexer import CodeIndexer
 from code_index.language_processor import PythonProcessor
 from code_index.models import Function, Method
@@ -12,21 +11,15 @@ from code_index.models import Function, Method
 
 @pytest.fixture
 def python_processor() -> PythonProcessor:
-    """提供一个 Python 语言处理器实例。"""
     return PythonProcessor()
 
 
 @pytest.fixture
 def indexer(python_processor: PythonProcessor) -> CodeIndexer:
-    """提供一个配置好的代码索引器实例。"""
     return CodeIndexer(processor=python_processor)
 
 
-# --- Python 语言索引器集成测试类 ---
-
-
 class TestPythonIndexer:
-    """Python 代码索引器的集成测试类。"""
 
     def test_standalone_functions(self, indexer: CodeIndexer, tmp_path: Path):
         """测试独立函数的定义和引用索引。"""
@@ -96,38 +89,40 @@ final = calc.calculate(2, 3)  # 方法引用
 
         indexer.index_file(test_file, project_path=tmp_path)
 
+        print(indexer.index)
+
         # 验证 add 方法定义 - 使用 Method 对象查找，带类名
         add_method_with_class = Method(name="add", class_name="Calculator")
         add_definitions = list(indexer.index.get_definitions(add_method_with_class))
-        assert len(add_definitions) >= 1
+        assert len(add_definitions) == 1
         assert add_definitions[0].location.start_lineno == 6
 
         # 验证 add 方法引用 - 方法调用时类名不可见，所以使用 class_name=None
         add_method_without_class = Method(name="add", class_name=None)
         add_references = list(indexer.index.get_references(add_method_without_class))
-        assert len(add_references) >= 1  # 至少有一次引用
+        assert len(add_references) == 2  # 2 次调用
 
         # 验证 multiply 方法定义
         multiply_method_with_class = Method(name="multiply", class_name="Calculator")
         multiply_definitions = list(indexer.index.get_definitions(multiply_method_with_class))
-        assert len(multiply_definitions) >= 1
+        assert len(multiply_definitions) == 1
         assert multiply_definitions[0].location.start_lineno == 9
 
         # 验证 multiply 方法引用
         multiply_method_without_class = Method(name="multiply", class_name=None)
         multiply_references = list(indexer.index.get_references(multiply_method_without_class))
-        assert len(multiply_references) >= 1
+        assert len(multiply_references) == 2
 
         # 验证 calculate 方法定义
         calculate_method_with_class = Method(name="calculate", class_name="Calculator")
         calculate_definitions = list(indexer.index.get_definitions(calculate_method_with_class))
-        assert len(calculate_definitions) >= 1
+        assert len(calculate_definitions) == 1
         assert calculate_definitions[0].location.start_lineno == 12
 
         # 验证 calculate 方法引用
         calculate_method_without_class = Method(name="calculate", class_name=None)
         calculate_references = list(indexer.index.get_references(calculate_method_without_class))
-        assert len(calculate_references) >= 1
+        assert len(calculate_references) == 1
 
     def test_nested_functions(self, indexer: CodeIndexer, tmp_path: Path):
         """测试嵌套函数的定义和引用索引。"""
@@ -219,22 +214,22 @@ main()  # 函数引用
         # 验证方法定义 - 使用带类名的Method对象
         process_method_with_class = Method(name="process", class_name="DataProcessor")
         process_definitions = list(indexer.index.get_definitions(process_method_with_class))
-        assert len(process_definitions) >= 1
+        assert len(process_definitions) == 1
         assert process_definitions[0].location.start_lineno == 9
 
         # 验证方法引用 - 使用不带类名的Method对象
         process_method_without_class = Method(name="process", class_name=None)
         process_references = list(indexer.index.get_references(process_method_without_class))
-        assert len(process_references) >= 1
+        assert len(process_references) == 1
 
         transform_method_with_class = Method(name="transform", class_name="DataProcessor")
         transform_definitions = list(indexer.index.get_definitions(transform_method_with_class))
-        assert len(transform_definitions) >= 1
+        assert len(transform_definitions) == 1
         assert transform_definitions[0].location.start_lineno == 13
 
         transform_method_without_class = Method(name="transform", class_name=None)
         transform_references = list(indexer.index.get_references(transform_method_without_class))
-        assert len(transform_references) >= 1
+        assert len(transform_references) == 1
 
     def test_get_all_functions(self, indexer: CodeIndexer, tmp_path: Path):
         """测试获取所有函数和方法的功能。"""
@@ -392,26 +387,26 @@ obj2.call_method()  # 方法引用
         # 验证 FirstClass 的 common_method 定义
         first_method_with_class = Method(name="common_method", class_name="FirstClass")
         first_definitions = list(indexer.index.get_definitions(first_method_with_class))
-        assert len(first_definitions) >= 1
+        assert len(first_definitions) == 1
 
         # 验证 SecondClass 的 common_method 定义
         second_method_with_class = Method(name="common_method", class_name="SecondClass")
         second_definitions = list(indexer.index.get_definitions(second_method_with_class))
-        assert len(second_definitions) >= 1
+        assert len(second_definitions) == 1
 
         # 验证 call_method 定义
         call_method_with_class = Method(name="call_method", class_name="SecondClass")
         call_definitions = list(indexer.index.get_definitions(call_method_with_class))
-        assert len(call_definitions) >= 1
+        assert len(call_definitions) == 1
 
         # 验证方法引用 - 所有方法调用都使用 class_name=None
         common_method_without_class = Method(name="common_method", class_name=None)
         common_method_references = list(indexer.index.get_references(common_method_without_class))
-        assert len(common_method_references) >= 1  # 应该有多个 common_method 的调用
+        assert len(common_method_references) == 3  # 应该有多个 common_method 的调用
 
         call_method_without_class = Method(name="call_method", class_name=None)
         call_method_references = list(indexer.index.get_references(call_method_without_class))
-        assert len(call_method_references) >= 1
+        assert len(call_method_references) == 1
 
     def test_index_contains_and_items(self, indexer: CodeIndexer, tmp_path: Path):
         """测试索引的 contains 和 items 方法。"""
