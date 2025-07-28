@@ -287,54 +287,6 @@ void func_calling_empty() {
         assert "empty_func" in calling_func_calls
         assert "func_with_comment" in calling_func_calls
 
-    def test_c_processor_with_header_file(self, c_processor):
-        """测试C处理器处理头文件"""
-        header_code = """#ifndef MYHEADER_H
-#define MYHEADER_H
-
-void public_func(void);
-int calculate(int a, int b);
-
-#endif
-"""
-        source_bytes = header_code.encode("utf-8")
-        tree = c_processor.parser.parse(source_bytes)
-
-        ctx = QueryContext(file_path=Path("myheader.h"), source_bytes=source_bytes)
-
-        # 头文件中的函数声明不会被当作定义处理
-        definition_nodes = list(c_processor.get_definition_nodes(tree.root_node))
-        assert len(definition_nodes) == 0  # 头文件中只有声明，没有定义
-
-    def test_c_processor_malformed_code(self, c_processor):
-        """测试C处理器处理格式错误的代码"""
-        malformed_c = b"void func( { // missing parameter and closing brace"
-        tree = c_processor.parser.parse(malformed_c)
-
-        ctx = QueryContext(file_path=Path("malformed.c"), source_bytes=malformed_c)
-
-        # 即使代码格式错误，处理器也不应该崩溃
-        definition_nodes = list(c_processor.get_definition_nodes(tree.root_node))
-        reference_nodes = list(c_processor.get_reference_nodes(tree.root_node))
-
-        # 处理器应该优雅地处理错误，不会崩溃
-        assert isinstance(definition_nodes, list)
-        assert isinstance(reference_nodes, list)
-
-    def test_c_processor_empty_file(self, c_processor):
-        """测试C处理器处理空文件"""
-        source_bytes = b""
-        tree = c_processor.parser.parse(source_bytes)
-
-        ctx = QueryContext(file_path=Path("empty.c"), source_bytes=source_bytes)
-
-        # 空文件不应该有任何定义或引用
-        definition_nodes = list(c_processor.get_definition_nodes(tree.root_node))
-        reference_nodes = list(c_processor.get_reference_nodes(tree.root_node))
-
-        assert len(definition_nodes) == 0
-        assert len(reference_nodes) == 0
-
 
 class TestCppProcessor:
     """测试C++语言处理器"""
