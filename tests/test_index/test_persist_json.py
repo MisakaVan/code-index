@@ -40,10 +40,22 @@ def sample_index_data():
     """创建示例索引数据用于测试"""
     # 创建示例位置
     location1 = CodeLocation(
-        file_path=Path("/test/file1.py"), start_lineno=10, start_col=5, end_lineno=10, end_col=20
+        file_path=Path("/test/file1.py"),
+        start_lineno=10,
+        start_col=5,
+        end_lineno=10,
+        end_col=20,
+        start_byte=100,
+        end_byte=120,
     )
     location2 = CodeLocation(
-        file_path=Path("/test/file2.py"), start_lineno=20, start_col=10, end_lineno=20, end_col=25
+        file_path=Path("/test/file2.py"),
+        start_lineno=20,
+        start_col=10,
+        end_lineno=20,
+        end_col=25,
+        start_byte=150,
+        end_byte=170,
     )
 
     # 创建示例函数
@@ -215,6 +227,8 @@ class TestSingleJsonFilePersistStrategy:
                 start_col=15,
                 end_lineno=100,
                 end_col=30,
+                start_byte=1000,
+                end_byte=1020,
             )
 
             function = Function(name="main_function")
@@ -274,6 +288,8 @@ class TestSingleJsonFilePersistStrategy:
                 start_col=0,
                 end_lineno=55,
                 end_col=10,
+                start_byte=500,
+                end_byte=550,
             )
 
             location2 = CodeLocation(
@@ -282,6 +298,8 @@ class TestSingleJsonFilePersistStrategy:
                 start_col=4,
                 end_lineno=105,
                 end_col=15,
+                start_byte=1000,
+                end_byte=1050,
             )
 
             function = Function(name="utility_function")

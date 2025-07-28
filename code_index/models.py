@@ -16,6 +16,8 @@ class CodeLocation:
     start_col: int
     end_lineno: int
     end_col: int
+    start_byte: int  # Byte offset in the file where the location starts (including)
+    end_byte: int  # Byte offset in the file where the location ends (not including)
 
 
 @register_json_type

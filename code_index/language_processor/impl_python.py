@@ -84,6 +84,8 @@ class PythonProcessor(BaseLanguageProcessor):
                     start_col=node.start_point[1],
                     end_lineno=node.end_point[0] + 1,
                     end_col=node.end_point[1],
+                    start_byte=node.start_byte,
+                    end_byte=node.end_byte,
                 ),
                 calls=calls,
             ),
@@ -138,6 +140,8 @@ class PythonProcessor(BaseLanguageProcessor):
                         start_col=function_node.start_point[1],
                         end_lineno=function_node.end_point[0] + 1,
                         end_col=function_node.end_point[1],
+                        start_byte=function_node.start_byte,
+                        end_byte=function_node.end_byte,
                     ),
                 ),
             )
@@ -173,6 +177,8 @@ class PythonProcessor(BaseLanguageProcessor):
                         start_col=method_name_node.start_point[1],
                         end_lineno=method_name_node.end_point[0] + 1,
                         end_col=method_name_node.end_point[1],
+                        start_byte=method_name_node.start_byte,
+                        end_byte=method_name_node.end_byte,
                     ),
                 ),
             )
