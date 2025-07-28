@@ -1,6 +1,6 @@
 from pathlib import Path
 from collections import defaultdict
-from typing import Iterable, Dict, override
+from typing import Iterable, Dict, override, Iterator
 from pprint import pformat
 
 from ..models import (
@@ -79,7 +79,7 @@ class SimpleIndex(BaseIndex):
         return func_like in self.data
 
     @override
-    def __iter__(self) -> Iterable[FunctionLike]:
+    def __iter__(self) -> Iterator[FunctionLike]:
         return iter(self.data.keys())
 
     @override

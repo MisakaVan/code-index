@@ -1,6 +1,6 @@
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, Iterable
+from typing import Dict, Iterable, Iterator
 from abc import ABC, abstractmethod
 
 from ..models import (
@@ -114,7 +114,7 @@ class BaseIndex(ABC):
         pass
 
     @abstractmethod
-    def __iter__(self) -> Iterable[FunctionLike]:
+    def __iter__(self) -> Iterator[FunctionLike]:
         """
         Iterate over all function-like information in the index.
 
