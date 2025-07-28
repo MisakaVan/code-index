@@ -1,0 +1,28 @@
+exclude: ^(example/|.venv/|code-index.egg-info/)
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer     # 确保文件以一个空行结尾
+      - id: check-yaml            # 检查 YAML 文件语法
+      - id: check-toml            # 检查 TOML 文件语法
+
+  - repo: https://github.com/psf/black
+    rev: 25.1.0
+    hooks:
+      - id: black
+        language_version: python3.12
+
+
+  - repo: local
+    hooks:
+      - id: pytest
+        name: Run Pytest
+        entry: uv run pytest tests
+        language: python
+        # 每次都运行完整的测试套件
+        pass_filenames: false
+        stages: [pre-commit]
+        # 即使没有 .py 文件被修改，也会运行
+        always_run: true

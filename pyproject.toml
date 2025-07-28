@@ -13,15 +13,6 @@ dependencies = [
 [project.scripts]
 code-index = "code_index.__main__:main"
 
-[project.optional-dependencies]
-test = [
-    "pytest"
-]
-
-dev = [
-    "black>=25.1.0",
-]
-
 
 [tool.black]
 # 设置每行的最大长度，100 或 120 是常见选择
@@ -37,3 +28,10 @@ exclude = '''
   | example
 )/
 '''
+
+[dependency-groups]
+dev = [
+    "black>=25.1.0",
+    "pre-commit>=4.2.0",
+    "pytest>=8.4.1",
+]
