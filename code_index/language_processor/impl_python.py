@@ -28,16 +28,8 @@ class PythonProcessor(BaseLanguageProcessor):
             extensions=[".py"],
             def_query_str="""
                 [
-                  ; 捕获类中的方法
-                  (class_definition
-                    body: (block
-                      (function_definition) @method.definition
-                    )
-                  )
-                  ; 捕获独立的函数
                   (
                     (function_definition) @function.definition
-                    (#not-has-ancestor? @function.definition class_definition)
                   )
                 ]
             """,
