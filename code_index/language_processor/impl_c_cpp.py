@@ -1,6 +1,7 @@
 # code_index/language_processor/impl_c_cpp.py
 
 from tree_sitter import Node, Parser, Language, Query, Tree
+from tree_sitter_language_pack import get_language
 from typing import Optional, Iterable, Dict, List
 
 from ..models import Definition, Reference, CodeLocation, FunctionLike, Function, FunctionLikeRef
@@ -15,6 +16,7 @@ class CProcessor(BaseLanguageProcessor):
     def __init__(self):
         super().__init__(
             name="c",
+            language=get_language("c"),
             extensions=[".c", ".h"],
             def_query_str="""
                 (function_definition) @function.definition
@@ -102,6 +104,7 @@ class CppProcessor(BaseLanguageProcessor):
     def __init__(self):
         super().__init__(
             name="cpp",
+            language=get_language("cpp"),
             extensions=[".cpp", ".hpp", ".cc", ".h", ".cxx", ".hxx"],
             def_query_str="""
                 [

@@ -1,6 +1,7 @@
 # code_index/language_processor/impl_python.py
 
 from tree_sitter import Node, Parser, Language, Query, Tree, QueryCursor
+from tree_sitter_language_pack import get_language
 from typing import Optional, Iterable, Dict, List
 
 from ..models import (
@@ -25,6 +26,7 @@ class PythonProcessor(BaseLanguageProcessor):
     def __init__(self):
         super().__init__(
             name="python",
+            language=get_language("python"),
             extensions=[".py"],
             def_query_str="""
                 [

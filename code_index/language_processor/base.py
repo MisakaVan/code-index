@@ -90,10 +90,17 @@ class BaseLanguageProcessor(LanguageProcessor):
     它实现了 LanguageProcessor 协议。
     """
 
-    def __init__(self, name: str, extensions: List[str], def_query_str: str, ref_query_str: str):
-        self._name = name
+    def __init__(
+        self,
+        name: str,
+        language: Language,
+        extensions: List[str],
+        def_query_str: str,
+        ref_query_str: str,
+    ):
+        self._name = name  # language.name is problematic, so set manually
         self._extensions = extensions
-        self._language = get_language(name)
+        self._language = language
         self._parser = Parser(self._language)
         self._def_query = Query(self._language, def_query_str)
         self._ref_query = Query(self._language, ref_query_str)
