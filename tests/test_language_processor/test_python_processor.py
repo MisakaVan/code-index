@@ -49,7 +49,7 @@ if __name__ == "__main__":
         # 获取定义节点
         definition_nodes = list(python_processor.get_definition_nodes(tree.root_node))
         # 应该包括 helper_func, method_func, main
-        assert len(definition_nodes) >= 3
+        assert len(definition_nodes) == 3
 
         # 处理所有定义节点，看看实际找到了什么
         found_functions = []

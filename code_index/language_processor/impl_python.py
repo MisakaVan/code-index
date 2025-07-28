@@ -30,9 +30,7 @@ class PythonProcessor(BaseLanguageProcessor):
             extensions=[".py"],
             def_query_str="""
                 [
-                  (
-                    (function_definition) @function.definition
-                  )
+                  (function_definition) @function.definition
                 ]
             """,
             ref_query_str="""
@@ -74,22 +72,31 @@ class PythonProcessor(BaseLanguageProcessor):
         else:
             symbol = Function(name=func_name)
 
+        # 确定定义的范围：如果父节点是decorated_definition，则从装饰器开始
+        definition_node = self._get_definition_range_node(node)
+
         return (
             symbol,
             Definition(
-                # location 信息直接来自整个 function_definition 节点
                 location=CodeLocation(
                     file_path=ctx.file_path,
-                    start_lineno=node.start_point[0] + 1,
-                    start_col=node.start_point[1],
-                    end_lineno=node.end_point[0] + 1,
-                    end_col=node.end_point[1],
-                    start_byte=node.start_byte,
-                    end_byte=node.end_byte,
+                    start_lineno=definition_node.start_point[0] + 1,
+                    start_col=definition_node.start_point[1],
+                    end_lineno=definition_node.end_point[0] + 1,
+                    end_col=definition_node.end_point[1],
+                    start_byte=definition_node.start_byte,
+                    end_byte=definition_node.end_byte,
                 ),
                 calls=calls,
             ),
         )
+
+    def _get_definition_range_node(self, function_node: Node) -> Node:
+        """获取用于定义范围的节点，如果有装饰器则从装饰器开始"""
+        # 检查父节点是否是decorated_definition
+        if function_node.parent and function_node.parent.type == "decorated_definition":
+            return function_node.parent
+        return function_node
 
     def _is_method_definition(self, node: Node) -> bool:
         """检查函数定义是否在类内部（即是否为方法）"""
@@ -118,7 +125,7 @@ class PythonProcessor(BaseLanguageProcessor):
         node,
         ctx: QueryContext,
     ) -> tuple[FunctionLike, Reference] | None:
-        # 从 call 节点中找到名为 'function' 的子节点
+        # call节点包含function和arguments，我们需要捕获整个call节点的范围
         function_node = node.child_by_field_name("function")
         if not function_node:
             logger.warning(
@@ -131,30 +138,26 @@ class PythonProcessor(BaseLanguageProcessor):
             func_name = ctx.source_bytes[function_node.start_byte : function_node.end_byte].decode(
                 "utf8"
             )
+            # 使用整个call节点的范围，包括函数名、括号和参数
             return (
                 Function(name=func_name),
                 Reference(
                     location=CodeLocation(
                         file_path=ctx.file_path,
-                        start_lineno=function_node.start_point[0] + 1,
-                        start_col=function_node.start_point[1],
-                        end_lineno=function_node.end_point[0] + 1,
-                        end_col=function_node.end_point[1],
-                        start_byte=function_node.start_byte,
-                        end_byte=function_node.end_byte,
+                        start_lineno=node.start_point[0] + 1,
+                        start_col=node.start_point[1],
+                        end_lineno=node.end_point[0] + 1,
+                        end_col=node.end_point[1],
+                        start_byte=node.start_byte,
+                        end_byte=node.end_byte,
                     ),
                 ),
             )
 
         # 处理方法调用 (function: attribute)
         elif function_node.type == "attribute":
-            # attribute节点的结构：object.method
-            # 对于链式调用，可能是嵌套的结构，我们需要找到最后的method名
-
-            # 直接查找attribute节点的最后一个identifier子节点
+            # 找到方法名（attribute节点的最后一个identifier）
             method_name_node = None
-
-            # 倒序遍历子节点，找到最后一个identifier
             for child in reversed(function_node.children):
                 if child.type == "identifier":
                     method_name_node = child
@@ -168,17 +171,18 @@ class PythonProcessor(BaseLanguageProcessor):
                 method_name_node.start_byte : method_name_node.end_byte
             ].decode("utf8")
 
+            # 使用整个call节点的范围，包括对象表达式、点、方法名、括号和参数
             return (
                 Method(name=method_name, class_name=None),  # 按要求设置class_name为None
                 Reference(
                     location=CodeLocation(
                         file_path=ctx.file_path,
-                        start_lineno=method_name_node.start_point[0] + 1,
-                        start_col=method_name_node.start_point[1],
-                        end_lineno=method_name_node.end_point[0] + 1,
-                        end_col=method_name_node.end_point[1],
-                        start_byte=method_name_node.start_byte,
-                        end_byte=method_name_node.end_byte,
+                        start_lineno=node.start_point[0] + 1,
+                        start_col=node.start_point[1],
+                        end_lineno=node.end_point[0] + 1,
+                        end_col=node.end_point[1],
+                        start_byte=node.start_byte,
+                        end_byte=node.end_byte,
                     ),
                 ),
             )
