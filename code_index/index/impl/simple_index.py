@@ -3,7 +3,7 @@ from typing import Iterable, Dict, override, Iterator
 from pprint import pformat
 import re
 
-from ..models import (
+from ...models import (
     Definition,
     Reference,
     FunctionLikeInfo,
@@ -11,8 +11,8 @@ from ..models import (
     Function,
     Method,
 )
-from .base import BaseIndex
-from .code_query import (
+from ..base import BaseIndex
+from ..code_query import (
     CodeQuery,
     CodeQuerySingleResponse,
     QueryByKey,

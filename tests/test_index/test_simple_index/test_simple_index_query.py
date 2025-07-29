@@ -13,7 +13,7 @@ from code_index.models import (
     Function,
     Method,
 )
-from code_index.index.simple_index import SimpleIndex
+from code_index.index.impl.simple_index import SimpleIndex
 from code_index.index.code_query import (
     QueryByKey,
     QueryByName,

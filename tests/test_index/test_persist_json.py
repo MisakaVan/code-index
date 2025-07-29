@@ -1,10 +1,8 @@
 import pytest
 import tempfile
-import json
 from pathlib import Path
-from dataclasses import dataclass, field
 
-from code_index.index.persist_json import SingleJsonFilePersistStrategy
+from code_index.index.persist.persist_json import SingleJsonFilePersistStrategy
 from code_index.models import (
     CodeLocation,
     Definition,

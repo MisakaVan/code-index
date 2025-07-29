@@ -1,14 +1,11 @@
 import os
-import json
 from pathlib import Path
 from pprint import pformat
-from typing import Dict, List, Optional
-from collections import defaultdict
+from typing import List, Optional
 
-from tree_sitter import Language, Parser, Node, QueryCursor, Tree
+from tree_sitter import Node, Tree
 
 from .models import (
-    CodeLocation,
     Definition,
     Reference,
     FunctionLikeInfo,
@@ -18,8 +15,8 @@ from .models import (
 )
 from .language_processor import LanguageProcessor, language_processor_factory, QueryContext
 from .index.base import BaseIndex, PersistStrategy
-from .index.simple_index import SimpleIndex
-from .index.persist_json import SingleJsonFilePersistStrategy
+from .index.impl.simple_index import SimpleIndex
+from .index.persist.persist_json import SingleJsonFilePersistStrategy
 from .utils.logger import logger
 
 

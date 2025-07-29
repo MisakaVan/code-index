@@ -1,8 +1,8 @@
 from pathlib import Path
 import json
 
-from .base import BaseIndex, PersistStrategy
-from ..models import (
+from ..base import BaseIndex, PersistStrategy
+from ...models import (
     CodeLocation,
     Definition,
     Reference,
@@ -11,7 +11,7 @@ from ..models import (
     Function,
     Method,
 )
-from ..utils.custom_json import dump_index_to_json, load_index_from_json
+from ...utils.custom_json import dump_index_to_json, load_index_from_json
 
 
 class SingleJsonFilePersistStrategy(PersistStrategy):

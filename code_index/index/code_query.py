@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 import re
 
-from ..models import FunctionLike, FunctionLikeInfo
+from code_index.models import FunctionLike, FunctionLikeInfo
 
 
 @dataclass(frozen=True)
