@@ -87,3 +87,25 @@ class FunctionLikeInfo:
 
     definitions: list[Definition] = field(default_factory=list)
     references: list[Reference] = field(default_factory=list)
+
+
+@register_json_type
+@dataclass
+class IndexDataEntry:
+    """
+    Represents a single entry in the index data.
+    """
+
+    symbol: FunctionLike
+    info: FunctionLikeInfo
+
+
+@register_json_type
+@dataclass
+class IndexData:
+    """
+    Represents the index data in an serializable format.
+    """
+
+    type: str
+    data: list[IndexDataEntry] = field(default_factory=list)

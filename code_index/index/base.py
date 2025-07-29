@@ -11,6 +11,7 @@ from ..models import (
     FunctionLike,
     Function,
     Method,
+    IndexData,
 )
 from .code_query import CodeQuery, CodeQuerySingleResponse
 
@@ -172,7 +173,7 @@ class BaseIndex(ABC):
         pass
 
     @abstractmethod
-    def as_data(self) -> dict:
+    def as_data(self) -> IndexData:
         """
         Convert the index data to a dictionary format.
 
@@ -181,7 +182,7 @@ class BaseIndex(ABC):
         pass
 
     @abstractmethod
-    def update_from_data(self, data: dict):
+    def update_from_data(self, data: IndexData):
         """
         Update the index with data from a dictionary.
 

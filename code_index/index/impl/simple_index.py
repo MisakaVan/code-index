@@ -10,6 +10,8 @@ from ...models import (
     FunctionLike,
     Function,
     Method,
+    IndexData,
+    IndexDataEntry,
 )
 from ..base import BaseIndex
 from ..code_query import (
@@ -99,27 +101,19 @@ class SimpleIndex(BaseIndex):
             self[func_like] = info  # may raise KeyError if type is incorrect
 
     @override
-    def as_data(self) -> dict:
+    def as_data(self) -> IndexData:
         listed_data = []
         for func_like, info in self.items():
-            listed_data.append(
-                {
-                    "symbol": func_like,
-                    "info": info,
-                }
-            )
-        return {
-            "type": "simple_index",
-            "data": listed_data,
-        }
+            listed_data.append(IndexDataEntry(symbol=func_like, info=info))
+        return IndexData(data=listed_data, type="simple_index")
 
     @override
-    def update_from_data(self, data: dict):
-        if data.get("type") != "simple_index":
+    def update_from_data(self, data: IndexData):
+        if data.type != "simple_index":
             raise ValueError("Invalid data type for SimpleIndex.")
-        for item in data.get("data", []):
-            symbol = item["symbol"]
-            info = item["info"]
+        for item in data.data:
+            symbol = item.symbol
+            info = item.info
             self[symbol] = info
 
     @staticmethod
