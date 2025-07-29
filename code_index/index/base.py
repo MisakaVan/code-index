@@ -12,6 +12,7 @@ from ..models import (
     Function,
     Method,
 )
+from .code_query import CodeQuery, CodeQuerySingleResponse
 
 
 class PersistStrategy(ABC):
@@ -209,3 +210,12 @@ class BaseIndex(ABC):
         index = cls()
         index.update_from_data(loaded_data)
         return index
+
+    @abstractmethod
+    def handle_query(self, query: CodeQuery) -> Iterable[CodeQuerySingleResponse]:
+        """
+        Handle a query against the index.
+
+        :param query: The query to execute against the index.
+        :return: An iterable of CodeQuerySingleResponse containing results.
+        """

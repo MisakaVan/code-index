@@ -1,10 +1,9 @@
-from pathlib import Path
 from collections import defaultdict
 from typing import Iterable, Dict, override, Iterator
 from pprint import pformat
+import re
 
 from ..models import (
-    CodeLocation,
     Definition,
     Reference,
     FunctionLikeInfo,
@@ -12,7 +11,15 @@ from ..models import (
     Function,
     Method,
 )
-from .base import BaseIndex, PersistStrategy
+from .base import BaseIndex
+from .code_query import (
+    CodeQuery,
+    CodeQuerySingleResponse,
+    QueryByKey,
+    QueryByName,
+    QueryByNameRegex,
+    FilterOption,
+)
 
 
 class SimpleIndex(BaseIndex):
@@ -114,3 +121,53 @@ class SimpleIndex(BaseIndex):
             symbol = item["symbol"]
             info = item["info"]
             self[symbol] = info
+
+    @staticmethod
+    def _type_filterer(func_like: FunctionLike, filter_option: FilterOption) -> bool:
+        match filter_option, func_like:
+            case FilterOption.ALL, _:
+                return True
+            case FilterOption.FUNCTION, Function():
+                return True
+            case FilterOption.METHOD, Method():
+                return True
+            case _:
+                return False
+
+    def handle_query(self, query: CodeQuery) -> Iterable[CodeQuerySingleResponse]:
+        match query:
+            case QueryByKey(func_like):
+                info = self.get_info(func_like)
+                if info is None:
+                    return []
+                return [CodeQuerySingleResponse(func_like=func_like, info=info)]
+            case QueryByName(name=name, type_filter=filter_option):
+                func_likes = filter(
+                    lambda fl: fl.name == name and self._type_filterer(fl, filter_option),
+                    self.data.keys(),
+                )
+                ret = []
+                for func_like in func_likes:
+                    info = self.get_info(func_like)
+                    assert info is not None, f"Info for {func_like} should not be None"
+                    ret.append(CodeQuerySingleResponse(func_like=func_like, info=info))
+                return ret
+            case QueryByNameRegex(name_regex=name_regex, type_filter=filter_option):
+                try:
+                    pattern = re.compile(name_regex)
+                except re.error as e:
+                    raise ValueError(f"Invalid regex pattern '{name_regex}': {e}")
+
+                func_likes = filter(
+                    lambda fl: pattern.search(fl.name) and self._type_filterer(fl, filter_option),
+                    self.data.keys(),
+                )
+                ret = []
+                for func_like in func_likes:
+                    info = self.get_info(func_like)
+                    assert info is not None, f"Info for {func_like} should not be None"
+                    ret.append(CodeQuerySingleResponse(func_like=func_like, info=info))
+                return ret
+            case _:
+                # Unsupported query type
+                raise ValueError(f"Unsupported query type: {type(query)}")
