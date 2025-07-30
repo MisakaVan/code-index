@@ -1,5 +1,6 @@
 from pathlib import Path
 import json
+from typing import Any
 
 from ..base import BaseIndex, PersistStrategy
 from ...models import IndexData
@@ -14,11 +15,11 @@ class SingleJsonFilePersistStrategy(PersistStrategy):
     def __init__(self):
         super().__init__()
 
-    def save(self, data: IndexData, path: Path):
+    def save(self, data: Any, path: Path):
         """
         将索引数据保存到单个 JSON 文件。
 
-        :param data: 要保存的索引数据字典
+        :param data: 要保存的索引数据对象。可以是注册的 dataclass 或者其他可 JSON 序列化的对象
         :param path: 保存文件的路径
         :raises ValueError: 当路径是目录而不是文件时
         :raises FileNotFoundError: 当父目录不存在时
@@ -44,7 +45,7 @@ class SingleJsonFilePersistStrategy(PersistStrategy):
         except Exception as e:
             raise RuntimeError(f"保存索引数据到文件 {path} 时出错：{e}")
 
-    def load(self, path: Path) -> IndexData:
+    def load(self, path: Path) -> Any:
         """
         从单个 JSON 文件加载索引数据。
 
