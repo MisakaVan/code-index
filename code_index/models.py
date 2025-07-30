@@ -3,6 +3,19 @@ from pathlib import Path
 
 from .utils.custom_json import register_json_type
 
+__all__ = [
+    "CodeLocation",
+    "Function",
+    "Method",
+    "FunctionLike",
+    "FunctionLikeRef",
+    "Reference",
+    "Definition",
+    "FunctionLikeInfo",
+    "IndexDataEntry",
+    "IndexData",
+]
+
 
 @register_json_type
 @dataclass(frozen=True)
