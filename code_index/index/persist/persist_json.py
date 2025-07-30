@@ -2,15 +2,7 @@ from pathlib import Path
 import json
 
 from ..base import BaseIndex, PersistStrategy
-from ...models import (
-    CodeLocation,
-    Definition,
-    Reference,
-    FunctionLikeInfo,
-    FunctionLike,
-    Function,
-    Method,
-)
+from ...models import IndexData
 from ...utils.custom_json import dump_index_to_json, load_index_from_json
 
 
@@ -22,7 +14,7 @@ class SingleJsonFilePersistStrategy(PersistStrategy):
     def __init__(self):
         super().__init__()
 
-    def save(self, data: dict, path: Path):
+    def save(self, data: IndexData, path: Path):
         """
         将索引数据保存到单个 JSON 文件。
 
@@ -52,7 +44,7 @@ class SingleJsonFilePersistStrategy(PersistStrategy):
         except Exception as e:
             raise RuntimeError(f"保存索引数据到文件 {path} 时出错：{e}")
 
-    def load(self, path: Path) -> dict:
+    def load(self, path: Path) -> IndexData:
         """
         从单个 JSON 文件加载索引数据。
 

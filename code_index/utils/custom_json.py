@@ -80,7 +80,7 @@ def dump_index_to_json(index: dict, output_path: Path):
         json.dump(index, f, indent=2, ensure_ascii=False, cls=EnhancedJSONEncoder)
 
 
-def load_index_from_json(input_path: Path, strict=False) -> dict:
+def load_index_from_json(input_path: Path, strict=False):
     """
     从 JSON 文件加载索引数据。
 

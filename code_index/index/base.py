@@ -23,7 +23,7 @@ class PersistStrategy(ABC):
     """
 
     @abstractmethod
-    def save(self, data: dict, path: Path):
+    def save(self, data: IndexData, path: Path):
         """
         Save the index data to a specified path.
 
@@ -33,7 +33,7 @@ class PersistStrategy(ABC):
         pass
 
     @abstractmethod
-    def load(self, path: Path) -> dict:
+    def load(self, path: Path) -> IndexData:
         """
         Load the index data from a specified path.
 
