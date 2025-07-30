@@ -1,4 +1,5 @@
 from pathlib import Path
+from pprint import pprint
 from typing import List, Type, TypeVar
 from enum import StrEnum
 
@@ -31,6 +32,7 @@ from ...models import (
     Reference,
     IndexDataEntry,
     Definition,
+    FunctionLikeRef,
 )
 from ..base import IndexData, PersistStrategy
 
@@ -324,8 +326,122 @@ class SqlitePersistStrategy(PersistStrategy):
         finally:
             session.close()
 
+    @staticmethod
+    def _make_function_like(symbol_db: OrmSymbol) -> FunctionLike:
+        """
+        根据 OrmSymbol 创建 FunctionLike 对象。
+        """
+        if symbol_db.symbol_type == SymbolType.FUNCTION:
+            return Function(name=symbol_db.name)
+        elif symbol_db.symbol_type == SymbolType.METHOD:
+            return Method(name=symbol_db.name, class_name=symbol_db.class_name)
+        else:
+            raise ValueError(f"Unsupported symbol type: {symbol_db.symbol_type}")
+
+    def _handle_load_reference(self, session: Session, ref_db: OrmReference) -> Reference:
+        loc_db = ref_db.location
+        location = CodeLocation(
+            file_path=Path(loc_db.file_path),
+            start_lineno=loc_db.start_lineno,
+            start_col=loc_db.start_col,
+            end_lineno=loc_db.end_lineno,
+            end_col=loc_db.end_col,
+            start_byte=loc_db.start_byte,
+            end_byte=loc_db.end_byte,
+        )
+        return Reference(location=location)
+
+    def _handle_load_definition(self, session: Session, def_db: OrmDefinition) -> Definition:
+        # get the location for this definition
+        loc_db = def_db.location
+        location = CodeLocation(
+            file_path=Path(loc_db.file_path),
+            start_lineno=loc_db.start_lineno,
+            start_col=loc_db.start_col,
+            end_lineno=loc_db.end_lineno,
+            end_col=loc_db.end_col,
+            start_byte=loc_db.start_byte,
+            end_byte=loc_db.end_byte,
+        )
+        # handle what this definition calls
+        calls: list[FunctionLikeRef] = []
+        for ref_db in def_db.internal_references:
+            calls.append(
+                FunctionLikeRef(
+                    symbol=self._make_function_like(ref_db.symbol),
+                    reference=self._handle_load_reference(session, ref_db),
+                )
+            )
+        # create the definition object
+        return Definition(
+            location=location,
+            calls=calls,
+        )
+
+    def _handle_load_info_for_symbol(
+        self, session: Session, symbol_db: OrmSymbol
+    ) -> FunctionLikeInfo:
+        # get the definitions for this symbol
+        definitions = []
+        for def_db in symbol_db.definitions:
+            definition = self._handle_load_definition(session, def_db)
+            definitions.append(definition)
+
+        # get the references for this symbol
+        references = []
+        for ref_db in symbol_db.references:
+            reference = self._handle_load_reference(session, ref_db)
+            references.append(reference)
+
+        # create the FunctionLikeInfo object
+        return FunctionLikeInfo(
+            definitions=definitions,
+            references=references,
+        )
+
+    def _load(self, session: Session) -> IndexData:
+        """
+        从 SQLAlchemy 会话中加载索引数据。
+
+        :param session: SQLAlchemy 会话对象
+        :return: IndexData 对象
+        """
+        metadata = session.query(OrmMetadata).one_or_none()
+        if metadata is None:
+            raise ValueError("数据库中没有找到索引元数据。")
+
+        index_type: str = metadata.index_type  # type: ignore
+
+        symbols = session.query(OrmSymbol).all()
+        entries = []
+        for symbol in symbols:
+            entries.append(
+                IndexDataEntry(
+                    symbol=self._make_function_like(symbol),
+                    info=self._handle_load_info_for_symbol(session, symbol),
+                )
+            )
+
+        return IndexData(type=index_type, data=entries)
+
     def load(self, path: Path) -> IndexData:
-        pass
+        """
+        从 SQLite 数据库加载索引数据。
+
+        :param path: SQLite 数据库文件的路径
+        :return: IndexData 对象
+        """
+        engine = self.get_engine(path)
+        logger.debug("Created engine at {}", path)
+        session_maker = sessionmaker(bind=engine)
+        session = session_maker()
+
+        try:
+            return self._load(session)
+        except Exception as e:
+            raise RuntimeError(f"从 SQLite 数据库加载索引数据时出错：{e}")
+        finally:
+            session.close()
 
 
 def demo_orm():
@@ -337,6 +453,7 @@ def demo_orm():
     session_maker = sessionmaker(bind=engine)
     session = session_maker()
     # --- 创建一些示例数据 ---
+    session.add(OrmMetadata(index_type="demo_index"))
     # 1. 创建符号
     main_func_symbol = OrmSymbol(name="main", symbol_type=SymbolType.FUNCTION)
     helper_func_symbol = OrmSymbol(name="helper_func", symbol_type=SymbolType.FUNCTION)
@@ -390,6 +507,18 @@ def demo_orm():
     for ref in retrieved_main_def.internal_references:
         print(f"  - '{ref.symbol.name}' (位于行 {ref.location.start_lineno})")
     session.close()
+
+    # 读取数据
+    persist_strategy = SqlitePersistStrategy()
+    load_session = session_maker()
+    try:
+        index_data = persist_strategy._load(load_session)
+        print("--- 读取索引数据 ---")
+        pprint(index_data)
+    except Exception as e:
+        print(f"读取索引数据时出错: {e}")
+    finally:
+        load_session.close()
 
 
 # --- 4. 示例：如何使用这些模型 ---

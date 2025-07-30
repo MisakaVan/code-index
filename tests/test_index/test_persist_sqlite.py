@@ -198,3 +198,97 @@ class TestSqlitePersistStrategy:
 
             finally:
                 session.close()
+
+    def test_save_and_load_data(self, sample_index_data: IndexData):
+        """测试保存和加载数据的完整流程，验证数据的一致性"""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "test_index.sqlite"
+            strategy = SqlitePersistStrategy()
+            strategy.save(sample_index_data, path)
+            assert path.exists()
+
+            loaded_data = strategy.load(path)
+            assert loaded_data.type == sample_index_data.type
+            assert len(loaded_data.data) == len(sample_index_data.data)
+
+            # 将数据转换为字典，以便比较（不考虑顺序）
+            def entry_to_dict(entry: IndexDataEntry) -> dict:
+                """将 IndexDataEntry 转换为字典用于比较"""
+                symbol_dict = {
+                    "type": type(entry.symbol).__name__,
+                    "name": entry.symbol.name,
+                }
+                if hasattr(entry.symbol, "class_name"):
+                    symbol_dict["class_name"] = entry.symbol.class_name
+
+                def location_to_dict(loc: CodeLocation) -> dict:
+                    return {
+                        "file_path": str(loc.file_path),
+                        "start_lineno": loc.start_lineno,
+                        "start_col": loc.start_col,
+                        "end_lineno": loc.end_lineno,
+                        "end_col": loc.end_col,
+                        "start_byte": loc.start_byte,
+                        "end_byte": loc.end_byte,
+                    }
+
+                def reference_to_dict(ref: Reference) -> dict:
+                    return {"location": location_to_dict(ref.location)}
+
+                def func_like_ref_to_dict(func_ref: FunctionLikeRef) -> dict:
+                    ref_symbol_dict = {
+                        "type": type(func_ref.symbol).__name__,
+                        "name": func_ref.symbol.name,
+                    }
+                    if hasattr(func_ref.symbol, "class_name"):
+                        ref_symbol_dict["class_name"] = func_ref.symbol.class_name
+
+                    return {
+                        "symbol": ref_symbol_dict,
+                        "reference": reference_to_dict(func_ref.reference),
+                    }
+
+                def definition_to_dict(defn: Definition) -> dict:
+                    return {
+                        "location": location_to_dict(defn.location),
+                        "calls": sorted(
+                            [func_like_ref_to_dict(call) for call in defn.calls],
+                            key=lambda x: (x["symbol"]["name"], x["symbol"]["type"]),
+                        ),
+                    }
+
+                return {
+                    "symbol": symbol_dict,
+                    "info": {
+                        "definitions": sorted(
+                            [definition_to_dict(defn) for defn in entry.info.definitions],
+                            key=lambda x: (
+                                x["location"]["file_path"],
+                                x["location"]["start_lineno"],
+                            ),
+                        ),
+                        "references": sorted(
+                            [reference_to_dict(ref) for ref in entry.info.references],
+                            key=lambda x: (
+                                x["location"]["file_path"],
+                                x["location"]["start_lineno"],
+                            ),
+                        ),
+                    },
+                }
+
+            # 转换原始数据和加载数据为字典
+            original_entries = sorted(
+                [entry_to_dict(entry) for entry in sample_index_data.data],
+                key=lambda x: (x["symbol"]["name"], x["symbol"]["type"]),
+            )
+            loaded_entries = sorted(
+                [entry_to_dict(entry) for entry in loaded_data.data],
+                key=lambda x: (x["symbol"]["name"], x["symbol"]["type"]),
+            )
+
+            # 逐个比较条目
+            for i, (original, loaded) in enumerate(zip(original_entries, loaded_entries)):
+                assert (
+                    original == loaded
+                ), f"Entry {i} mismatch:\nOriginal: {original}\nLoaded: {loaded}"
