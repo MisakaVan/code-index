@@ -31,7 +31,7 @@ def locations() -> list[CodeLocation]:
             start_byte=i * 10,
             end_byte=i * 10 + 100,
         )
-        for i in range(1, 11)
+        for i in range(1, 51)
     ]
 
 
@@ -131,6 +131,55 @@ def sample_index_data(
     )
 
 
+@pytest.fixture
+def sample_index_integration_data(
+    locations: list[CodeLocation],
+) -> IndexData:
+    """
+    Generate a sample index data via a integrated approach.
+    Uses a real SimpleIndex instance to create the data.
+    """
+    from code_index.index.impl.simple_index import SimpleIndex
+
+    index = SimpleIndex()
+
+    # insert 10 symbols, each with 2 references
+    for i in range(1, 11):
+        func = Function(name=f"func_{i}")
+        index.add_reference(
+            func,
+            Reference(
+                location=locations[i],  # 1 through 10
+            ),
+        )
+        index.add_reference(
+            func,
+            Reference(
+                location=locations[i + 10],  # 11 through 20
+            ),
+        )
+
+        # each function references all previous functions via definitions
+        definition_calls = []
+        for j in range(1, i):
+            prev_func = Function(name=f"func_{j}")
+            definition_calls.append(
+                FunctionLikeRef(
+                    symbol=prev_func,
+                    reference=Reference(location=locations[j]),  # 1 through 10
+                )
+            )
+        index.add_definition(
+            func,
+            Definition(
+                location=locations[i + 20],  # 21 through 30
+                calls=definition_calls,
+            ),
+        )
+
+    return index.as_data()
+
+
 # @pytest.mark.skip("WIP")
 class TestSqlitePersistStrategy:
     def test_save_simple_data(self, locations: list[CodeLocation], sample_index_data: IndexData):
@@ -216,4 +265,24 @@ class TestSqlitePersistStrategy:
             # 使用工具函数进行深度比较，不考虑列表顺序
             assert_index_data_equal(
                 loaded_data, sample_index_data, "Loaded data does not match original data"
+            )
+
+    def test_save_integration_data(self, sample_index_integration_data: IndexData):
+        """测试保存集成数据的完整流程，验证数据的一致性"""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "test_index_integration.sqlite"
+            strategy = SqlitePersistStrategy()
+
+            # 保存数据
+            strategy.save(sample_index_integration_data, path)
+            assert path.exists()
+
+            # 加载数据
+            loaded_data = strategy.load(path)
+
+            # 使用工具函数进行深度比较，不考虑列表顺序
+            assert_index_data_equal(
+                loaded_data,
+                sample_index_integration_data,
+                "Loaded integration data does not match original data",
             )
