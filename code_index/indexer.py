@@ -18,9 +18,19 @@ from .utils.logger import logger
 
 
 class CodeIndexer:
-    """
-    一个使用 tree-sitter 解析源代码并建立索引的类。
-    它可以找到函数定义及其所有引用。
+    """A repository-level source code indexer for analyzing and indexing code symbols.
+
+    This class provides functionality to parse source code files using tree-sitter
+    and create an index of function and method definitions and references. It supports
+    multiple programming languages through configurable language processors.
+
+    The indexer can process individual files or entire project directories, extracting
+    symbol information and storing it in a configurable index backend for later
+    retrieval and analysis.
+
+    Attributes:
+        processor: The language processor used for parsing source code.
+        index: The index backend for storing and retrieving symbol information.
     """
 
     def __init__(
@@ -29,13 +39,22 @@ class CodeIndexer:
         index: Optional[BaseIndex] = None,
         store_relative_paths: bool = True,
     ):
-        """
-        初始化索引器。
+        """Initializes the CodeIndexer with the specified configuration.
 
         Args:
-            processor: LanguageProcessor: 用于解析源代码的语言处理器实例。
-            index: BaseIndex: 用于存储索引数据的索引实例，默认使用 SimpleIndex。
-            store_relative_paths: bool: 是否存储相对于project_root的路径，默认为 True。否则，索引将使用绝对路径。
+            processor: The language processor instance used to parse source code files.
+                This processor defines which programming language(s) will be supported
+                and how the parsing will be performed.
+            index: The index backend for storing symbol information. If None, defaults
+                to SimpleIndex. This allows for different storage strategies (in-memory,
+                database, etc.).
+            store_relative_paths: Whether to store file paths relative to the project
+                root directory. If True (default), paths are stored relative to the
+                project root. If False, absolute paths are used.
+
+        Note:
+            The processor's supported file extensions determine which files will be
+            processed during indexing operations.
         """
         logger.debug("Initializing CodeIndexer...")
 
@@ -44,6 +63,12 @@ class CodeIndexer:
         self._store_relative_paths: bool = store_relative_paths
 
     def __str__(self):
+        """Returns a string representation of the CodeIndexer instance.
+
+        Returns:
+            A formatted string containing the processor, index, and configuration
+            details of this CodeIndexer instance.
+        """
         return (
             f"CodeIndexer(processor={self._processor.__str__()}, "
             f"index={self._index.__str__()}, "
@@ -52,10 +77,20 @@ class CodeIndexer:
 
     @property
     def processor(self) -> LanguageProcessor:
+        """Gets the language processor used by this indexer.
+
+        Returns:
+            The LanguageProcessor instance configured for this indexer.
+        """
         return self._processor
 
     @property
     def index(self):
+        """Gets the index backend used by this indexer.
+
+        Returns:
+            The BaseIndex instance used for storing and retrieving symbol information.
+        """
         return self._index
 
     def _process_definitions(
@@ -63,9 +98,26 @@ class CodeIndexer:
         tree: Tree,
         source_bytes: bytes,
         file_path: Path,
-        processor: Optional[LanguageProcessor] = None,
+        processor: LanguageProcessor | None = None,
     ):
-        """处理文件中的所有函数定义。"""
+        """Processes and indexes all function and method definitions in a parsed AST.
+
+        This method extracts function and method definitions from the abstract syntax
+        tree and adds them to the index. It handles both standalone functions and
+        class methods.
+
+        Args:
+            tree: The parsed abstract syntax tree from tree-sitter.
+            source_bytes: The raw source code as bytes, used for extracting
+                symbol text and position information.
+            file_path: The path to the source file being processed.
+            processor: Optional language processor to use. If None, uses the
+                indexer's default processor.
+
+        Note:
+            This is an internal method that processes definition nodes identified
+            by the language processor and adds them to the index storage.
+        """
         if processor is None:
             processor = self._processor
         context = QueryContext(file_path=file_path, source_bytes=source_bytes)
@@ -85,9 +137,26 @@ class CodeIndexer:
         tree: Tree,
         source_bytes: bytes,
         file_path: Path,
-        processor: Optional[LanguageProcessor] = None,
+        processor: LanguageProcessor | None = None,
     ):
-        """处理文件中的所有函数引用。"""
+        """Processes and indexes all function and method references in a parsed AST.
+
+        This method extracts function and method call sites from the abstract syntax
+        tree and adds them to the index. It identifies where functions and methods
+        are being invoked or referenced in the code.
+
+        Args:
+            tree: The parsed abstract syntax tree from tree-sitter.
+            source_bytes: The raw source code as bytes, used for extracting
+                reference text and position information.
+            file_path: The path to the source file being processed.
+            processor: Optional language processor to use. If None, uses the
+                indexer's default processor.
+
+        Note:
+            This is an internal method that processes reference nodes identified
+            by the language processor and adds them to the index storage.
+        """
         if processor is None:
             processor: LanguageProcessor = self._processor
         context = QueryContext(file_path=file_path, source_bytes=source_bytes)
@@ -105,9 +174,28 @@ class CodeIndexer:
     def index_file(
         self, file_path: Path, project_path: Path, processor: Optional[LanguageProcessor] = None
     ):
-        """
-        解析并索引单个文件。
-        即使文件扩展名不在支持的列表中，也会尝试解析。
+        """Parses and indexes a single source code file.
+
+        This method processes a single file, extracting function and method definitions
+        and references. It will attempt to parse files even if their extension is not
+        in the processor's supported extension list, logging a warning in such cases.
+
+        Args:
+            file_path: The path to the source file to be indexed. Must be a valid file.
+            project_path: The root path of the project, used for calculating relative
+                paths when store_relative_paths is True.
+            processor: Optional language processor to use for this file. If None,
+                uses the indexer's default processor.
+
+        Note:
+            If the file cannot be read due to I/O errors, the operation will be
+            skipped with an error log. Non-file paths are also skipped with a warning.
+
+        Example:
+            ```python
+            indexer = CodeIndexer(python_processor)
+            indexer.index_file(Path("src/main.py"), Path("src/"))
+            ```
         """
         if not file_path.is_file():
             logger.warning(f"Skipping non-file path: {file_path}")
@@ -138,8 +226,26 @@ class CodeIndexer:
         self._process_references(tree, source_bytes, file_path, self._processor)
 
     def index_project(self, project_path: Path):
-        """
-        递归地索引一个项目目录下的所有支持的文件。
+        """Recursively indexes all supported files in a project directory.
+
+        This method walks through the entire project directory tree and indexes
+        all files with extensions supported by the configured language processor.
+        Only files matching the processor's supported extensions are processed.
+
+        Args:
+            project_path: The root directory path of the project to be indexed.
+                All subdirectories will be recursively processed.
+
+        Note:
+            Files with unsupported extensions are automatically skipped.
+            The indexing progress is logged at info level with start and
+            completion messages.
+
+        Example:
+            ```python
+            indexer = CodeIndexer(python_processor)
+            indexer.index_project(Path("/path/to/project"))
+            ```
         """
         logger.info(f"Starting to index project at: {project_path}")
         for file_path in project_path.rglob("*"):
@@ -151,44 +257,169 @@ class CodeIndexer:
         logger.info("Project indexing complete.")
 
     def find_definitions(self, name: str) -> List[Definition]:
-        """按名称查找函数的定义。"""
+        """Finds all definitions of functions or methods with the given name.
+
+        Searches the index for all definition locations of functions or methods
+        that match the specified name. This includes both standalone functions
+        and class methods.
+
+        Args:
+            name: The name of the function or method to search for.
+
+        Returns:
+            A list of Definition objects containing location and context information
+            for each found definition. Returns an empty list if no definitions are found.
+
+        Example:
+            ```python
+            definitions = indexer.find_definitions("calculate_total")
+            for defn in definitions:
+                print(f"Found definition at {defn.file_path}:{defn.line}")
+            ```
+        """
         # 创建一个临时的Function对象来查找
         func = Function(name=name)
         return list(self._index.get_definitions(func))
 
     def find_references(self, name: str) -> List[Reference]:
-        """按名称查找函数的所有引用。"""
+        """Finds all references to functions or methods with the given name.
+
+        Searches the index for all locations where functions or methods with the
+        specified name are called or referenced. This includes function calls,
+        method invocations, and other forms of symbol references.
+
+        Args:
+            name: The name of the function or method to search for.
+
+        Returns:
+            A list of Reference objects containing location and context information
+            for each found reference. Returns an empty list if no references are found.
+
+        Example:
+            ```python
+            references = indexer.find_references("calculate_total")
+            for ref in references:
+                print(f"Found reference at {ref.file_path}:{ref.line}")
+            ```
+        """
         # 创建一个临时的Function对象来查找
         func = Function(name=name)
         return list(self._index.get_references(func))
 
     def dump_index(self, output_path: Path, persist_strategy: PersistStrategy):
-        """
-        将索引数据以 JSON 格式写入文件。
+        """Persists the current index data to a file using the specified strategy.
+
+        Saves all indexed symbol information to persistent storage. The format
+        and structure of the saved data depends on the persistence strategy used.
+
+        Args:
+            output_path: The file path where the index data should be saved.
+            persist_strategy: The persistence strategy that defines how the data
+                should be serialized and stored (e.g., JSON, SQLite, etc.).
+
+        Raises:
+            IOError: If the file cannot be written due to permission or disk issues.
+
+        Example:
+            ```python
+            from code_index.index.persist import JSONPersistStrategy
+            indexer.dump_index(Path("index.json"), JSONPersistStrategy())
+            ```
         """
         self.index.persist_to(output_path, persist_strategy)
 
     def load_index(self, input_path: Path, persist_strategy: PersistStrategy):
-        """
-        从文件加载索引数据。
+        """Loads index data from a file using the specified strategy.
+
+        Replaces the current index with data loaded from persistent storage.
+        The format and structure of the loaded data depends on the persistence
+        strategy used, which should match the strategy used when saving.
+
+        Args:
+            input_path: The file path from which to load the index data.
+            persist_strategy: The persistence strategy that defines how the data
+                should be deserialized and loaded (e.g., JSON, SQLite, etc.).
+
+        Raises:
+            IOError: If the file cannot be read due to permission or existence issues.
+            ValueError: If the file format is invalid or incompatible.
+
+        Note:
+            This operation completely replaces the current index. Any unsaved
+            indexing work will be lost.
+
+        Example:
+            ```python
+            from code_index.index.persist import JSONPersistStrategy
+            indexer.load_index(Path("index.json"), JSONPersistStrategy())
+            ```
         """
         self._index = self.index.__class__.load_from(input_path, persist_strategy)
 
     def get_function_info(self, func_like: FunctionLike) -> Optional[FunctionLikeInfo]:
-        """
-        获取函数或方法的完整信息。
+        """Retrieves comprehensive information about a specific function or method.
+
+        Gets detailed information about a function or method, including its
+        definitions, references, and other metadata stored in the index.
+
+        Args:
+            func_like: A FunctionLike object (Function or Method) representing
+                the symbol to retrieve information for.
+
+        Returns:
+            A FunctionLikeInfo object containing comprehensive information about
+            the symbol, including all its definitions and references. Returns None
+            if the symbol is not found in the index.
+
+        Example:
+            ```python
+            func = Function(name="calculate_total")
+            info = indexer.get_function_info(func)
+            if info:
+                print(f"Function has {len(info.definitions)} definitions")
+                print(f"Function has {len(info.references)} references")
+            ```
         """
         return self._index.get_info(func_like)
 
     def get_all_functions(self) -> List[FunctionLike]:
-        """
-        获取索引中的所有函数和方法。
+        """Retrieves all functions and methods stored in the index.
+
+        Returns a list of all FunctionLike objects (Functions and Methods) that
+        have been indexed. This provides a complete overview of all symbols
+        tracked by the indexer.
+
+        Returns:
+            A list of FunctionLike objects representing all indexed functions
+            and methods. Returns an empty list if no symbols have been indexed.
+
+        Example:
+            ```python
+            all_functions = indexer.get_all_functions()
+            print(f"Index contains {len(all_functions)} functions/methods")
+            for func in all_functions:
+                print(f"- {func.name}")
+            ```
         """
         return list(self._index.__iter__())
 
     def clear_index(self):
-        """
-        清空索引数据。
+        """Clears all indexed data and resets the index to an empty state.
+
+        Removes all definitions, references, and other symbol information from
+        the index. This operation cannot be undone unless the index data has
+        been previously saved using dump_index().
+
+        Note:
+            This creates a new instance of the same index class, ensuring a
+            completely clean state while maintaining the same index configuration.
+
+        Example:
+            ```python
+            indexer.clear_index()
+            print(f"Index now contains {len(indexer.get_all_functions())} functions")
+            # Output: Index now contains 0 functions
+            ```
         """
         # 重新创建一个新的索引实例
         self._index = self._index.__class__()
