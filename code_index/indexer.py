@@ -39,16 +39,14 @@ class CodeIndexer:
         Args:
             processor: LanguageProcessor: 用于解析源代码的语言处理器实例。
             index: BaseIndex: 用于存储索引数据的索引实例，默认使用 SimpleIndex。
-            persist_strategy: PersistStrategy: 用于持久化索引数据的策略，默认使用 SingleJsonFilePersistStrategy。
+            persist_strategy: PersistStrategy: 用于持久化索引数据的策略，默认为 None。
             store_relative_paths: bool: 是否存储相对于project_root的路径，默认为 True。否则，索引将使用绝对路径。
         """
         logger.debug("Initializing CodeIndexer...")
 
         self.processor: LanguageProcessor = processor
         self.index: BaseIndex = index if index is not None else SimpleIndex()
-        self.persist_strategy: PersistStrategy = (
-            persist_strategy if persist_strategy is not None else SingleJsonFilePersistStrategy()
-        )
+        self.persist_strategy: PersistStrategy | None = persist_strategy
         self.store_relative_paths: bool = store_relative_paths
 
     def _get_node_text(self, node: Node, source_bytes: bytes) -> str:
@@ -189,6 +187,13 @@ class CodeIndexer:
         """
         # 重新创建一个新的索引实例
         self.index = self.index.__class__()
+
+    def set_persist_strategy(self, persist_strategy: PersistStrategy):
+        """
+        设置索引的持久化策略。
+        """
+        self.persist_strategy = persist_strategy
+        logger.debug(f"Persist strategy set to: {self.persist_strategy}")
 
 
 # --- 如何使用这个类的示例 ---
