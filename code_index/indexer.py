@@ -39,16 +39,20 @@ class CodeIndexer:
         """
         logger.debug("Initializing CodeIndexer...")
 
-        self.processor: LanguageProcessor = processor
+        self._processor: LanguageProcessor = processor
         self._index: BaseIndex = index if index is not None else SimpleIndex()
-        self.store_relative_paths: bool = store_relative_paths
+        self._store_relative_paths: bool = store_relative_paths
 
     def __str__(self):
         return (
-            f"CodeIndexer(processor={self.processor.__str__()}, "
+            f"CodeIndexer(processor={self._processor.__str__()}, "
             f"index={self._index.__str__()}, "
-            f"store_relative_paths={self.store_relative_paths})"
+            f"store_relative_paths={self._store_relative_paths})"
         )
+
+    @property
+    def processor(self) -> LanguageProcessor:
+        return self._processor
 
     @property
     def index(self):
@@ -67,7 +71,7 @@ class CodeIndexer:
     ):
         """处理文件中的所有函数定义。"""
         if processor is None:
-            processor = self.processor
+            processor = self._processor
         context = QueryContext(file_path=file_path, source_bytes=source_bytes)
         for node in processor.get_definition_nodes(tree.root_node):
             result = processor.handle_definition(node, context)
@@ -89,7 +93,7 @@ class CodeIndexer:
     ):
         """处理文件中的所有函数引用。"""
         if processor is None:
-            processor: LanguageProcessor = self.processor
+            processor: LanguageProcessor = self._processor
         context = QueryContext(file_path=file_path, source_bytes=source_bytes)
         for node in processor.get_reference_nodes(tree.root_node):
             result = processor.handle_reference(node, context)
@@ -112,13 +116,13 @@ class CodeIndexer:
         if not file_path.is_file():
             logger.warning(f"Skipping non-file path: {file_path}")
             return
-        if not file_path.suffix in self.processor.extensions:
+        if not file_path.suffix in self._processor.extensions:
             logger.warning(
                 f"Unsupported file extension {file_path.suffix} for file {file_path}. Trying to parse anyway."
             )
 
         if processor is None:
-            processor = self.processor
+            processor = self._processor
 
         parser = processor.parser
         lang_name = processor.name
@@ -131,11 +135,11 @@ class CodeIndexer:
 
         tree = parser.parse(source_bytes)
 
-        if self.store_relative_paths:
+        if self._store_relative_paths:
             file_path = file_path.relative_to(project_path)
 
-        self._process_definitions(tree, source_bytes, file_path, self.processor)
-        self._process_references(tree, source_bytes, file_path, self.processor)
+        self._process_definitions(tree, source_bytes, file_path, self._processor)
+        self._process_references(tree, source_bytes, file_path, self._processor)
 
     def index_project(self, project_path: Path):
         """
@@ -145,9 +149,9 @@ class CodeIndexer:
         for file_path in project_path.rglob("*"):
             if not file_path.is_file():
                 continue
-            if not file_path.suffix in self.processor.extensions:
+            if not file_path.suffix in self._processor.extensions:
                 continue
-            self.index_file(file_path, project_path, self.processor)
+            self.index_file(file_path, project_path, self._processor)
         logger.info("Project indexing complete.")
 
     def find_definitions(self, name: str) -> List[Definition]:
