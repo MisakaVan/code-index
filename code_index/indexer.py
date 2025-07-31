@@ -47,7 +47,6 @@ class CodeIndexer:
         return (
             f"CodeIndexer(processor={self.processor.__str__()}, "
             f"index={self._index.__str__()}, "
-            f"persist_strategy={self.persist_strategy}, "
             f"store_relative_paths={self.store_relative_paths})"
         )
 
