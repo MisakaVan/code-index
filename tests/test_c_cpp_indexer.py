@@ -1,5 +1,4 @@
 from pathlib import Path
-from pprint import pprint
 
 import pytest
 
@@ -88,8 +87,6 @@ int main() {
     # 2. 初始化索引器并处理文件
     indexer = CodeIndexer(processor=cpp_processor)
     indexer.index_file(test_file, project_path=tmp_path)
-
-    pprint(indexer.index.as_data())
 
     # 3. 断言和验证
     # 验证函数定义
