@@ -29,8 +29,8 @@ jobs:
       run: |
         uv sync --group doc
         cd docs
-        uv run make html
-        
+        uv run sphinx-build -a -v ./source ./build
+
     - name: Setup Pages
       uses: actions/configure-pages@v4
       
