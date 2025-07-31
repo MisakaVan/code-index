@@ -8,6 +8,12 @@ repos:
       - id: check-yaml            # 检查 YAML 文件语法
       - id: check-toml            # 检查 TOML 文件语法
 
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.8.4
+    hooks:
+      - id: uv-sync
+        args: ["--locked", "--all-packages", "--group", "dev"]
+
   - repo: https://github.com/psf/black
     rev: 25.1.0
     hooks:
