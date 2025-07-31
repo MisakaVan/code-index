@@ -1,13 +1,11 @@
-import os
 from pathlib import Path
-from pprint import pformat
 from typing import List, Optional
 
 from tree_sitter import Node, Tree
 
 from .index.base import BaseIndex, PersistStrategy
 from .index.impl.simple_index import SimpleIndex
-from .language_processor import LanguageProcessor, language_processor_factory, QueryContext
+from .language_processor import LanguageProcessor, QueryContext
 from .models import (
     Definition,
     Reference,
@@ -195,39 +193,3 @@ class CodeIndexer:
         """
         # 重新创建一个新的索引实例
         self._index = self._index.__class__()
-
-
-# --- 如何使用这个类的示例 ---
-if __name__ == "__main__":
-    from .config import PROJECT_ROOT
-
-    indexer = CodeIndexer(language_processor_factory("c"))
-
-    project_to_index = PROJECT_ROOT / "example" / "c"
-    if not os.path.exists(project_to_index):
-        logger.error(f"示例目录 '{project_to_index}' 不存在，请创建一个或修改路径。")
-    else:
-        indexer.index_project(project_to_index)
-
-        logger.info("--- 查询结果示例 ---")
-
-        func_to_find = "SomeFunction"
-
-        definition = indexer.find_definitions(func_to_find)
-        if definition:
-            logger.info(f"Definition of '{func_to_find}':\n{pformat(definition)}")
-        else:
-            logger.info(f"No definition found for '{func_to_find}'.")
-
-        references = indexer.find_references(func_to_find)
-        if references:
-            logger.info(
-                f"Found {len(references)} references to '{func_to_find}':\n{pformat(references)}"
-            )
-        else:
-            logger.info(f"No references found for '{func_to_find}'.")
-
-        logger.info(f"All functions:\n{pformat(indexer.get_all_functions())}")
-
-        output_file = project_to_index / "index.json"
-        indexer.dump_index(output_file)
