@@ -162,6 +162,5 @@ class SimpleIndex(BaseIndex):
                     assert info is not None, f"Info for {func_like} should not be None"
                     ret.append(CodeQuerySingleResponse(func_like=func_like, info=info))
                 return ret
-            case _:
-                # Unsupported query type
-                raise ValueError(f"Unsupported query type: {type(query)}")
+
+        raise ValueError(f"Unsupported query type: {type(query)}")

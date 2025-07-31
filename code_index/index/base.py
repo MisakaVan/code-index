@@ -216,3 +216,4 @@ class BaseIndex(ABC):
         :param query: The query to execute against the index.
         :return: An iterable of CodeQuerySingleResponse containing results.
         """
+        pass

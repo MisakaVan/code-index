@@ -70,12 +70,12 @@ def normalize_index_data_for_comparison(data: IndexData) -> Dict[str, Any]:
     if "data" in normalized and isinstance(normalized["data"], list):
         normalized["data"] = sorted(
             normalized["data"],
-            key=lambda entry: (
-                entry.get("symbol", {}).get("name", ""),
+            key=lambda e: (
+                e.get("symbol", {}).get("name", ""),
                 (
-                    entry.get("symbol", {}).get("__class__", {}).get("__name__", "")
-                    if isinstance(entry.get("symbol"), dict)
-                    else str(type(entry.get("symbol", "")).__name__)
+                    e.get("symbol", {}).get("__class__", {}).get("__name__", "")
+                    if isinstance(e.get("symbol"), dict)
+                    else str(type(e.get("symbol", "")).__name__)
                 ),
             ),
         )

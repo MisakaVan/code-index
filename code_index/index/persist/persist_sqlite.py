@@ -338,7 +338,7 @@ class SqlitePersistStrategy(PersistStrategy):
         else:
             raise ValueError(f"Unsupported symbol type: {symbol_db.symbol_type}")
 
-    def _handle_load_reference(self, session: Session, ref_db: OrmReference) -> Reference:
+    def _handle_load_reference(self, _session: Session, ref_db: OrmReference) -> Reference:
         loc_db = ref_db.location
         location = CodeLocation(
             file_path=Path(loc_db.file_path),
@@ -412,7 +412,7 @@ class SqlitePersistStrategy(PersistStrategy):
 
         index_type: str = metadata.index_type  # type: ignore
 
-        symbols = session.query(OrmSymbol).all()
+        symbols = session.scalars(select(OrmSymbol)).all()
         entries = []
         for symbol in symbols:
             entries.append(

@@ -1,7 +1,7 @@
 import json
 from dataclasses import is_dataclass, fields
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Type, TypeVar, Any
 
 
 class EnhancedJSONEncoder(json.JSONEncoder):
@@ -27,10 +27,12 @@ class EnhancedJSONEncoder(json.JSONEncoder):
         return super().default(o)
 
 
-JSON_TYPE_REGISTRY: Dict[str, type] = {}
+T = TypeVar("T")
+
+JSON_TYPE_REGISTRY: Dict[str, Type[Any]] = {}
 
 
-def register_json_type(cls: type):
+def register_json_type(cls: Type[T]) -> Type[T]:
     """
     注册一个类型到 JSON 编码器，以便在序列化时能够正确处理。
 
@@ -68,6 +70,7 @@ def custom_json_decoder(dct: Dict, strict=False) -> object:
                     and field_info.type == Path
                 ):
                     dct[field_name] = Path(dct[field_name])
+            # noinspection PyArgumentList
             return cls(**dct)
     return dct  # 返回原始字典，如果没有匹配的类
 
