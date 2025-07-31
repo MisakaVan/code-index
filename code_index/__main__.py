@@ -91,7 +91,7 @@ def main():
     logger.info(f"索引完成。共索引了 {len(indexer.index)} 个符号。")
 
     try:
-        indexer.index.persist_to(args.output, SingleJsonFilePersistStrategy())
+        indexer.index.persist_to(args.output, persist_strategy)
     except Exception as e:
         logger.error(f"导出索引失败。{e}")
         exit(1)
