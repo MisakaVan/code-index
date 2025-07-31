@@ -4,6 +4,7 @@ from pprint import pformat
 
 from code_index.language_processor import language_processor_factory
 from code_index.utils.logger import logger
+from index.persist.persist_json import SingleJsonFilePersistStrategy
 
 # 使用相对导入，从同一个包中导入 CodeIndexer
 from .indexer import CodeIndexer
@@ -97,7 +98,7 @@ def main():
     # 4. 如果用户指定了导出索引，则将索引数据导出为 JSON 文件
     if args.dump:
         try:
-            indexer.dump_index(args.output)
+            indexer.index.persist_to(args.output, SingleJsonFilePersistStrategy())
         except Exception as e:
             logger.error(f"导出索引失败。{e}")
             return

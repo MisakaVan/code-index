@@ -44,16 +44,13 @@ class TestCodeIndexerRefactored:
         # 使用自定义的索引和持久化策略创建索引器
         custom_index = SimpleIndex()
         custom_persist = SingleJsonFilePersistStrategy()
-        indexer = CodeIndexer(
-            processor=c_processor, index=custom_index, persist_strategy=custom_persist
-        )
+        indexer = CodeIndexer(processor=c_processor, index=custom_index)
 
         # 索引文件
         indexer.index_file(test_file, project_path=tmp_path)
 
         # 验证索引器使用了我们提供的索引实例
         assert indexer.index is custom_index
-        assert indexer.persist_strategy is custom_persist
 
         # 验证索引功能
         definitions = indexer.find_definitions("helper_func")
@@ -78,7 +75,6 @@ class TestCodeIndexerRefactored:
 
         # 验证默认组件被正确创建
         assert isinstance(indexer.index, SimpleIndex)
-        assert indexer.persist_strategy is None  # 默认为 None
 
         # 索引文件
         indexer.index_file(test_file, project_path=tmp_path)
@@ -99,18 +95,16 @@ class TestCodeIndexerRefactored:
         # 创建索引器并索引文件
         indexer1 = CodeIndexer(processor=c_processor)
         indexer1.index_file(test_file, project_path=tmp_path)
-        indexer1.set_persist_strategy(SingleJsonFilePersistStrategy())
 
         # 持久化索引
-        indexer1.dump_index(index_file)
+        indexer1.dump_index(index_file, SingleJsonFilePersistStrategy())
 
         # 验证索引文件被创建
         assert index_file.exists()
 
         # 创建新的索引器并加载索引
         indexer2 = CodeIndexer(processor=c_processor)
-        indexer2.set_persist_strategy(SingleJsonFilePersistStrategy())
-        indexer2.load_index(index_file)
+        indexer2.load_index(index_file, SingleJsonFilePersistStrategy())
 
         # 验证加载的索引与原始索引相同
         original_funcs = set(func.name for func in indexer1.get_all_functions())
@@ -170,7 +164,6 @@ class TestCodeIndexerRefactored:
 
         # 使用与原始 API 相同的方式创建索引器
         indexer = CodeIndexer(processor=c_processor, store_relative_paths=True)
-        indexer.set_persist_strategy(SingleJsonFilePersistStrategy())
         indexer.index_file(test_file, project_path=tmp_path)
 
         # 验证原有的 API 方法仍然工作
@@ -182,7 +175,7 @@ class TestCodeIndexerRefactored:
 
         # 验证 dump_index 方法仍然工作
         index_file = tmp_path / "backward_compat.json"
-        indexer.dump_index(index_file)
+        indexer.dump_index(index_file, SingleJsonFilePersistStrategy())
         assert index_file.exists()
 
     def test_multiple_file_indexing(self, c_processor, tmp_path):

@@ -29,7 +29,6 @@ class CodeIndexer:
         self,
         processor: LanguageProcessor,
         index: Optional[BaseIndex] = None,
-        persist_strategy: Optional[PersistStrategy] = None,
         store_relative_paths: bool = True,
     ):
         """
@@ -38,14 +37,12 @@ class CodeIndexer:
         Args:
             processor: LanguageProcessor: 用于解析源代码的语言处理器实例。
             index: BaseIndex: 用于存储索引数据的索引实例，默认使用 SimpleIndex。
-            persist_strategy: PersistStrategy: 用于持久化索引数据的策略，默认为 None。
             store_relative_paths: bool: 是否存储相对于project_root的路径，默认为 True。否则，索引将使用绝对路径。
         """
         logger.debug("Initializing CodeIndexer...")
 
         self.processor: LanguageProcessor = processor
         self._index: BaseIndex = index if index is not None else SimpleIndex()
-        self.persist_strategy: PersistStrategy | None = persist_strategy
         self.store_relative_paths: bool = store_relative_paths
 
     def __str__(self):
@@ -168,17 +165,17 @@ class CodeIndexer:
         func = Function(name=name)
         return list(self._index.get_references(func))
 
-    def dump_index(self, output_path: Path):
+    def dump_index(self, output_path: Path, persist_strategy: PersistStrategy):
         """
         将索引数据以 JSON 格式写入文件。
         """
-        self._index.persist_to(output_path, self.persist_strategy)
+        self.index.persist_to(output_path, persist_strategy)
 
-    def load_index(self, input_path: Path):
+    def load_index(self, input_path: Path, persist_strategy: PersistStrategy):
         """
         从文件加载索引数据。
         """
-        self._index = self._index.__class__.load_from(input_path, self.persist_strategy)
+        self._index = self.index.__class__.load_from(input_path, persist_strategy)
 
     def get_function_info(self, func_like: FunctionLike) -> Optional[FunctionLikeInfo]:
         """
@@ -198,13 +195,6 @@ class CodeIndexer:
         """
         # 重新创建一个新的索引实例
         self._index = self._index.__class__()
-
-    def set_persist_strategy(self, persist_strategy: PersistStrategy):
-        """
-        设置索引的持久化策略。
-        """
-        self.persist_strategy = persist_strategy
-        logger.debug(f"Persist strategy set to: {self.persist_strategy}")
 
 
 # --- 如何使用这个类的示例 ---
