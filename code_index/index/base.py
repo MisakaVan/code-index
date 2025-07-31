@@ -18,6 +18,20 @@ class PersistStrategy(ABC):
     Defines the interface for saving index data.
     """
 
+    def __init__(self):
+        """
+        Initialize the persist strategy.
+        """
+        pass
+
+    @abstractmethod
+    def __repr__(self) -> str:
+        """
+        Return a string representation of the persist strategy.
+        This should provide a compact summary of the strategy.
+        """
+        return f"{self.__class__.__name__}()"
+
     @abstractmethod
     def save(self, data: IndexData, path: Path):
         """
@@ -48,6 +62,13 @@ class BaseIndex(ABC):
     def __init__(self):
         pass
 
+    def __str__(self) -> str:
+        """
+        Return a string representation of the index.
+        This should provide a compact summary of the index contents.
+        """
+        return f"{self.__class__.__name__}({len(self)} items)"
+
     @abstractmethod
     def __repr__(self) -> str:
         pass
@@ -69,6 +90,15 @@ class BaseIndex(ABC):
 
         :param func_like: The function-like information (Function or Method).
         :param reference: The reference details.
+        """
+        pass
+
+    @abstractmethod
+    def __len__(self) -> int:
+        """
+        Get the number of function-like items / keys in the index.
+
+        :return: The count of function-like items.
         """
         pass
 

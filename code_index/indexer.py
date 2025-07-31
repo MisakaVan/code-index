@@ -7,7 +7,6 @@ from tree_sitter import Node, Tree
 
 from .index.base import BaseIndex, PersistStrategy
 from .index.impl.simple_index import SimpleIndex
-from .index.persist.persist_json import SingleJsonFilePersistStrategy
 from .language_processor import LanguageProcessor, language_processor_factory, QueryContext
 from .models import (
     Definition,
@@ -48,6 +47,14 @@ class CodeIndexer:
         self.index: BaseIndex = index if index is not None else SimpleIndex()
         self.persist_strategy: PersistStrategy | None = persist_strategy
         self.store_relative_paths: bool = store_relative_paths
+
+    def __str__(self):
+        return (
+            f"CodeIndexer(processor={self.processor.__str__()}, "
+            f"index={self.index.__str__()}, "
+            f"persist_strategy={self.persist_strategy}, "
+            f"store_relative_paths={self.store_relative_paths})"
+        )
 
     def _get_node_text(self, node: Node, source_bytes: bytes) -> str:
         """从源代码字节中提取节点的文本。"""

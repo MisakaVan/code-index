@@ -67,6 +67,10 @@ class SimpleIndex(BaseIndex):
         return []
 
     @override
+    def __len__(self) -> int:
+        return len(self.data)
+
+    @override
     def __getitem__(self, func_like: FunctionLike) -> FunctionLikeInfo:
         result = self.get_info(func_like)
         if result is None:

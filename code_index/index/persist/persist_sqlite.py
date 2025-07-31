@@ -173,6 +173,16 @@ def get_or_create(session: Session, model_cls: Type[T], **kwargs) -> tuple[T, bo
 
 class SqlitePersistStrategy(PersistStrategy):
 
+    def __init__(self):
+        """
+        初始化 SQLite 持久化策略。
+        """
+        super().__init__()
+        logger.debug("Initialized SqlitePersistStrategy")
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}()"
+
     def get_engine(self, path: Path | None = None):
         """
         获取 SQLite 数据库引擎。

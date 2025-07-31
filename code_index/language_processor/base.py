@@ -121,6 +121,9 @@ class BaseLanguageProcessor(LanguageProcessor):
     def parser(self) -> Parser:
         return self._parser
 
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}(name={self.name}, extensions={self.extensions})"
+
     def get_definition_query(self) -> Query:
         return self._def_query
 
