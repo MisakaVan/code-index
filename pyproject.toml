@@ -40,6 +40,10 @@ dev = [
     "pre-commit>=4.2.0",
     "pytest>=8.4.1",
 ]
+doc = [
+    "sphinx>=8.2.3",
+    "sphinx-book-theme>=1.1.4",
+]
 
 [pytest]
 testpaths = [
