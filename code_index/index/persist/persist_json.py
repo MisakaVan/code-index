@@ -7,74 +7,82 @@ from ...utils.custom_json import dump_index_to_json, load_index_from_json
 
 
 class SingleJsonFilePersistStrategy(PersistStrategy):
-    """
-    单个 JSON 文件持久化策略。
+    """JSON file persistence strategy for index data.
+
+    Saves and loads index data to/from a single JSON file using custom
+    serialization for dataclass objects and complex types.
     """
 
     def __init__(self):
+        """Initializes the JSON persistence strategy."""
         super().__init__()
 
     def __repr__(self) -> str:
-        """
-        返回持久化策略的字符串表示。
-        """
+        """Returns a string representation of the persistence strategy."""
         return f"{self.__class__.__name__}()"
 
     def save(self, data: Any, path: Path):
-        """
-        将索引数据保存到单个 JSON 文件。
+        """Saves index data to a JSON file.
 
-        :param data: 要保存的索引数据对象。可以是注册的 dataclass 或者其他可 JSON 序列化的对象
-        :param path: 保存文件的路径
-        :raises ValueError: 当路径是目录而不是文件时
-        :raises FileNotFoundError: 当父目录不存在时
-        :raises PermissionError: 当没有写入权限时
+        Args:
+            data: The index data object to save.
+            path: The file path where data will be saved.
+
+        Raises:
+            ValueError: If path is a directory or parent directory issues.
+            FileNotFoundError: If parent directory doesn't exist.
+            RuntimeError: If saving fails due to other errors.
         """
-        # 检查路径是否指向目录
+        # Check if path points to a directory
         if path.exists() and path.is_dir():
-            raise ValueError(f"指定的路径是一个目录，而不是文件：{path}")
+            raise ValueError(f"Specified path is a directory, not a file: {path}")
 
-        # 检查父目录是否存在
+        # Check if parent directory exists
         parent_dir = path.parent
         if not parent_dir.exists():
             raise FileNotFoundError(
-                f"父目录不存在：{parent_dir}。请先创建目录或使用存在的目录路径。"
+                f"Parent directory does not exist: {parent_dir}. Please create the directory first."
             )
 
-        # 检查父目录是否可写
+        # Check if parent directory is writable
         if not parent_dir.is_dir():
-            raise ValueError(f"父路径不是一个目录：{parent_dir}")
+            raise ValueError(f"Parent path is not a directory: {parent_dir}")
 
         try:
             dump_index_to_json(data, path)
         except Exception as e:
-            raise RuntimeError(f"保存索引数据到文件 {path} 时出错：{e}")
+            raise RuntimeError(f"Error saving index data to file {path}: {e}")
 
     def load(self, path: Path) -> Any:
-        """
-        从单个 JSON 文件加载索引数据。
+        """Loads index data from a JSON file.
 
-        :param path: 要加载的 JSON 文件路径
-        :return: 加载的索引数据字典
-        :raises FileNotFoundError: 当文件不存在时
-        :raises ValueError: 当路径是目录而不是文件时
-        :raises json.JSONDecodeError: 当文件不是有效的JSON格式时
+        Args:
+            path: The JSON file path to load from.
+
+        Returns:
+            The loaded index data.
+
+        Raises:
+            FileNotFoundError: If the file doesn't exist.
+            ValueError: If path is a directory or not a regular file.
+            json.JSONDecodeError: If file is not valid JSON.
+            RuntimeError: If loading fails due to other errors.
         """
-        # 检查文件是否存在
+        # Check if file exists
         if not path.exists():
-            raise FileNotFoundError(f"索引文件不存在：{path}")
+            raise FileNotFoundError(f"Index file does not exist: {path}")
 
-        # 检查路径是否指向目录
+        # Check if path points to a directory
         if path.is_dir():
-            raise ValueError(f"指定的路径是一个目录，而不是文件：{path}")
+            raise ValueError(f"Specified path is a directory, not a file: {path}")
 
-        # 检查是否是普通文件
+        # Check if it's a regular file
         if not path.is_file():
-            raise ValueError(f"路径存在但不是普通文件：{path}")
+            raise ValueError(f"Path exists but is not a regular file: {path}")
 
         try:
             return load_index_from_json(path)
         except json.JSONDecodeError as e:
-            raise json.JSONDecodeError(f"文件 {path} 不是有效的JSON格式：{e.msg}", e.doc, e.pos)
+            raise json.JSONDecodeError(f"File {path} is not valid JSON: {e.msg}", e.doc, e.pos)
         except Exception as e:
-            raise RuntimeError(f"加载索引文件 {path} 时出错：{e}")
+            raise RuntimeError(f"Error loading index file {path}: {e}")

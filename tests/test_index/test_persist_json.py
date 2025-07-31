@@ -183,7 +183,7 @@ class TestSingleJsonFilePersistStrategy:
 
         nonexistent_file = Path("/nonexistent/path/file.json")
 
-        with pytest.raises(FileNotFoundError, match="索引文件不存在"):
+        with pytest.raises(FileNotFoundError, match="Index file does not exist"):
             strategy.load(nonexistent_file)
 
     def test_save_to_invalid_path(self):
@@ -194,7 +194,7 @@ class TestSingleJsonFilePersistStrategy:
         invalid_path = Path("/nonexistent/directory/file.json")
         test_data = {"test": "data"}
 
-        with pytest.raises(FileNotFoundError, match="父目录不存在"):
+        with pytest.raises(FileNotFoundError, match="Parent directory does not exist"):
             strategy.save(test_data, invalid_path)
 
     def test_save_empty_data(self):
@@ -346,7 +346,7 @@ class TestSingleJsonFilePersistStrategy:
             directory_path = Path(temp_dir)
             test_data = {"test": "data"}
 
-            with pytest.raises(ValueError, match="指定的路径是一个目录，而不是文件"):
+            with pytest.raises(ValueError, match="Specified path is a directory, not a file"):
                 strategy.save(test_data, directory_path)
 
     def test_save_to_nonexistent_parent_directory(self):
@@ -357,7 +357,7 @@ class TestSingleJsonFilePersistStrategy:
         nonexistent_path = Path("/nonexistent/directory/file.json")
         test_data = {"test": "data"}
 
-        with pytest.raises(FileNotFoundError, match="父目录不存在"):
+        with pytest.raises(FileNotFoundError, match="Parent directory does not exist"):
             strategy.save(test_data, nonexistent_path)
 
     def test_save_parent_is_not_directory(self):
@@ -373,7 +373,7 @@ class TestSingleJsonFilePersistStrategy:
             invalid_path = parent_file / "subfile.json"
             test_data = {"test": "data"}
 
-            with pytest.raises(ValueError, match="父路径不是一个目录"):
+            with pytest.raises(ValueError, match="Parent path is not a directory"):
                 strategy.save(test_data, invalid_path)
 
     def test_load_directory_path(self):
@@ -383,7 +383,7 @@ class TestSingleJsonFilePersistStrategy:
         with tempfile.TemporaryDirectory() as temp_dir:
             directory_path = Path(temp_dir)
 
-            with pytest.raises(ValueError, match="指定的路径是一个目录，而不是文件"):
+            with pytest.raises(ValueError, match="Specified path is a directory, not a file"):
                 strategy.load(directory_path)
 
     def test_save_data_serialization_error(self):
@@ -399,7 +399,7 @@ class TestSingleJsonFilePersistStrategy:
 
             unserializable_data = {"normal": "data", "unserializable": UnserializableClass()}
 
-            with pytest.raises(RuntimeError, match="保存索引数据到文件.*时出错"):
+            with pytest.raises(RuntimeError, match="Error saving index data to file.*"):
                 strategy.save(unserializable_data, test_file)
 
     def test_save_with_existing_non_file(self):
@@ -412,7 +412,7 @@ class TestSingleJsonFilePersistStrategy:
             special_path.mkdir()
             test_data = {"test": "data"}
 
-            with pytest.raises(ValueError, match="指定的路径是一个目录，而不是文件"):
+            with pytest.raises(ValueError, match="Specified path is a directory, not a file"):
                 strategy.save(test_data, special_path)
 
     def test_comprehensive_path_validation(self):

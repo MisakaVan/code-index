@@ -13,59 +13,64 @@ from ..models import (
 
 
 class PersistStrategy(ABC):
-    """
-    Abstract base class for save and load strategies.
-    Defines the interface for saving index data.
+    """Abstract base class for persistence strategies.
+
+    Defines the interface for saving and loading index data to/from persistent
+    storage. Implementations can support various formats like JSON, SQLite, etc.
     """
 
     def __init__(self):
-        """
-        Initialize the persist strategy.
-        """
+        """Initialize the persist strategy."""
         pass
 
     @abstractmethod
     def __repr__(self) -> str:
-        """
-        Return a string representation of the persist strategy.
-        This should provide a compact summary of the strategy.
+        """Returns a string representation of the persist strategy.
+
+        Returns:
+            A compact summary of the strategy configuration.
         """
         return f"{self.__class__.__name__}()"
 
     @abstractmethod
     def save(self, data: IndexData, path: Path):
-        """
-        Save the index data to a specified path.
+        """Saves index data to the specified path.
 
-        :param data: The index data to save, typically a dictionary.
-        :param path: The path where the index data will be saved.
+        Args:
+            data: The index data to save.
+            path: The file path where data will be saved.
         """
         pass
 
     @abstractmethod
     def load(self, path: Path) -> IndexData:
-        """
-        Load the index data from a specified path.
+        """Loads index data from the specified path.
 
-        :param path: The path from which to load the index data.
-        :return: The loaded index data, typically a dictionary.
+        Args:
+            path: The file path from which to load data.
+
+        Returns:
+            The loaded index data.
         """
         pass
 
 
 class BaseIndex(ABC):
-    """
-    Encapsulates CRUD operations, as well as holds
-    the index data for a codebase index.
+    """Abstract base class for code symbol indexes.
+
+    Encapsulates CRUD operations and storage for a codebase index containing
+    function and method definitions and references. Provides a unified interface
+    for different index implementations.
     """
 
     def __init__(self):
         pass
 
     def __str__(self) -> str:
-        """
-        Return a string representation of the index.
-        This should provide a compact summary of the index contents.
+        """Returns a string representation of the index.
+
+        Returns:
+            A compact summary of the index contents.
         """
         return f"{self.__class__.__name__}({len(self)} items)"
 
@@ -75,163 +80,179 @@ class BaseIndex(ABC):
 
     @abstractmethod
     def add_definition(self, func_like: FunctionLike, definition: Definition):
-        """
-        Add a function-like definition to the index.
+        """Adds a function or method definition to the index.
 
-        :param func_like: The function-like information (Function or Method).
-        :param definition: The definition details.
+        Args:
+            func_like: The function or method information.
+            definition: The definition details including location and context.
         """
         pass
 
     @abstractmethod
     def add_reference(self, func_like: FunctionLike, reference: Reference):
-        """
-        Add a function-like reference to the index.
+        """Adds a function or method reference to the index.
 
-        :param func_like: The function-like information (Function or Method).
-        :param reference: The reference details.
+        Args:
+            func_like: The function or method information.
+            reference: The reference details including location and context.
         """
         pass
 
     @abstractmethod
     def __len__(self) -> int:
-        """
-        Get the number of function-like items / keys in the index.
+        """Returns the number of function-like items in the index.
 
-        :return: The count of function-like items.
+        Returns:
+            The count of indexed functions and methods.
         """
         pass
 
     @abstractmethod
     def __getitem__(self, func_like: FunctionLike) -> FunctionLikeInfo:
-        """
-        Get the function-like information from the index.
+        """Gets function information from the index.
 
-        :param func_like: The function-like information (Function or Method).
-        :return: FunctionLikeInfo if found, otherwise raises KeyError.
+        Args:
+            func_like: The function or method to retrieve.
+
+        Returns:
+            The function information if found.
+
+        Raises:
+            KeyError: If the function is not found in the index.
         """
         pass
 
     @abstractmethod
     def __setitem__(self, func_like: FunctionLike, info: FunctionLikeInfo):
-        """
-        Set the function-like information in the index.
+        """Sets function information in the index.
 
-        :param func_like: The function-like information (Function or Method).
-        :param info: The FunctionLikeInfo to set.
+        Args:
+            func_like: The function or method key.
+            info: The function information to store.
         """
         pass
 
     @abstractmethod
     def __delitem__(self, func_like: FunctionLike):
-        """
-        Delete the function-like information from the index.
+        """Deletes function information from the index.
 
-        :param func_like: The function-like information (Function or Method).
+        Args:
+            func_like: The function or method to remove.
         """
         pass
 
     @abstractmethod
     def __contains__(self, func_like: FunctionLike) -> bool:
-        """
-        Check if the function-like information exists in the index.
+        """Checks if function exists in the index.
 
-        :param func_like: The function-like information (Function or Method).
-        :return: True if exists, otherwise False.
+        Args:
+            func_like: The function or method to check.
+
+        Returns:
+            True if the function exists in the index, False otherwise.
         """
         pass
 
     @abstractmethod
     def __iter__(self) -> Iterator[FunctionLike]:
-        """
-        Iterate over all function-like information in the index.
+        """Iterates over all functions in the index.
 
-        :return: An iterable of FunctionLike objects.
+        Returns:
+            An iterator of FunctionLike objects.
         """
         pass
 
     @abstractmethod
     def update(self, mapping: Dict[FunctionLike, FunctionLikeInfo]):
-        """
-        Update the index with a mapping of function-like information.
+        """Updates the index with multiple function entries.
 
-        :param mapping: A dictionary mapping FunctionLike to FunctionLikeInfo.
+        Args:
+            mapping: A dictionary mapping functions to their information.
         """
         pass
 
     @abstractmethod
     def items(self) -> Iterable[tuple[FunctionLike, FunctionLikeInfo]]:
-        """
-        Get all items in the index as (FunctionLike, FunctionLikeInfo) pairs.
+        """Gets all items in the index as key-value pairs.
 
-        :return: An iterable of tuples containing FunctionLike and FunctionLikeInfo.
+        Returns:
+            An iterable of (FunctionLike, FunctionLikeInfo) tuples.
         """
         pass
 
     @abstractmethod
     def get_info(self, func_like: FunctionLike) -> FunctionLikeInfo | None:
-        """
-        Get the function-like information from the index.
+        """Gets function information from the index.
 
-        :param func_like: The function-like information (Function or Method).
-        :return: FunctionLikeInfo if found, otherwise None.
+        Args:
+            func_like: The function or method to retrieve.
+
+        Returns:
+            The function information if found, None otherwise.
         """
         pass
 
     @abstractmethod
     def get_definitions(self, func_like: FunctionLike) -> Iterable[Definition]:
-        """
-        Get all definitions for a function-like from the index.
+        """Gets all definitions for a function from the index.
 
-        :param func_like: The function-like information (Function or Method).
-        :return: An iterable of Definition objects.
+        Args:
+            func_like: The function or method to retrieve definitions for.
+
+        Returns:
+            An iterable of Definition objects.
         """
         pass
 
     @abstractmethod
     def get_references(self, func_like: FunctionLike) -> Iterable[Reference]:
-        """
-        Get all references for a function-like from the index.
+        """Gets all references for a function from the index.
 
-        :param func_like: The function-like information (Function or Method).
-        :return: An iterable of Reference objects.
+        Args:
+            func_like: The function or method to retrieve references for.
+
+        Returns:
+            An iterable of Reference objects.
         """
         pass
 
     @abstractmethod
     def as_data(self) -> IndexData:
-        """
-        Convert the index data to a dictionary format.
+        """Converts the index to a serializable data format.
 
-        :return: A dictionary representation of the index data.
+        Returns:
+            A dictionary representation of the index data.
         """
         pass
 
     @abstractmethod
     def update_from_data(self, data: IndexData):
-        """
-        Update the index with data from a dictionary.
+        """Updates the index with data from a serialized format.
 
-        :param data: A dictionary containing function-like information.
+        Args:
+            data: A dictionary containing function information to load.
         """
         pass
 
     def persist_to(self, path: Path, save_strategy: PersistStrategy):
-        """
-        Persist the index data to a path.
+        """Persists the index data to a file.
 
-        :param path: The path to persist the index data.
-        :param save_strategy: The strategy to use for saving the index data.
+        Args:
+            path: The file path to save the index data.
+            save_strategy: The persistence strategy to use for saving.
         """
         save_strategy.save(self.as_data(), path)
 
     @classmethod
     def load_from(cls, path: Path, load_strategy: PersistStrategy) -> "BaseIndex":
-        """
-        Load the index data from a path.
+        """Loads index data from a file and creates a new index instance.
 
-        :param path: The path to load the index data from.
-        :param load_strategy: The strategy to use for loading the index data.
+        Args:
+            path: The file path to load the index data from.
+            load_strategy: The persistence strategy to use for loading.
+
+        Returns:
+            A new BaseIndex instance with the loaded data.
         """
         loaded_data = load_strategy.load(path)
         index = cls()
@@ -240,10 +261,12 @@ class BaseIndex(ABC):
 
     @abstractmethod
     def handle_query(self, query: CodeQuery) -> Iterable[CodeQuerySingleResponse]:
-        """
-        Handle a query against the index.
+        """Handles a query against the index.
 
-        :param query: The query to execute against the index.
-        :return: An iterable of CodeQuerySingleResponse containing results.
+        Args:
+            query: The query to execute against the index.
+
+        Returns:
+            An iterable of CodeQuerySingleResponse containing query results.
         """
         pass

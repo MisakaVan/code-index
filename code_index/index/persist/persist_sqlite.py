@@ -37,15 +37,17 @@ from ...models import (
 from ...utils.logger import logger
 
 
-# --- 1. 定义所有模型的基础类 ---
+# --- 1. Database model base class ---
 class Base(DeclarativeBase):
+    """Base class for all SQLAlchemy ORM models."""
+
     pass
 
 
-# --- 2. 定义多对多关系的连接表 (Association Table) ---
-# 因为 definition_references 表只包含外键，没有其他额外的数据，
-# 所以我们不需要为它创建一个完整的 ORM 模型类。
-# 只需要定义一个 Table 对象即可，SQLAlchemy 会用它来管理多对多关系。
+# --- 2. Many-to-many association table ---
+# Association table for definition-reference relationships.
+# Since this table only contains foreign keys without additional data,
+# we define it as a Table object rather than a full ORM model class.
 definition_references_table = Table(
     "definition_references",
     Base.metadata,
@@ -53,15 +55,23 @@ definition_references_table = Table(
     Column("reference_id", ForeignKey("references.id"), primary_key=True),
 )
 
-# --- 3. 定义核心实体模型 ---
+# --- 3. Core entity models ---
 
 
 class SymbolType(StrEnum):
+    """Enumeration for symbol types in the database."""
+
     FUNCTION = "FUNCTION"
     METHOD = "METHOD"
 
 
 class OrmSymbol(Base):
+    """Database model for function and method symbols.
+
+    Represents functions and methods with their identifying information.
+    Each symbol can have multiple definitions and references.
+    """
+
     __tablename__ = "symbols"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -80,6 +90,12 @@ class OrmSymbol(Base):
 
 
 class OrmCodeLocation(Base):
+    """Database model for code locations.
+
+    Represents the exact location of code elements in source files,
+    including line numbers, columns, and byte positions.
+    """
+
     __tablename__ = "code_locations"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -91,7 +107,7 @@ class OrmCodeLocation(Base):
     start_byte: Mapped[int] = mapped_column(Integer)
     end_byte: Mapped[int] = mapped_column(Integer)
 
-    # 关系：一个 OrmCodeLocation 可以被多个 OrmDefinition 和 OrmReference 使用
+    # Relationships: code locations can be referenced by multiple definitions and references
     definitions: Mapped[List["OrmDefinition"]] = relationship(back_populates="location")
     references: Mapped[List["OrmReference"]] = relationship(back_populates="location")
 
@@ -102,18 +118,22 @@ class OrmCodeLocation(Base):
 
 
 class OrmDefinition(Base):
+    """Database model for symbol definitions.
+
+    Links symbols to their definition locations in the codebase.
+    """
+
     __tablename__ = "definitions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     symbol_id: Mapped[int] = mapped_column(ForeignKey("symbols.id"))
     location_id: Mapped[int] = mapped_column(ForeignKey("code_locations.id"))
 
-    # 关系：一个 OrmDefinition 属于一个 OrmSymbol 和一个 OrmCodeLocation
+    # Relationships: definitions belong to symbols and locations
     symbol: Mapped["OrmSymbol"] = relationship(back_populates="definitions")
     location: Mapped["OrmCodeLocation"] = relationship(back_populates="definitions")
 
-    # 关系：一个 OrmDefinition (函数体) 内部可以包含多个 OrmReference (调用)
-    # 这是一个多对多关系，通过 definition_references_table 连接
+    # Relationships: definitions can contain multiple references (many-to-many)
     internal_references: Mapped[List["OrmReference"]] = relationship(
         secondary=definition_references_table, back_populates="callers"
     )
@@ -123,18 +143,22 @@ class OrmDefinition(Base):
 
 
 class OrmReference(Base):
+    """Database model for symbol references.
+
+    Links symbols to their reference/usage locations in the codebase.
+    """
+
     __tablename__ = "references"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     symbol_id: Mapped[int] = mapped_column(ForeignKey("symbols.id"))
     location_id: Mapped[int] = mapped_column(ForeignKey("code_locations.id"))
 
-    # 关系：一个 OrmReference 指向一个 OrmSymbol，并发生在一个 OrmCodeLocation
+    # Relationships: references point to symbols and occur at locations
     symbol: Mapped["OrmSymbol"] = relationship(back_populates="references")
     location: Mapped["OrmCodeLocation"] = relationship(back_populates="references")
 
-    # 关系：一个 OrmReference (调用) 可能被包含在多个 OrmDefinition (函数体) 中
-    # (例如，在 Python 的嵌套函数中)
+    # Relationships: references can be contained in multiple definitions
     callers: Mapped[List["OrmDefinition"]] = relationship(
         secondary=definition_references_table, back_populates="internal_references"
     )
@@ -144,6 +168,8 @@ class OrmReference(Base):
 
 
 class OrmMetadata(Base):
+    """Database model for storing index metadata."""
+
     __tablename__ = "metadata"
 
     index_type: Mapped[str] = mapped_column(primary_key=True)
@@ -152,15 +178,18 @@ class OrmMetadata(Base):
 T = TypeVar("T", bound=Base)
 
 
-# helper function
+# Helper function
 def get_or_create(session: Session, model_cls: Type[T], **kwargs) -> tuple[T, bool]:
-    """
-    获取或创建一个 ORM 实例。
+    """Gets an existing ORM instance or creates a new one.
 
-    :param session: SQLAlchemy 会话对象
-    :param model_cls: ORM 模型类
-    :param kwargs: 用于查询或创建的字段参数
-    :return: 返回找到的实例或新创建的实例；如果实例已存在，则返回 (instance, False)；如果新创建，则返回 (instance, True)
+    Args:
+        session: SQLAlchemy session object.
+        model_cls: ORM model class.
+        **kwargs: Field parameters for querying or creating.
+
+    Returns:
+        A tuple of (instance, created) where created is True if the
+        instance was newly created, False if it already existed.
     """
     instance = session.execute(select(model_cls).filter_by(**kwargs)).scalar_one_or_none()
     if instance is not None:
@@ -172,21 +201,29 @@ def get_or_create(session: Session, model_cls: Type[T], **kwargs) -> tuple[T, bo
 
 
 class SqlitePersistStrategy(PersistStrategy):
+    """SQLite database persistence strategy for index data.
+
+    Stores index data in a SQLite database with proper relational structure.
+    Supports both file-based and in-memory databases.
+    """
 
     def __init__(self):
-        """
-        初始化 SQLite 持久化策略。
-        """
+        """Initializes the SQLite persistence strategy."""
         super().__init__()
         logger.debug("Initialized SqlitePersistStrategy")
 
     def __repr__(self):
+        """Returns a string representation of the persistence strategy."""
         return f"{self.__class__.__name__}()"
 
     def get_engine(self, path: Path | None = None):
-        """
-        获取 SQLite 数据库引擎。
-        如果 path 为 None，则使用内存数据库。
+        """Gets the SQLite database engine.
+
+        Args:
+            path: Database file path. If None, uses in-memory database.
+
+        Returns:
+            SQLAlchemy engine for the database.
         """
         if path is None:
             return create_engine("sqlite:///:memory:")

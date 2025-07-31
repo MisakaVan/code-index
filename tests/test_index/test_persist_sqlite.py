@@ -39,7 +39,6 @@ def locations() -> list[CodeLocation]:
 def sample_index_data(
     locations: list[CodeLocation],
 ) -> IndexData:
-
     # locations = [
     #     CodeLocation(
     #         file_path=Path(f"/path/to/file_{i}.py"),

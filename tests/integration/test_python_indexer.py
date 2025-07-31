@@ -21,7 +21,6 @@ def indexer(python_processor: PythonProcessor) -> CodeIndexer:
 
 
 class TestPythonIndexer:
-
     def test_standalone_functions(self, indexer: CodeIndexer, tmp_path: Path):
         """测试独立函数的定义和引用索引。"""
         python_code = """

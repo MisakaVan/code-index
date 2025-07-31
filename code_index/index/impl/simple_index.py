@@ -25,16 +25,24 @@ from ...models import (
 
 
 class SimpleIndex(BaseIndex):
-    """
-    Encapsulates CRUD operations for a codebase index.
+    """A simple in-memory implementation of the BaseIndex.
+
+    Stores all index data in memory using a dictionary. This implementation
+    is suitable for small to medium-sized codebases where fast access and
+    simplicity are preferred over memory efficiency.
+
+    Attributes:
+        data: Internal dictionary storing function/method information.
     """
 
     def __init__(self):
+        """Initializes an empty SimpleIndex."""
         super().__init__()
         self.data = defaultdict(lambda: FunctionLikeInfo())
 
     @override
     def __repr__(self):
+        """Returns a detailed string representation of the index."""
         return f"SimpleIndex(data={pformat(self.data, compact=True)})"
 
     @override
@@ -122,6 +130,15 @@ class SimpleIndex(BaseIndex):
 
     @staticmethod
     def _type_filterer(func_like: FunctionLike, filter_option: FilterOption) -> bool:
+        """Filters function-like objects based on type criteria.
+
+        Args:
+            func_like: The function or method to filter.
+            filter_option: The filter criteria to apply.
+
+        Returns:
+            True if the function matches the filter criteria, False otherwise.
+        """
         match filter_option, func_like:
             case FilterOption.ALL, _:
                 return True
@@ -133,6 +150,17 @@ class SimpleIndex(BaseIndex):
                 return False
 
     def handle_query(self, query: CodeQuery) -> Iterable[CodeQuerySingleResponse]:
+        """Processes a query against the index and returns matching results.
+
+        Args:
+            query: The query to execute against the index.
+
+        Returns:
+            An iterable of CodeQuerySingleResponse containing all matches.
+
+        Raises:
+            ValueError: If the query type is unsupported or regex pattern is invalid.
+        """
         match query:
             case QueryByKey(func_like):
                 info = self.get_info(func_like)
