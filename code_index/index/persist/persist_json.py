@@ -1,9 +1,8 @@
-from pathlib import Path
 import json
+from pathlib import Path
 from typing import Any
 
-from ..base import BaseIndex, PersistStrategy
-from ...models import IndexData
+from ..base import PersistStrategy
 from ...utils.custom_json import dump_index_to_json, load_index_from_json
 
 

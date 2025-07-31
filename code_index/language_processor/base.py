@@ -1,11 +1,11 @@
 import pathlib
-from typing import Protocol, List, Optional, Iterable
-from itertools import chain
 from dataclasses import dataclass
-from tree_sitter import Language, Query, Parser, Node, Tree, QueryCursor
-from tree_sitter_language_pack import get_language
+from itertools import chain
+from typing import Protocol, List, Iterable
 
-from ..models import Definition, Reference, CodeLocation, FunctionLike
+from tree_sitter import Language, Query, Parser, Node, QueryCursor
+
+from ..models import Definition, Reference, FunctionLike
 from ..utils.logger import logger
 
 

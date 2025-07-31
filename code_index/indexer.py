@@ -5,6 +5,10 @@ from typing import List, Optional
 
 from tree_sitter import Node, Tree
 
+from .index.base import BaseIndex, PersistStrategy
+from .index.impl.simple_index import SimpleIndex
+from .index.persist.persist_json import SingleJsonFilePersistStrategy
+from .language_processor import LanguageProcessor, language_processor_factory, QueryContext
 from .models import (
     Definition,
     Reference,
@@ -13,10 +17,6 @@ from .models import (
     Function,
     Method,
 )
-from .language_processor import LanguageProcessor, language_processor_factory, QueryContext
-from .index.base import BaseIndex, PersistStrategy
-from .index.impl.simple_index import SimpleIndex
-from .index.persist.persist_json import SingleJsonFilePersistStrategy
 from .utils.logger import logger
 
 

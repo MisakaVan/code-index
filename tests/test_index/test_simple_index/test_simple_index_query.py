@@ -2,9 +2,17 @@
 Test SimpleIndex query functionality.
 """
 
-import pytest
 from pathlib import Path
 
+import pytest
+
+from code_index.index.code_query import (
+    QueryByKey,
+    QueryByName,
+    QueryByNameRegex,
+    FilterOption,
+)
+from code_index.index.impl.simple_index import SimpleIndex
 from code_index.models import (
     CodeLocation,
     Definition,
@@ -12,14 +20,6 @@ from code_index.models import (
     FunctionLikeInfo,
     Function,
     Method,
-)
-from code_index.index.impl.simple_index import SimpleIndex
-from code_index.index.code_query import (
-    QueryByKey,
-    QueryByName,
-    QueryByNameRegex,
-    FilterOption,
-    CodeQuerySingleResponse,
 )
 
 

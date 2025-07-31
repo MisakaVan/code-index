@@ -1,9 +1,11 @@
-import pytest
 from pathlib import Path
+
+import pytest
+
+from code_index.language_processor.base import QueryContext
 from code_index.language_processor.impl_c import CProcessor
 from code_index.language_processor.impl_cpp import CppProcessor
-from code_index.language_processor.base import QueryContext
-from code_index.models import Function, Definition, Reference, FunctionLikeRef
+from code_index.models import Function, Definition, Reference
 
 
 class TestCProcessor:

@@ -1,8 +1,10 @@
-import pytest
 from pathlib import Path
-from code_index.language_processor.impl_python import PythonProcessor
+
+import pytest
+
 from code_index.language_processor.base import QueryContext
-from code_index.models import Function, Definition, Reference, FunctionLikeRef, Method
+from code_index.language_processor.impl_python import PythonProcessor
+from code_index.models import Function, Method
 
 
 class TestPythonProcessor:

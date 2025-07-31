@@ -1,5 +1,6 @@
-import pytest
 from pathlib import Path
+
+import pytest
 
 from code_index.indexer import CodeIndexer
 from code_index.language_processor import PythonProcessor

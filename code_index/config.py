@@ -1,5 +1,4 @@
 # code_index/config.py
-import platform
 from pathlib import Path
 
 # Path(__file__) -> my_project/code_index/config.py

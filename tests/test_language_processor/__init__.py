@@ -20,13 +20,13 @@ The common test file includes:
 - QueryContext behavior tests
 """
 
-from .test_python_processor import TestPythonProcessor
 from .test_c_cpp_processor import TestCProcessor, TestCppProcessor
 from .test_common import (
     TestLanguageProcessorFactory,
     TestLanguageProcessorCommonBehavior,
     TestQueryContextBehavior,
 )
+from .test_python_processor import TestPythonProcessor
 
 __all__ = [
     "TestPythonProcessor",

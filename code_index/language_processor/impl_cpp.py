@@ -1,11 +1,10 @@
 # code_index/language_processor/impl_cpp.py
 
-from tree_sitter import Node, Parser, Language, Query, Tree
+from tree_sitter import Node
 from tree_sitter_language_pack import get_language
-from typing import Optional, Iterable, Dict, List
 
-from ..models import Definition, Reference, CodeLocation, FunctionLike, Function, FunctionLikeRef
 from .base import BaseLanguageProcessor, QueryContext
+from ..models import Definition, Reference, CodeLocation, FunctionLike, Function, FunctionLikeRef
 
 
 class CppProcessor(BaseLanguageProcessor):

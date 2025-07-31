@@ -3,7 +3,6 @@
 
 from dataclasses import dataclass, field
 from enum import Enum
-import re
 
 from code_index.models import FunctionLike, FunctionLikeInfo
 

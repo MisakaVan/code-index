@@ -4,12 +4,14 @@
 这些测试定义了我们期望的正确行为，而不是当前实现的行为。
 """
 
-import pytest
 from pathlib import Path
-from code_index.language_processor.impl_c import CProcessor
-from code_index.language_processor.base import QueryContext
-from code_index.models import Function, Definition, Reference
+
+import pytest
 from tree_sitter import Parser
+
+from code_index.language_processor.base import QueryContext
+from code_index.language_processor.impl_c import CProcessor
+from code_index.models import Function
 
 
 class TestCRangeCapture:

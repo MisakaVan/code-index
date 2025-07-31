@@ -1,8 +1,8 @@
 import pytest
 
-from code_index.indexer import CodeIndexer
 from code_index.index.impl.simple_index import SimpleIndex
 from code_index.index.persist.persist_json import SingleJsonFilePersistStrategy
+from code_index.indexer import CodeIndexer
 from code_index.language_processor.impl_c import CProcessor
 from code_index.models import Function
 

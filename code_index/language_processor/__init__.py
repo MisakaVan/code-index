@@ -1,9 +1,9 @@
 from typing import Optional
 
 from .base import QueryContext, LanguageProcessor
-from .impl_python import PythonProcessor
 from .impl_c import CProcessor
 from .impl_cpp import CppProcessor
+from .impl_python import PythonProcessor
 
 
 def language_processor_factory(name: str) -> Optional[LanguageProcessor]:

@@ -1,6 +1,6 @@
 import json
-from pathlib import Path
 from dataclasses import is_dataclass, fields
+from pathlib import Path
 from typing import Dict
 
 

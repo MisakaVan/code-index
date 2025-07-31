@@ -1,19 +1,15 @@
-from collections import defaultdict
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Dict, Iterable, Iterator
-from abc import ABC, abstractmethod
 
+from .code_query import CodeQuery, CodeQuerySingleResponse
 from ..models import (
-    CodeLocation,
     Definition,
     Reference,
     FunctionLikeInfo,
     FunctionLike,
-    Function,
-    Method,
     IndexData,
 )
-from .code_query import CodeQuery, CodeQuerySingleResponse
 
 
 class PersistStrategy(ABC):

@@ -1,7 +1,7 @@
+from enum import StrEnum
 from pathlib import Path
 from pprint import pprint
 from typing import List, Type, TypeVar
-from enum import StrEnum
 
 from sqlalchemy import (
     create_engine,
@@ -22,7 +22,7 @@ from sqlalchemy.orm import (
     Session,
 )
 
-from ...utils.logger import logger
+from ..base import IndexData, PersistStrategy
 from ...models import (
     FunctionLike,
     Method,
@@ -34,7 +34,7 @@ from ...models import (
     Definition,
     FunctionLikeRef,
 )
-from ..base import IndexData, PersistStrategy
+from ...utils.logger import logger
 
 
 # --- 1. 定义所有模型的基础类 ---

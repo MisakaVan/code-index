@@ -1,8 +1,17 @@
-from collections import defaultdict
-from typing import Iterable, Dict, override, Iterator
-from pprint import pformat
 import re
+from collections import defaultdict
+from pprint import pformat
+from typing import Iterable, Dict, override, Iterator
 
+from ..base import BaseIndex
+from ..code_query import (
+    CodeQuery,
+    CodeQuerySingleResponse,
+    QueryByKey,
+    QueryByName,
+    QueryByNameRegex,
+    FilterOption,
+)
 from ...models import (
     Definition,
     Reference,
@@ -12,15 +21,6 @@ from ...models import (
     Method,
     IndexData,
     IndexDataEntry,
-)
-from ..base import BaseIndex
-from ..code_query import (
-    CodeQuery,
-    CodeQuerySingleResponse,
-    QueryByKey,
-    QueryByName,
-    QueryByNameRegex,
-    FilterOption,
 )
 
 

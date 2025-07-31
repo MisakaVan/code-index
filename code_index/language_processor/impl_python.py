@@ -1,9 +1,9 @@
 # code_index/language_processor/impl_python.py
 
-from tree_sitter import Node, Parser, Language, Query, Tree, QueryCursor
+from tree_sitter import Node
 from tree_sitter_language_pack import get_language
-from typing import Optional, Iterable, Dict, List
 
+from .base import BaseLanguageProcessor, QueryContext
 from ..models import (
     Definition,
     Reference,
@@ -13,7 +13,6 @@ from ..models import (
     FunctionLikeRef,
     Method,
 )
-from .base import BaseLanguageProcessor, QueryContext
 from ..utils.logger import logger
 
 

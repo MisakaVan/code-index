@@ -1,12 +1,13 @@
+from pathlib import Path
 from pprint import pprint
 
 import pytest
-from pathlib import Path
 
 # 导入我们需要测试的类和我们将要用到的辅助类
 from code_index.indexer import CodeIndexer
 from code_index.language_processor.impl_c import CProcessor
 from code_index.language_processor.impl_cpp import CppProcessor
+
 
 # --- Fixtures: 为 C 和 C++ 测试提供可重用的处理器 ---
 

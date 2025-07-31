@@ -1,8 +1,9 @@
 import json
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
+
 import pytest
-import tempfile
 
 from code_index.utils.custom_json import (
     register_json_type,

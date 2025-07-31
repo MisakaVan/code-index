@@ -6,17 +6,10 @@
 
 import dataclasses
 from pathlib import Path
-from typing import Any, Dict, List, Set, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 from ..models import (
     IndexData,
-    IndexDataEntry,
-    FunctionLikeInfo,
-    Definition,
-    Reference,
-    FunctionLikeRef,
-    CodeLocation,
-    FunctionLike,
 )
 
 
