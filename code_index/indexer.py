@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import List, Optional
 
-from tree_sitter import Node, Tree
+from tree_sitter import Tree
 
 from .index.base import BaseIndex, PersistStrategy
 from .index.impl.simple_index import SimpleIndex
@@ -57,10 +57,6 @@ class CodeIndexer:
     @property
     def index(self):
         return self._index
-
-    def _get_node_text(self, node: Node, source_bytes: bytes) -> str:
-        """从源代码字节中提取节点的文本。"""
-        return source_bytes[node.start_byte : node.end_byte].decode("utf8", errors="ignore")
 
     def _process_definitions(
         self,
