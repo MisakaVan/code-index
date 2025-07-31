@@ -9,8 +9,18 @@ from .utils.logger import logger
 
 
 def main():
-    """
-    命令行接口的主函数。
+    """Command-line interface for the code-index tool.
+
+    This function provides a command-line interface for indexing source code
+    repositories and exporting the results in various formats. It supports
+    multiple programming languages and persistence strategies.
+
+    For detailed usage information, run:
+        uv run -m code_index --help
+
+    Note:
+        This function is designed to be called from the command line via the
+        entry point defined in pyproject.toml.
     """
     parser = argparse.ArgumentParser(
         description="CodeIndex: 一个用于索引源代码中函数定义和引用的命令行工具。"
