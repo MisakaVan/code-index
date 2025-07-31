@@ -1,13 +1,11 @@
 import argparse
 from pathlib import Path
-from pprint import pformat
 
-from code_index.language_processor import language_processor_factory
-from code_index.utils.logger import logger
-from index.persist.persist_json import SingleJsonFilePersistStrategy
-
-# 使用相对导入，从同一个包中导入 CodeIndexer
+from .index.persist.persist_json import SingleJsonFilePersistStrategy
+from .index.persist.persist_sqlite import SqlitePersistStrategy
 from .indexer import CodeIndexer
+from .language_processor import language_processor_factory
+from .utils.logger import logger
 
 
 def main():
@@ -29,40 +27,54 @@ def main():
         help="指定要索引的编程语言。默认为 'python'。",
     )
 
-    parser.add_argument("-f", "--find", type=str, help="索引完成后，要查找的特定函数名。")
-
-    parser.add_argument(
-        "-d",
-        "--dump",
-        action="store_true",
-        help="将索引结果导出为 JSON 文件。默认导出到 repo_path/index.json。",
-    )
-
     parser.add_argument(
         "-o",
         "--output",
         type=Path,
         default=None,
-        help="指定导出索引结果的 JSON 文件路径。如果未指定，则默认为 repo_path/index.json。",
+        help="指定导出索引结果的文件或目录路径（相对于要解析的项目根目录）。如果未指定，则默认为 repo_path 下的 [index.json/index.sqlite]。",
+    )
+
+    # select persist strategy
+    parser.add_argument(
+        "--dump-type",
+        "--dt",
+        type=str,
+        default="json",
+        choices=["json", "sqlite"],
+        help="指定导出索引数据的格式。默认为 'json'。",
     )
 
     args = parser.parse_args()
 
+    # 检查 repo_path 是否为存在的目录
+    if not args.repo_path.is_dir():
+        logger.error(f"提供的路径 '{args.repo_path}' 不是一个有效的目录。")
+        exit(1)
+
+    # 持久化策略
+    persist_strategy = None
+    if args.dump_type == "json":
+        persist_strategy = SingleJsonFilePersistStrategy()
+        default_filename = "index.json"
+    elif args.dump_type == "sqlite":
+        persist_strategy = SqlitePersistStrategy()
+        default_filename = "index.sqlite"
+    else:
+        logger.error(f"不支持的持久化策略 '{args.dump_type}'。")
+        exit(1)
+
     if args.output is None:
         # 如果没有指定输出路径，则使用 repo_path/index.json
-        args.output = args.repo_path / "index.json"
-    else:
-        args.dump = True  # 如果指定了输出路径，则默认启用导出功能
+        args.output = args.repo_path
 
     # make sure the output path is a file
     if args.output.is_dir():
-        logger.error(f"提供的输出路径 '{args.output}' 是一个目录，请指定一个文件路径。")
-        return
+        # fallback to default file name based on dump type
+        logger.info(f"输出路径 '{args.output}' 是一个目录，将使用默认文件名 '{default_filename}'。")
+        args.output = args.output / default_filename
 
-    # 检查仓库路径是否存在
-    if not args.repo_path.exists() or not args.repo_path.is_dir():
-        logger.error(f"提供的路径 '{args.repo_path}' 不是一个有效的目录。")
-        return
+    logger.info(f"索引结果将导出到: {args.output}")
 
     try:
         processor = language_processor_factory(args.language)
@@ -70,40 +82,21 @@ def main():
         indexer = CodeIndexer(processor)
     except AssertionError as e:
         logger.error(f"初始化索引器失败。{e}")
-        return
+        exit(1)
 
     # 2. 对指定的项目路径进行索引
     indexer.index_project(args.repo_path)
 
     logger.info("--- 索引结果 ---")
-    logger.info(f"索引内容：\n{pformat(indexer.index)}")
+    logger.info(f"索引完成。共索引了 {len(indexer.index)} 个符号。")
 
-    # 3. 如果用户指定了要查找的函数，则执行查询并打印结果
-    if args.find:
-        func_to_find = args.find
-        logger.info(f"--- 查询 '{func_to_find}' 的结果 ---")
+    try:
+        indexer.index.persist_to(args.output, SingleJsonFilePersistStrategy())
+    except Exception as e:
+        logger.error(f"导出索引失败。{e}")
+        exit(1)
 
-        definitions = indexer.find_definitions(func_to_find)
-        if definitions:
-            logger.info(f"找到 {len(definitions)} 个定义：\n{pformat(definitions)}")
-        else:
-            logger.info(f"未找到 '{func_to_find}' 的定义。")
-
-        references = indexer.find_references(func_to_find)
-        if references:
-            logger.info(f"找到 {len(references)} 个引用：\n{pformat(references)}")
-        else:
-            logger.info(f"未找到 '{func_to_find}' 的引用。")
-
-    # 4. 如果用户指定了导出索引，则将索引数据导出为 JSON 文件
-    if args.dump:
-        try:
-            indexer.index.persist_to(args.output, SingleJsonFilePersistStrategy())
-        except Exception as e:
-            logger.error(f"导出索引失败。{e}")
-            return
-
-        logger.info(f"索引数据已导出到 {args.output}")
+    logger.success(f"索引数据已导出到 {args.output}")
 
 
 if __name__ == "__main__":
