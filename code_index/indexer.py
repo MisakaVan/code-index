@@ -44,17 +44,21 @@ class CodeIndexer:
         logger.debug("Initializing CodeIndexer...")
 
         self.processor: LanguageProcessor = processor
-        self.index: BaseIndex = index if index is not None else SimpleIndex()
+        self._index: BaseIndex = index if index is not None else SimpleIndex()
         self.persist_strategy: PersistStrategy | None = persist_strategy
         self.store_relative_paths: bool = store_relative_paths
 
     def __str__(self):
         return (
             f"CodeIndexer(processor={self.processor.__str__()}, "
-            f"index={self.index.__str__()}, "
+            f"index={self._index.__str__()}, "
             f"persist_strategy={self.persist_strategy}, "
             f"store_relative_paths={self.store_relative_paths})"
         )
+
+    @property
+    def index(self):
+        return self._index
 
     def _get_node_text(self, node: Node, source_bytes: bytes) -> str:
         """从源代码字节中提取节点的文本。"""
@@ -76,9 +80,9 @@ class CodeIndexer:
 
             match result:
                 case (Function() as func, Definition() as def_):
-                    self.index.add_definition(func, def_)
+                    self._index.add_definition(func, def_)
                 case (Method() as method, Definition() as def_):
-                    self.index.add_definition(method, def_)
+                    self._index.add_definition(method, def_)
                 case None:
                     pass
 
@@ -98,9 +102,9 @@ class CodeIndexer:
 
             match result:
                 case (Function() as func, Reference() as ref):
-                    self.index.add_reference(func, ref)
+                    self._index.add_reference(func, ref)
                 case (Method() as method, Reference() as ref):
-                    self.index.add_reference(method, ref)
+                    self._index.add_reference(method, ref)
                 case None:
                     pass
 
@@ -156,44 +160,44 @@ class CodeIndexer:
         """按名称查找函数的定义。"""
         # 创建一个临时的Function对象来查找
         func = Function(name=name)
-        return list(self.index.get_definitions(func))
+        return list(self._index.get_definitions(func))
 
     def find_references(self, name: str) -> List[Reference]:
         """按名称查找函数的所有引用。"""
         # 创建一个临时的Function对象来查找
         func = Function(name=name)
-        return list(self.index.get_references(func))
+        return list(self._index.get_references(func))
 
     def dump_index(self, output_path: Path):
         """
         将索引数据以 JSON 格式写入文件。
         """
-        self.index.persist_to(output_path, self.persist_strategy)
+        self._index.persist_to(output_path, self.persist_strategy)
 
     def load_index(self, input_path: Path):
         """
         从文件加载索引数据。
         """
-        self.index = self.index.__class__.load_from(input_path, self.persist_strategy)
+        self._index = self._index.__class__.load_from(input_path, self.persist_strategy)
 
     def get_function_info(self, func_like: FunctionLike) -> Optional[FunctionLikeInfo]:
         """
         获取函数或方法的完整信息。
         """
-        return self.index.get_info(func_like)
+        return self._index.get_info(func_like)
 
     def get_all_functions(self) -> List[FunctionLike]:
         """
         获取索引中的所有函数和方法。
         """
-        return list(self.index.__iter__())
+        return list(self._index.__iter__())
 
     def clear_index(self):
         """
         清空索引数据。
         """
         # 重新创建一个新的索引实例
-        self.index = self.index.__class__()
+        self._index = self._index.__class__()
 
     def set_persist_strategy(self, persist_strategy: PersistStrategy):
         """
