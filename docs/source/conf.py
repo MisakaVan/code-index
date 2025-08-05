@@ -47,10 +47,7 @@ napoleon_use_rtype = True
 
 # Autodoc settings
 autodoc_default_options = {
-    "members": True,
-    "undoc-members": True,
     "show-inheritance": True,
-    "special-members": "__init__",
 }
 
 # Autosummary settings
@@ -91,7 +88,7 @@ html_theme_options = {
     "use_download_button": True,  # 显示下载按钮
     # 导航和布局设置
     "show_navbar_depth": 2,  # 导航栏显示的层级深度
-    "show_toc_level": 1,  # 目录显示的层级深度 (限制为1层，避免方法级别显示)
+    "show_toc_level": 2,  # 目录显示的层级深度 (限制为1层，避免方法级别显示)
     "collapse_navigation": False,  # 是否折叠导航菜单
     "navigation_with_keys": True,  # 允许键盘导航
     "show_prev_next": True,  # 显示上一页/下一页按钮

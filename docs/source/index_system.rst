@@ -7,6 +7,13 @@ Base Classes
 ------------
 
 .. automodule:: code_index.index.base
+
+.. autoclass:: code_index.index.base.BaseIndex
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+.. autoclass:: code_index.index.base.PersistStrategy
    :members:
    :show-inheritance:
    :undoc-members:
@@ -24,13 +31,11 @@ Query Interface
 Index Implementations
 ---------------------
 
-Simple Index
-~~~~~~~~~~~~
-
 .. autoclass:: code_index.index.impl.simple_index.SimpleIndex
    :members:
    :show-inheritance:
    :undoc-members:
+
 
 Persistence Backends
 --------------------
@@ -38,16 +43,11 @@ Persistence Backends
 .. automodule:: code_index.index.persist.__init__
 
 
-JSON Persistence
-~~~~~~~~~~~~~~~~
-
 .. autoclass:: code_index.index.persist.SingleJsonFilePersistStrategy
     :members:
     :show-inheritance:
     :undoc-members:
 
-SQLite Persistence
-~~~~~~~~~~~~~~~~~~
 
 .. autoclass:: code_index.index.persist.SqlitePersistStrategy
     :members:
