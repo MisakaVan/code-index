@@ -1,5 +1,9 @@
-# code_index/index/code_query.py
-# Query interfaces for the code index
+"""Query interfaces for searching code symbols in the index.
+
+This module defines various query types to search for functions and methods
+in the code index. It includes exact key matches, name-based searches, and
+regex-based searches.
+"""
 
 from dataclasses import dataclass, field
 from enum import Enum
@@ -19,25 +23,21 @@ class QueryByKey:
         Query a method: QueryByKey(func_like=Method(name="my_method", class_name="MyClass"))
         Query unbound method: QueryByKey(func_like=Method(name="my_method", class_name=None))
 
-    Attributes:
-        func_like: The function or method to search for exactly.
     """
 
     func_like: FunctionLike
+    """The function or method to search for exactly."""
 
 
 class FilterOption(Enum):
-    """Filter options for symbol types in queries.
-
-    Attributes:
-        FUNCTION: Filter for standalone functions only.
-        METHOD: Filter for class methods only.
-        ALL: Include both functions and methods.
-    """
+    """Filter options for symbol types in queries."""
 
     FUNCTION = "function"
+    """Filter for standalone functions only."""
     METHOD = "method"
+    """Filter for class methods only."""
     ALL = "all"
+    """Include both functions and methods in results."""
 
 
 @dataclass(frozen=True)
@@ -51,14 +51,12 @@ class QueryByName:
         Query functions: QueryByName(name="my_function", type_filter=FilterOption.FUNCTION)
         Query methods: QueryByName(name="my_method", type_filter=FilterOption.METHOD)
         Query all symbols: QueryByName(name="my_symbol", type_filter=FilterOption.ALL)
-
-    Attributes:
-        name: The exact name to search for.
-        type_filter: The type of symbols to include in results.
     """
 
     name: str
+    """The exact name of the function or method to search for."""
     type_filter: FilterOption = field(default=FilterOption.ALL)
+    """The type of symbols to include in results. Defaults to ALL."""
 
 
 @dataclass(frozen=True)
@@ -72,17 +70,16 @@ class QueryByNameRegex:
         Query test functions: QueryByNameRegex(name_regex=r"^test_.*", type_filter=FilterOption.FUNCTION)
         Query handler methods: QueryByNameRegex(name_regex=r".*_handler$", type_filter=FilterOption.METHOD)
         Query debug symbols: QueryByNameRegex(name_regex=r".*debug.*", type_filter=FilterOption.ALL)
-
-    Attributes:
-        name_regex: The regex pattern to match against symbol names.
-        type_filter: The type of symbols to include in results.
     """
 
     name_regex: str
+    """The regex pattern to match function or method names."""
     type_filter: FilterOption = field(default=FilterOption.ALL)
+    """The type of symbols to include in results. Defaults to ALL."""
 
 
 CodeQuery = QueryByKey | QueryByName | QueryByNameRegex
+"""Represents a query for code symbols in the index."""
 
 
 @dataclass(frozen=True)
@@ -91,11 +88,9 @@ class CodeQuerySingleResponse:
 
     Contains the function or method information along with its associated
     definitions and references from the index.
-
-    Attributes:
-        func_like: The function or method that matched the query.
-        info: The complete information including definitions and references.
     """
 
     func_like: FunctionLike
+    """The function or method that matched the query."""
     info: FunctionLikeInfo
+    """The complete information about the function or method, including definitions and references."""
