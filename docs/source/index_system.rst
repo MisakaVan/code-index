@@ -27,7 +27,7 @@ Index Implementations
 Simple Index
 ~~~~~~~~~~~~
 
-.. automodule:: code_index.index.impl.simple_index
+.. autoclass:: code_index.index.impl.simple_index.SimpleIndex
    :members:
    :show-inheritance:
    :undoc-members:
@@ -35,18 +35,21 @@ Simple Index
 Persistence Backends
 --------------------
 
+.. automodule:: code_index.index.persist.__init__
+
+
 JSON Persistence
 ~~~~~~~~~~~~~~~~
 
-.. automodule:: code_index.index.persist.persist_json
-   :members:
-   :show-inheritance:
-   :undoc-members:
+.. autoclass:: code_index.index.persist.SingleJsonFilePersistStrategy
+    :members:
+    :show-inheritance:
+    :undoc-members:
 
 SQLite Persistence
 ~~~~~~~~~~~~~~~~~~
 
-.. automodule:: code_index.index.persist.persist_sqlite
-   :members:
-   :show-inheritance:
-   :undoc-members:
+.. autoclass:: code_index.index.persist.SqlitePersistStrategy
+    :members:
+    :show-inheritance:
+    :undoc-members:
