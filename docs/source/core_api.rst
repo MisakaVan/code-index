@@ -12,7 +12,7 @@ CodeIndexer
 .. autoclass:: code_index.indexer.CodeIndexer
    :members:
    :member-order: bysource
-   :no-index:
+
 
 Command Line Interface
 ----------------------
@@ -42,7 +42,7 @@ Data Models
    :members:
    :member-order: bysource
    :exclude-members: __weakref__
-   :no-index:
+
 
 Configuration
 -------------

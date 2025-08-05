@@ -10,7 +10,7 @@ Base Classes
    :members:
    :show-inheritance:
    :undoc-members:
-   :no-index:
+
 
 Query Interface
 ---------------
@@ -19,7 +19,7 @@ Query Interface
    :members:
    :show-inheritance:
    :undoc-members:
-   :no-index:
+
 
 Index Implementations
 ---------------------
