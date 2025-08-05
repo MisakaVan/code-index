@@ -1,5 +1,17 @@
 # code_index/language_processor/impl_c.py
 
+"""C language processor implementation.
+
+This module provides a concrete implementation of the LanguageProcessor protocol
+for C source code. It handles C-specific syntax for function definitions and
+function calls using tree-sitter.
+
+The processor supports:
+- Function definitions with various declaration patterns
+- Function calls and references
+- Handling of function pointers and complex declarators
+"""
+
 from tree_sitter import Node
 from tree_sitter_language_pack import get_language
 
@@ -8,11 +20,18 @@ from ..models import Definition, Reference, CodeLocation, FunctionLike, Function
 
 
 class CProcessor(BaseLanguageProcessor):
-    """
-    针对 C 语言的具体实现。
+    """Language processor for C source code.
+
+    Handles parsing and analysis of C function definitions and calls.
+    Supports various C function declaration patterns including:
+    - Simple function definitions
+    - Functions with storage class specifiers
+    - Functions returning pointers
+    - Function pointer declarations
     """
 
     def __init__(self):
+        """Initialize the C processor with language-specific configuration."""
         super().__init__(
             name="c",
             language=get_language("c"),
@@ -27,27 +46,36 @@ class CProcessor(BaseLanguageProcessor):
 
     def handle_definition(
         self,
-        node: Node,  # 这是一个 function_definition 节点
+        node: Node,
         ctx: QueryContext,
     ) -> tuple[FunctionLike, Definition] | None:
-        """处理一个 C-style 的函数定义节点。"""
-        # 从AST分析可知，function_definition的结构可能是：
-        # 1. 简单情况: primitive_type -> function_declarator -> compound_statement
-        # 2. 带修饰符: storage_class_specifier -> primitive_type -> function_declarator -> compound_statement
-        # 3. 指针返回: storage_class_specifier -> primitive_type -> pointer_declarator -> compound_statement
+        """Process a C function definition node.
 
-        # 查找function_declarator或pointer_declarator中的函数名
+        Handles function_definition nodes with various declaration patterns:
+        1. Simple: primitive_type -> function_declarator -> compound_statement
+        2. With modifiers: storage_class_specifier -> primitive_type -> function_declarator -> compound_statement
+        3. Pointer return: storage_class_specifier -> primitive_type -> pointer_declarator -> compound_statement
+
+        Args:
+            node: A function_definition syntax tree node.
+            ctx: Query context containing file information.
+
+        Returns:
+            A tuple of (Function, Definition) if successful, None if the function
+            name cannot be extracted or the definition format is not recognized.
+        """
+        # Extract function name from various AST patterns
         func_name = self._extract_function_name(node, ctx)
         if not func_name:
             return None
 
-        # 查找函数体内的所有函数调用
+        # Find all function calls within the function body
         calls = []
 
-        # 获取函数体节点 (compound_statement)
+        # Get the function body node (compound_statement)
         body_node = node.child_by_field_name("body")
         if body_node:
-            # 在函数体内查找所有函数调用
+            # Search for all function calls within the function body
             for call_node in self.get_reference_nodes(body_node):
                 call_result = self.handle_reference(call_node, ctx)
                 if call_result:
@@ -55,7 +83,7 @@ class CProcessor(BaseLanguageProcessor):
                     calls.append(FunctionLikeRef(symbol=symbol, reference=reference))
 
         return (
-            Function(name=func_name),  # 返回一个 Function 对象
+            Function(name=func_name),
             Definition(
                 location=CodeLocation(
                     file_path=ctx.file_path,
@@ -71,15 +99,27 @@ class CProcessor(BaseLanguageProcessor):
         )
 
     def _extract_function_name(self, function_def_node: Node, ctx: QueryContext) -> str | None:
-        """从function_definition节点中提取函数名"""
-        # 查找declarator字段，可能是function_declarator或pointer_declarator
+        """Extract function name from a function_definition node.
+
+        Handles various C function declaration patterns by traversing the
+        declarator field which may be either a function_declarator or
+        pointer_declarator containing a function_declarator.
+
+        Args:
+            function_def_node: The function_definition node to process.
+            ctx: Query context for accessing source bytes.
+
+        Returns:
+            The function name as a string, or None if extraction fails.
+        """
+        # Find the declarator field, could be function_declarator or pointer_declarator
         declarator_node = function_def_node.child_by_field_name("declarator")
         if not declarator_node:
             return None
 
-        # 如果是pointer_declarator，需要进一步查找function_declarator
+        # If it's a pointer_declarator, search for nested function_declarator
         if declarator_node.type == "pointer_declarator":
-            # 在pointer_declarator的子节点中查找function_declarator
+            # Look for function_declarator in pointer_declarator children
             for child in declarator_node.children:
                 if child.type == "function_declarator":
                     declarator_node = child
@@ -87,11 +127,11 @@ class CProcessor(BaseLanguageProcessor):
             else:
                 return None
 
-        # 现在declarator_node应该是function_declarator
+        # Now declarator_node should be function_declarator
         if declarator_node.type != "function_declarator":
             return None
 
-        # 从function_declarator中获取函数名
+        # Extract function name from function_declarator
         name_node = declarator_node.child_by_field_name("declarator")
         if not name_node or name_node.type != "identifier":
             return None
@@ -100,17 +140,30 @@ class CProcessor(BaseLanguageProcessor):
 
     def handle_reference(
         self,
-        node: Node,  # 这是一个 call_expression 节点
+        node: Node,
         ctx: QueryContext,
     ) -> tuple[FunctionLike, Reference] | None:
-        """处理一个 C-style 的函数调用节点。"""
+        """Process a C function call expression.
+
+        Handles call_expression nodes to extract the called function name.
+        Uses the entire call_expression range including function name,
+        parentheses, and arguments for accurate location tracking.
+
+        Args:
+            node: A call_expression syntax tree node.
+            ctx: Query context containing file information.
+
+        Returns:
+            A tuple of (Function, Reference) if successful, None if the call
+            expression doesn't have a recognizable function identifier.
+        """
         name_node = node.child_by_field_name("function")
         if not name_node or name_node.type != "identifier":
             return None
 
         func_name = ctx.source_bytes[name_node.start_byte : name_node.end_byte].decode("utf8")
 
-        # 使用整个call_expression节点的范围，包括函数名、括号和参数
+        # Use the entire call_expression node range, including function name, parentheses and arguments
         return (
             Function(name=func_name),
             Reference(

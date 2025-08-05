@@ -1,3 +1,16 @@
+"""Base classes and protocols for language-specific code processing.
+
+This module defines the core interfaces and base implementations for processing
+source code in different programming languages. It provides:
+
+- QueryContext: Container for query execution context
+- LanguageProcessor: Protocol defining the interface for language processors
+- BaseLanguageProcessor: Base implementation with common functionality
+
+Language processors use tree-sitter for parsing and analyzing source code to
+extract function/method definitions and references.
+"""
+
 import pathlib
 from dataclasses import dataclass
 from itertools import chain
@@ -11,54 +24,80 @@ from ..utils.logger import logger
 
 @dataclass
 class QueryContext:
-    """
-    用于存储查询时需要查询的信息，包括文件地址、文件bytes等。
+    """Context information needed for executing tree-sitter queries.
+
+    Contains the necessary context for processing source code, including
+    file path and raw source bytes for accurate node extraction.
     """
 
     file_path: pathlib.Path
+    """Path to the source file being processed."""
     source_bytes: bytes
+    """Raw bytes of the source file content."""
 
 
 class LanguageProcessor(Protocol):
-    """
-    定义了处理一种特定编程语言所需的所有配置和资源的接口。
-    这是一个协议类，用于静态类型检查，确保所有实现都符合规范。
+    """Protocol defining the interface for language-specific code processors.
+
+    This protocol establishes the contract that all language processors must
+    implement to provide consistent functionality for parsing and analyzing
+    source code across different programming languages.
+
+    Language processors are responsible for:
+    - Providing language-specific configuration (extensions, queries)
+    - Parsing source code using tree-sitter
+    - Extracting function/method definitions and references
+    - Converting syntax tree nodes to semantic models
     """
 
     @property
     def name(self) -> str:
-        """语言的名称，例如 'python'。"""
+        """The name of the programming language (e.g., 'python', 'cpp')."""
         ...
 
     @property
     def extensions(self) -> List[str]:
-        """该语言处理器支持的文件扩展名列表，例如 ['.py']。"""
+        """List of file extensions supported by this processor (e.g., ['.py'])."""
         ...
 
     @property
     def language(self) -> Language:
-        """tree-sitter 的 Language 对象。"""
+        """The tree-sitter Language object for parsing."""
         ...
 
     @property
     def parser(self) -> Parser:
-        """tree-sitter 的 Parser 对象。"""
+        """The tree-sitter Parser object configured for this language."""
         ...
 
     def get_definition_query(self) -> Query:
-        """获取用于查找函数/方法定义的查询。"""
+        """Get the tree-sitter query for finding function/method definitions."""
         ...
 
     def get_reference_query(self) -> Query:
-        """获取用于查找函数/方法引用的查询。"""
+        """Get the tree-sitter query for finding function/method references."""
         ...
 
     def get_definition_nodes(self, node: Node) -> Iterable[Node]:
-        """从语法树节点中获取所有定义（函数/方法）的节点。"""
+        """Extract all definition nodes from a syntax tree node.
+
+        Args:
+            node: The root node to search within.
+
+        Returns:
+            An iterable of nodes representing function/method definitions.
+        """
         ...
 
     def get_reference_nodes(self, node: Node) -> Iterable[Node]:
-        """从语法树节点中获取所有引用（函数/方法调用）的节点。"""
+        """Extract all reference nodes from a syntax tree node.
+
+        Args:
+            node: The root node to search within.
+
+        Returns:
+            An iterable of nodes representing function/method calls.
+        """
         ...
 
     def handle_definition(
@@ -66,9 +105,15 @@ class LanguageProcessor(Protocol):
         node: Node,
         ctx: QueryContext,
     ) -> tuple[FunctionLike, Definition] | None:
-        """
-        处理函数/方法定义节点，返回一个 Definition 对象。
-        如果节点不符合预期格式，返回 None。
+        """Process a function/method definition node.
+
+        Args:
+            node: The syntax tree node representing a definition.
+            ctx: Context information for the query.
+
+        Returns:
+            A tuple of (symbol, definition) if successful, None if the node
+            cannot be processed or doesn't match expected format.
         """
         ...
 
@@ -77,17 +122,30 @@ class LanguageProcessor(Protocol):
         node: Node,
         ctx: QueryContext,
     ) -> tuple[FunctionLike, Reference] | None:
-        """
-        处理函数/方法引用节点，返回一个 Reference 对象。
-        如果节点不符合预期格式，返回 None。
+        """Process a function/method reference node.
+
+        Args:
+            node: The syntax tree node representing a reference/call.
+            ctx: Context information for the query.
+
+        Returns:
+            A tuple of (symbol, reference) if successful, None if the node
+            cannot be processed or doesn't match expected format.
         """
         ...
 
 
 class BaseLanguageProcessor(LanguageProcessor):
-    """
-    一个具体的基类，封装了所有语言处理器共享的通用逻辑。
-    它实现了 LanguageProcessor 协议。
+    """Base implementation of LanguageProcessor with common functionality.
+
+    This class provides a concrete implementation that encapsulates shared logic
+    across all language processors. It handles:
+    - Tree-sitter setup (parser, queries)
+    - Common query execution patterns
+    - Property management
+
+    Subclasses need only implement the language-specific logic for handling
+    individual definition and reference nodes.
     """
 
     def __init__(
@@ -98,6 +156,15 @@ class BaseLanguageProcessor(LanguageProcessor):
         def_query_str: str,
         ref_query_str: str,
     ):
+        """Initialize the base language processor.
+
+        Args:
+            name: The name of the programming language.
+            language: The tree-sitter Language object.
+            extensions: List of supported file extensions.
+            def_query_str: Tree-sitter query string for finding definitions.
+            ref_query_str: Tree-sitter query string for finding references.
+        """
         self._name = name  # language.name is problematic, so set manually
         self._extensions = extensions
         self._language = language
@@ -131,6 +198,14 @@ class BaseLanguageProcessor(LanguageProcessor):
         return self._ref_query
 
     def get_definition_nodes(self, node: Node) -> Iterable[Node]:
+        """Extract definition nodes using the configured definition query.
+
+        Args:
+            node: The root node to search within.
+
+        Returns:
+            An iterable of nodes representing function and method definitions.
+        """
         captures = QueryCursor(self.get_definition_query()).captures(node)
         func_defs = captures.get("function.definition", [])
         method_defs = captures.get("method.definition", [])
@@ -138,6 +213,14 @@ class BaseLanguageProcessor(LanguageProcessor):
         return chain(func_defs, method_defs)
 
     def get_reference_nodes(self, node: Node) -> Iterable[Node]:
+        """Extract reference nodes using the configured reference query.
+
+        Args:
+            node: The root node to search within.
+
+        Returns:
+            An iterable of nodes representing function and method calls.
+        """
         captures = QueryCursor(self.get_reference_query()).captures(node)
         func_calls = captures.get("function.call", [])
         method_calls = captures.get("method.call", [])
@@ -149,6 +232,18 @@ class BaseLanguageProcessor(LanguageProcessor):
         node: Node,
         ctx: QueryContext,
     ) -> tuple[FunctionLike, Definition] | None:
+        """Handle a definition node - must be implemented by subclasses.
+
+        Args:
+            node: The syntax tree node representing a definition.
+            ctx: Context information for the query.
+
+        Returns:
+            A tuple of (symbol, definition) if successful.
+
+        Raises:
+            NotImplementedError: If not implemented by subclass.
+        """
         raise NotImplementedError(
             f"{self.__class__.__name__} must implement handle_definition method."
         )
@@ -158,6 +253,18 @@ class BaseLanguageProcessor(LanguageProcessor):
         node,
         ctx: QueryContext,
     ) -> tuple[FunctionLike, Reference] | None:
+        """Handle a reference node - must be implemented by subclasses.
+
+        Args:
+            node: The syntax tree node representing a reference/call.
+            ctx: Context information for the query.
+
+        Returns:
+            A tuple of (symbol, reference) if successful.
+
+        Raises:
+            NotImplementedError: If not implemented by subclass.
+        """
         raise NotImplementedError(
             f"{self.__class__.__name__} must implement handle_reference method."
         )

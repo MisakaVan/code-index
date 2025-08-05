@@ -1,5 +1,19 @@
 # code_index/language_processor/impl_python.py
 
+"""Python language processor implementation.
+
+This module provides a concrete implementation of the LanguageProcessor protocol
+for Python source code. It handles Python-specific syntax for function and method
+definitions, as well as function and method calls using tree-sitter.
+
+The processor supports:
+- Function definitions (standalone functions)
+- Method definitions (class-bound functions)
+- Function calls with identifier names
+- Method calls with attribute access (obj.method())
+- Decorated functions and methods
+"""
+
 from tree_sitter import Node
 from tree_sitter_language_pack import get_language
 
@@ -17,12 +31,21 @@ from ..utils.logger import logger
 
 
 class PythonProcessor(BaseLanguageProcessor):
-    """
-    针对 Python 语言的具体实现。
-    它只负责提供 Python 特有的配置。
+    """Language processor for Python source code.
+
+    Handles parsing and analysis of Python function and method definitions,
+    as well as function and method calls. Supports Python-specific features
+    like decorators, class methods, and attribute-based method calls.
+
+    The processor distinguishes between:
+    - Functions: Standalone callable definitions
+    - Methods: Functions defined within a class
+    - Function calls: Direct function invocation by name
+    - Method calls: Attribute-based method invocation (obj.method())
     """
 
     def __init__(self):
+        """Initialize the Python processor with language-specific configuration."""
         super().__init__(
             name="python",
             language=get_language("python"),
@@ -42,36 +65,51 @@ class PythonProcessor(BaseLanguageProcessor):
         node: Node,
         ctx: QueryContext,
     ) -> tuple[FunctionLike, Definition] | None:
+        """Process a Python function or method definition.
+
+        Handles function_definition nodes and determines whether they represent
+        standalone functions or class methods based on their context. Also
+        analyzes function calls within the definition body.
+
+        Args:
+            node: A function_definition syntax tree node.
+            ctx: Query context containing file information.
+
+        Returns:
+            A tuple of (symbol, definition) where symbol is either a Function
+            or Method depending on the definition context, None if the function
+            name cannot be extracted.
+        """
         name_node = node.child_by_field_name("name")
         if not name_node:
             return None
         func_name = ctx.source_bytes[name_node.start_byte : name_node.end_byte].decode("utf8")
 
-        # 判断是否是方法定义（在class内部）
+        # Determine if this is a method definition (inside a class)
         is_method = self._is_method_definition(node)
 
-        # 查找函数体内的所有函数调用
+        # Find all function calls within the function body
         calls = []
 
-        # 获取函数体节点
+        # Get the function body node
         body_node = node.child_by_field_name("body")
         if body_node:
-            # 在函数体内查找所有函数调用
+            # Search for all function calls within the function body
             for call_node in self.get_reference_nodes(body_node):
                 call_result = self.handle_reference(call_node, ctx)
                 if call_result:
                     symbol, reference = call_result
                     calls.append(FunctionLikeRef(symbol=symbol, reference=reference))
 
-        # 根据是否是方法定义返回不同的符号类型
+        # Return different symbol types based on whether it's a method definition
         if is_method:
-            # 尝试获取类名
+            # Try to get the class name
             class_name = self._get_class_name_for_method(node, ctx)
             symbol = Method(name=func_name, class_name=class_name)
         else:
             symbol = Function(name=func_name)
 
-        # 确定定义的范围：如果父节点是decorated_definition，则从装饰器开始
+        # Determine definition range: if parent is decorated_definition, start from decorators
         definition_node = self._get_definition_range_node(node)
 
         return (
@@ -91,14 +129,29 @@ class PythonProcessor(BaseLanguageProcessor):
         )
 
     def _get_definition_range_node(self, function_node: Node) -> Node:
-        """获取用于定义范围的节点，如果有装饰器则从装饰器开始"""
-        # 检查父节点是否是decorated_definition
+        """Get the node to use for definition range, including decorators if present.
+
+        Args:
+            function_node: The function_definition node.
+
+        Returns:
+            The decorated_definition node if the function has decorators,
+            otherwise the function_definition node itself.
+        """
+        # Check if parent node is decorated_definition
         if function_node.parent and function_node.parent.type == "decorated_definition":
             return function_node.parent
         return function_node
 
     def _is_method_definition(self, node: Node) -> bool:
-        """检查函数定义是否在类内部（即是否为方法）"""
+        """Check if a function definition is inside a class (i.e., is a method).
+
+        Args:
+            node: The function_definition node to check.
+
+        Returns:
+            True if the function is defined within a class, False otherwise.
+        """
         current = node.parent
         while current:
             if current.type == "class_definition":
@@ -107,7 +160,15 @@ class PythonProcessor(BaseLanguageProcessor):
         return False
 
     def _get_class_name_for_method(self, node: Node, ctx: QueryContext) -> str | None:
-        """获取方法所属的类名"""
+        """Get the name of the class that contains this method.
+
+        Args:
+            node: The function_definition node representing a method.
+            ctx: Query context for accessing source bytes.
+
+        Returns:
+            The class name as a string, or None if not found.
+        """
         current = node.parent
         while current:
             if current.type == "class_definition":
@@ -124,7 +185,22 @@ class PythonProcessor(BaseLanguageProcessor):
         node,
         ctx: QueryContext,
     ) -> tuple[FunctionLike, Reference] | None:
-        # call节点包含function和arguments，我们需要捕获整个call节点的范围
+        """Process a Python function or method call.
+
+        Handles call nodes and determines whether they represent function calls
+        (direct identifier calls) or method calls (attribute access calls).
+        Uses the entire call node range including arguments for location tracking.
+
+        Args:
+            node: A call syntax tree node.
+            ctx: Query context containing file information.
+
+        Returns:
+            A tuple of (symbol, reference) where symbol is either a Function
+            or Method depending on the call type, None if the call cannot
+            be processed.
+        """
+        # call node contains function and arguments, we need to capture the entire call node range
         function_node = node.child_by_field_name("function")
         if not function_node:
             logger.warning(
@@ -132,12 +208,12 @@ class PythonProcessor(BaseLanguageProcessor):
             )
             return None
 
-        # 处理函数调用 (function: identifier)
+        # Handle function calls (function: identifier)
         if function_node.type == "identifier":
             func_name = ctx.source_bytes[function_node.start_byte : function_node.end_byte].decode(
                 "utf8"
             )
-            # 使用整个call节点的范围，包括函数名、括号和参数
+            # Use the entire call node range, including function name, parentheses and arguments
             return (
                 Function(name=func_name),
                 Reference(
@@ -153,9 +229,9 @@ class PythonProcessor(BaseLanguageProcessor):
                 ),
             )
 
-        # 处理方法调用 (function: attribute)
+        # Handle method calls (function: attribute)
         elif function_node.type == "attribute":
-            # 找到方法名（attribute节点的最后一个identifier）
+            # Find method name (the last identifier in the attribute node)
             method_name_node = None
             for child in reversed(function_node.children):
                 if child.type == "identifier":
@@ -170,9 +246,11 @@ class PythonProcessor(BaseLanguageProcessor):
                 method_name_node.start_byte : method_name_node.end_byte
             ].decode("utf8")
 
-            # 使用整个call节点的范围，包括对象表达式、点、方法名、括号和参数
+            # Use the entire call node range, including object expression, dot, method name, parentheses and arguments
             return (
-                Method(name=method_name, class_name=None),  # 按要求设置class_name为None
+                Method(
+                    name=method_name, class_name=None
+                ),  # Set class_name to None as per requirements
                 Reference(
                     location=CodeLocation(
                         file_path=ctx.file_path,
