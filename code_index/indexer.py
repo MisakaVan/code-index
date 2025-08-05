@@ -27,10 +27,6 @@ class CodeIndexer:
     The indexer can process individual files or entire project directories, extracting
     symbol information and storing it in a configurable index backend for later
     retrieval and analysis.
-
-    Attributes:
-        processor: The language processor used for parsing source code.
-        index: The index backend for storing and retrieving symbol information.
     """
 
     def __init__(
