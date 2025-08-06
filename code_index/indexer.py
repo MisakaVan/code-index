@@ -51,6 +51,37 @@ class CodeIndexer:
         Note:
             The processor's supported file extensions determine which files will be
             processed during indexing operations.
+
+        Example:
+            Here is a basic example of how to use the CodeIndexer to index a project, find definitions
+            and references of a function, and persist the index to a JSON file.
+
+            .. code-block:: python
+
+                from pathlib import Path
+                from code_index import CodeIndexer
+                from code_index.language_processor import PythonProcessor
+                from code_index.index.persist import SingleJsonFilePersistStrategy
+
+                # Initialize the indexer with a Python language processor
+                indexer = CodeIndexer(PythonProcessor())
+
+                # Index a project directory
+                indexer.index_project(Path("/path/to/project"))
+
+                # Find definitions of a specific function
+                definitions = indexer.find_definitions("my_function")
+                for defn in definitions:
+                    print(f"Found definition at {defn.location.file_path}:{defn.location.start_lineno}")
+
+                # Find references to a specific function
+                references = indexer.find_references("my_function")
+                for ref in references:
+                    print(f"Found reference at {ref.location.file_path}:{ref.location.start_lineno}")
+
+                # Save the index to a JSON file
+                indexer.dump_index(Path("index.json"), SingleJsonFilePersistStrategy())
+
         """
         logger.debug("Initializing CodeIndexer...")
 
@@ -188,8 +219,9 @@ class CodeIndexer:
             skipped with an error log. Non-file paths are also skipped with a warning.
 
         Example:
-            >>> indexer = CodeIndexer(python_processor)
-            >>> indexer.index_file(Path("src/main.py"), Path("src/"))
+            .. code-block:: python
+
+                indexer.index_file(Path("src/main.py"), Path("src/"))
         """
         if not file_path.is_file():
             logger.warning(f"Skipping non-file path: {file_path}")
@@ -236,8 +268,9 @@ class CodeIndexer:
             completion messages.
 
         Example:
-            >>> indexer = CodeIndexer(python_processor)
-            >>> indexer.index_project(Path("/path/to/project"))
+            .. code-block:: python
+
+                indexer.index_project(Path("/path/to/project"))
         """
         logger.info(f"Starting to index project at: {project_path}")
         for file_path in project_path.rglob("*"):
@@ -263,10 +296,12 @@ class CodeIndexer:
             for each found definition. Returns an empty list if no definitions are found.
 
         Example:
-            >>> definitions = indexer.find_definitions("calculate_total")
-            >>> for defn in definitions:
-            ...     print(f"Found definition at {defn.file_path}:{defn.location.start_lineno}")
-            Found definition at src/utils.py:15
+            .. code-block:: python
+
+                definitions = indexer.find_definitions("calculate_total")
+                for defn in definitions:
+                    print(f"Found definition at {defn.location.file_path}:{defn.location.start_lineno}")
+                # Output: Found definition at src/utils.py:15
 
         """
         # 创建一个临时的Function对象来查找
@@ -288,10 +323,12 @@ class CodeIndexer:
             for each found reference. Returns an empty list if no references are found.
 
         Example:
-            >>> references = indexer.find_references("calculate_total")
-            >>> for ref in references:
-            ...     print(f"Found reference at {ref.file_path}:{ref.location.start_lineno}")
-            Found reference at src/main.py:42
+            .. code-block:: python
+
+                references = indexer.find_references("calculate_total")
+                for ref in references:
+                    print(f"Found reference at {ref.location.file_path}:{ref.location.start_lineno}")
+                # Output: Found reference at src/main.py:42
 
         """
         # 创建一个临时的Function对象来查找
@@ -313,8 +350,10 @@ class CodeIndexer:
             IOError: If the file cannot be written due to permission or disk issues.
 
         Example:
-            >>> from code_index.index.persist import JSONPersistStrategy
-            >>> indexer.dump_index(Path("index.json"), JSONPersistStrategy())
+            .. code-block:: python
+
+                from code_index.index.persist import JSONPersistStrategy
+                indexer.dump_index(Path("index.json"), JSONPersistStrategy())
         """
         self.index.persist_to(output_path, persist_strategy)
 
@@ -339,8 +378,10 @@ class CodeIndexer:
             indexing work will be lost.
 
         Example:
-            >>> from code_index.index.persist import JSONPersistStrategy
-            >>> indexer.load_index(Path("index.json"), JSONPersistStrategy())
+            .. code-block:: python
+
+                from code_index.index.persist import JSONPersistStrategy
+                indexer.load_index(Path("index.json"), JSONPersistStrategy())
         """
         self._index = self.index.__class__.load_from(input_path, persist_strategy)
 
@@ -360,11 +401,13 @@ class CodeIndexer:
             if the symbol is not found in the index.
 
         Example:
-            >>> func = Function(name="calculate_total")
-            >>> info = indexer.get_function_info(func)
-            >>> if info:
-            ...     print(f"Function has {len(info.definitions)} definitions")
-            ...     print(f"Function has {len(info.references)} references")
+            .. code-block:: python
+
+                func = Function(name="calculate_total")
+                info = indexer.get_function_info(func)
+                if info:
+                    print(f"Function has {len(info.definitions)} definitions")
+                    print(f"Function has {len(info.references)} references")
         """
         return self._index.get_info(func_like)
 
@@ -380,13 +423,16 @@ class CodeIndexer:
             and methods. Returns an empty list if no symbols have been indexed.
 
         Example:
-            >>> all_functions = indexer.get_all_functions()
-            >>> print(f"Index contains {len(all_functions)} functions/methods")
-            Index contains 42 functions/methods
-            >>> for func in all_functions:
-            ...     print(f"- {func.name}")
-            - calculate_total
-            - process_data
+            .. code-block:: python
+
+                all_functions = indexer.get_all_functions()
+                print(f"Index contains {len(all_functions)} functions/methods")
+                # Output: Index contains 42 functions/methods
+                for func in all_functions:
+                    print(f"- {func.name}")
+                # Output:
+                # - calculate_total
+                # - process_data
         """
         return list(self._index.__iter__())
 
@@ -402,9 +448,11 @@ class CodeIndexer:
             completely clean state while maintaining the same index configuration.
 
         Example:
-            >>> indexer.clear_index()
-            >>> print(f"Index now contains {len(indexer.get_all_functions())} functions")
-            Index now contains 0 functions
+            .. code-block:: python
+
+                indexer.clear_index()
+                print(f"Index now contains {len(indexer.get_all_functions())} functions")
+                # Output: Index now contains 0 functions
         """
         # 重新创建一个新的索引实例
         self._index = self._index.__class__()
