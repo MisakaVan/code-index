@@ -5,14 +5,14 @@ in the code index. It includes exact key matches, name-based searches, and
 regex-based searches.
 """
 
-from dataclasses import dataclass, field
 from enum import Enum
+
+from pydantic import BaseModel, Field
 
 from code_index.models import FunctionLike, FunctionLikeInfo
 
 
-@dataclass(frozen=True)
-class QueryByKey:
+class QueryByKey(BaseModel):
     """Query for exact function or method matches by key.
 
     This query type returns exact matches in the index using the complete
@@ -28,6 +28,8 @@ class QueryByKey:
     func_like: FunctionLike
     """The function or method to search for exactly."""
 
+    model_config = {"frozen": True}
+
 
 class FilterOption(Enum):
     """Filter options for symbol types in queries."""
@@ -40,8 +42,7 @@ class FilterOption(Enum):
     """Include both functions and methods in results."""
 
 
-@dataclass(frozen=True)
-class QueryByName:
+class QueryByName(BaseModel):
     """Query for functions and methods by name with optional type filtering.
 
     Finds all symbols with the specified name, optionally filtered by type.
@@ -55,12 +56,13 @@ class QueryByName:
 
     name: str
     """The exact name of the function or method to search for."""
-    type_filter: FilterOption = field(default=FilterOption.ALL)
+    type_filter: FilterOption = Field(default=FilterOption.ALL)
     """The type of symbols to include in results. Defaults to ALL."""
 
+    model_config = {"frozen": True}
 
-@dataclass(frozen=True)
-class QueryByNameRegex:
+
+class QueryByNameRegex(BaseModel):
     """Query for functions and methods by regex name pattern with optional type filtering.
 
     Finds all symbols whose names match the specified regex pattern, optionally
@@ -74,16 +76,17 @@ class QueryByNameRegex:
 
     name_regex: str
     """The regex pattern to match function or method names."""
-    type_filter: FilterOption = field(default=FilterOption.ALL)
+    type_filter: FilterOption = Field(default=FilterOption.ALL)
     """The type of symbols to include in results. Defaults to ALL."""
+
+    model_config = {"frozen": True}
 
 
 CodeQuery = QueryByKey | QueryByName | QueryByNameRegex
 """Represents a query for code symbols in the index."""
 
 
-@dataclass(frozen=True)
-class CodeQuerySingleResponse:
+class CodeQuerySingleResponse(BaseModel):
     """Represents a single response from a code query.
 
     Contains the function or method information along with its associated
@@ -94,3 +97,5 @@ class CodeQuerySingleResponse:
     """The function or method that matched the query."""
     info: FunctionLikeInfo
     """The complete information about the function or method, including definitions and references."""
+
+    model_config = {"frozen": True}

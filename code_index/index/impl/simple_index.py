@@ -162,7 +162,7 @@ class SimpleIndex(BaseIndex):
             ValueError: If the query type is unsupported or regex pattern is invalid.
         """
         match query:
-            case QueryByKey(func_like):
+            case QueryByKey(func_like=func_like):
                 info = self.get_info(func_like)
                 if info is None:
                     return []
