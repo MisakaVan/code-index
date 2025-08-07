@@ -17,6 +17,7 @@ dependencies = [
 
 [project.scripts]
 code-index = "code_index.__main__:main"
+code-index-mcp-server = "code_index.mcp_server.server:main"
 
 
 [tool.black]
@@ -42,13 +43,26 @@ dev = [
     "black>=25.1.0",
     "pre-commit>=4.2.0",
     "pytest>=8.4.1",
+    "pytest-asyncio>=1.1.0",
+    "pytest-cov>=6.2.1",
 ]
 doc = [
     "sphinx>=8.2.3",
     "sphinx-book-theme>=1.1.4",
 ]
 
-[pytest]
+[tool.pytest.ini_options]
 testpaths = [
     "tests",
+]
+addopts = [
+    "-v", "--tb=short",
+    "--strict-markers",
+#    "--cov=code_index",
+#    "--cov-report=term-missing",
+#    "--cov-report=html",
+]
+asyncio_mode = "auto"
+markers = [
+    "asyncio: marks tests as requiring asyncio support",
 ]

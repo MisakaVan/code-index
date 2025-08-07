@@ -14,3 +14,7 @@ docs/build/
 docs/_build/
 docs/.doctrees/
 docs/**/*.spelling
+
+# coverage
+htmlcov/
+.coverage
