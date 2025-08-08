@@ -7,15 +7,16 @@ tools and resources for code repository analysis, including:
 - Source code fetching with multiple access patterns (full file, line ranges, byte ranges)
 - File path resolution utilities for repository navigation
 
+The server exposes MCP resources for:
+    - Full source code retrieval: ``sourcecode://{file_path}``
+
+
 The server exposes MCP tools for:
     - Repository setup and indexing
     - Symbol querying with flexible search criteria
     - File path resolution within repositories
+    - Fetching source code snippets by line or byte ranges
 
-The server exposes MCP resources for:
-    - Full source code retrieval: ``sourcecode://{file_path}``
-    - Line-based code snippets: ``sourcecode://{file_path}/?start_line={start}&end_line={end}``
-    - Byte-based code snippets: ``sourcecode://{file_path}/?start_byte={start}&end_byte={end}``
 
 Example:
     Run the server directly:
@@ -24,12 +25,12 @@ Example:
 
         python -m code_index.mcp_server.server
 
-    Or import and run programmatically:
+    Or run via fastmcp CLI:
 
-    .. code-block:: python
+    .. code-block:: bash
 
-        from code_index.mcp_server.server import main
-        main()
+        uv run fastmcp run code_index/mcp_server/server.py:mcp --project .
+
 
 Note:
     The server uses stdio transport and is designed to be used with MCP-compatible
