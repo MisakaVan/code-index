@@ -15,11 +15,13 @@ Test Classes:
 """
 
 from pathlib import Path
+from pprint import pprint
 
 import fastmcp.exceptions
 import pytest
 from fastmcp import Client
 from fastmcp.client.client import CallToolResult
+from mcp.types import TextResourceContents
 
 from code_index.index.code_query import QueryByName, QueryByNameRegex
 from code_index.mcp_server.server import mcp
@@ -274,10 +276,11 @@ int multiply(int a, int b);
                     break
             assert found_calculate_sum
 
-    @pytest.mark.skip(reason="Flaky test - to be fixed")
+    @pytest.mark.skip(reason="Does not work when running the whole test suite")
     @pytest.mark.asyncio
     async def test_query_symbol_tool_without_setup(self, mcp_server):
         """Test query_symbol tool without setting up repository first."""
+        CodeIndexService.get_instance()._clear_indexer()
         async with Client(mcp_server) as client:
             query = QueryByName(name="test_function")
 
@@ -286,7 +289,6 @@ int multiply(int a, int b);
             with pytest.raises(fastmcp.exceptions.ToolError):
                 await client.call_tool("query_symbol", {"query": query})
 
-    @pytest.mark.skip(reason="Flaky test - to be fixed")
     @pytest.mark.asyncio
     async def test_fetch_source_code_resource_full_file(
         self, mcp_server, test_repo_python, sample_python_code
@@ -297,9 +299,11 @@ int multiply(int a, int b);
         async with Client(mcp_server) as client:
             result = await client.read_resource(f"sourcecode://{main_file}")
 
-            assert result.data == sample_python_code
+            # Handle the fact that read_resource returns a list of TextResourceContents
+            assert isinstance(result, list)
+            assert len(result) > 0
+            assert result[0].text == sample_python_code
 
-    @pytest.mark.skip(reason="Flaky test - to be fixed")
     @pytest.mark.asyncio
     async def test_fetch_source_code_resource_nonexistent_file(self, mcp_server, tmp_path):
         """Test fetching source code for non-existent file."""
@@ -309,99 +313,102 @@ int multiply(int a, int b);
             with pytest.raises(Exception):  # Should raise FileNotFoundError
                 await client.read_resource(f"sourcecode://{nonexistent_file}")
 
-    @pytest.mark.skip(reason="Flaky test - to be fixed")
     @pytest.mark.asyncio
-    async def test_fetch_source_code_by_line_range_resource(self, mcp_server, test_repo_python):
-        """Test fetching source code by line range using MCP resource."""
+    async def test_fetch_source_code_by_line_range_tool(self, mcp_server, test_repo_python):
+        """Test fetching source code by line range using MCP tool."""
         main_file = test_repo_python / "main.py"
 
         async with Client(mcp_server) as client:
-            # Get lines 1-3
-            result = await client.read_resource(
-                f"sourcecode://{main_file}/?start_line=1&end_line=3"
+            # Get lines 1-3 using the tool interface
+            result = await client.call_tool(
+                "fetch_source_code_by_lineno_range",
+                {"file_path": str(main_file), "start_line": 1, "end_line": 3},
             )
 
-            lines = result.data.split("\\n")
+            lines = result.data.split("\n")
             assert len(lines) == 3
             assert lines[0].startswith("def hello_world")
             assert '"""Greet someone with their name."""' in lines[1]
 
-    @pytest.mark.skip(reason="Flaky test - to be fixed")
     @pytest.mark.asyncio
     async def test_fetch_source_code_by_line_range_invalid_range(
         self, mcp_server, test_repo_python
     ):
-        """Test fetching source code with invalid line range."""
+        """Test fetching source code with invalid line range using tool."""
         main_file = test_repo_python / "main.py"
 
         async with Client(mcp_server) as client:
             with pytest.raises(Exception):  # Should raise ValueError
-                await client.read_resource(f"sourcecode://{main_file}/?start_line=5&end_line=2")
+                await client.call_tool(
+                    "fetch_source_code_by_lineno_range",
+                    {"file_path": str(main_file), "start_line": 5, "end_line": 2},
+                )
 
-    @pytest.mark.skip(reason="Flaky test - to be fixed")
     @pytest.mark.asyncio
     async def test_fetch_source_code_by_line_range_out_of_bounds(
         self, mcp_server, test_repo_python
     ):
-        """Test fetching source code with out-of-bounds line range."""
+        """Test fetching source code with out-of-bounds line range using tool."""
         main_file = test_repo_python / "main.py"
 
         async with Client(mcp_server) as client:
             # Request lines beyond file length - should adjust automatically
-            result = await client.read_resource(
-                f"sourcecode://{main_file}/?start_line=1&end_line=1000"
+            result = await client.call_tool(
+                "fetch_source_code_by_lineno_range",
+                {"file_path": str(main_file), "start_line": 1, "end_line": 1000},
             )
 
-            # Should return the entire file content
+            # Should return the entire file content (adjusted bounds)
             assert len(result.data) > 0
             assert "def hello_world" in result.data
 
-    @pytest.mark.skip(reason="Flaky test - to be fixed")
     @pytest.mark.asyncio
-    async def test_fetch_source_code_by_byte_range_resource(self, mcp_server, test_repo_python):
-        """Test fetching source code by byte range using MCP resource."""
+    async def test_fetch_source_code_by_byte_range_tool(self, mcp_server, test_repo_python):
+        """Test fetching source code by byte range using MCP tool."""
         main_file = test_repo_python / "main.py"
 
         async with Client(mcp_server) as client:
-            # Get first 50 bytes
-            result = await client.read_resource(
-                f"sourcecode://{main_file}/?start_byte=0&end_byte=50"
+            # Get first 50 bytes using the tool interface
+            result = await client.call_tool(
+                "fetch_source_code_by_byte_range",
+                {"file_path": str(main_file), "start_byte": 0, "end_byte": 50},
             )
 
             assert len(result.data.encode("utf-8")) <= 50
             assert result.data.startswith("def hello_world")
 
-    @pytest.mark.skip(reason="Flaky test - to be fixed")
     @pytest.mark.asyncio
     async def test_fetch_source_code_by_byte_range_invalid_range(
         self, mcp_server, test_repo_python
     ):
-        """Test fetching source code with invalid byte range."""
+        """Test fetching source code with invalid byte range using tool."""
         main_file = test_repo_python / "main.py"
 
         async with Client(mcp_server) as client:
             with pytest.raises(Exception):  # Should raise ValueError
-                await client.read_resource(f"sourcecode://{main_file}/?start_byte=100&end_byte=50")
+                await client.call_tool(
+                    "fetch_source_code_by_byte_range",
+                    {"file_path": str(main_file), "start_byte": 100, "end_byte": 50},
+                )
 
-    @pytest.mark.skip(reason="Flaky test - to be fixed")
     @pytest.mark.asyncio
     async def test_fetch_source_code_by_byte_range_out_of_bounds(
         self, mcp_server, test_repo_python
     ):
-        """Test fetching source code with out-of-bounds byte range."""
+        """Test fetching source code with out-of-bounds byte range using tool."""
         main_file = test_repo_python / "main.py"
 
         async with Client(mcp_server) as client:
             # Request bytes beyond file length - should adjust automatically
-            result = await client.read_resource(
-                f"sourcecode://{main_file}/?start_byte=0&end_byte=10000"
+            result = await client.call_tool(
+                "fetch_source_code_by_byte_range",
+                {"file_path": str(main_file), "start_byte": 0, "end_byte": 10000},
             )
 
-            # Should return the entire file content
+            # Should return the entire file content (adjusted bounds)
             assert len(result.data) > 0
             assert "def hello_world" in result.data
 
-    @pytest.mark.skip(reason="Flaky test - to be fixed")
     @pytest.mark.asyncio
     async def test_full_workflow_python_repository(
         self, mcp_server, test_repo_python, sample_python_code
@@ -422,15 +429,16 @@ int multiply(int a, int b);
             # Step 3: Fetch source code for the file containing the function
             main_file = test_repo_python / "main.py"
             source_result = await client.read_resource(f"sourcecode://{main_file}")
-            assert source_result.data == sample_python_code
 
-            # Step 4: Fetch specific lines around the function
-            lines_result = await client.read_resource(
-                f"sourcecode://{main_file}/?start_line=5&end_line=8"
+            assert "".join([part.text for part in source_result]) == sample_python_code
+
+            # Step 4: Fetch specific lines around the function using the new tool
+            lines_result = await client.call_tool(
+                "fetch_source_code_by_lineno_range",
+                {"file_path": str(main_file), "start_line": 5, "end_line": 8},
             )
             assert "calculate_sum" in lines_result.data
 
-    @pytest.mark.skip(reason="Flaky test - to be fixed")
     @pytest.mark.asyncio
     async def test_full_workflow_c_repository(self, mcp_server, test_repo_c, sample_c_code):
         """Test complete workflow: setup, query, and fetch for C repository."""
@@ -449,17 +457,17 @@ int multiply(int a, int b);
             # Step 3: Fetch source code
             main_file = test_repo_c / "main.c"
             source_result = await client.read_resource(f"sourcecode://{main_file}")
-            assert source_result.data == sample_c_code
+            assert "".join([part.text for part in source_result]) == sample_c_code
 
-            # Step 4: Fetch specific byte range
-            bytes_result = await client.read_resource(
-                f"sourcecode://{main_file}/?start_byte=20&end_byte=100"
+            # Step 4: Fetch specific byte range using the new tool
+            bytes_result = await client.call_tool(
+                "fetch_source_code_by_byte_range",
+                {"file_path": str(main_file), "start_byte": 20, "end_byte": 100},
             )
             assert len(bytes_result.data) > 0
 
-    @pytest.mark.skip(reason="Flaky test - to be fixed")
     @pytest.mark.asyncio
-    async def test_resource_uri_parsing(self, mcp_server, test_repo_python):
+    async def test_resource_uri_parsing(self, mcp_server, test_repo_python, sample_python_code):
         """Test that resource URIs are parsed correctly."""
         main_file = test_repo_python / "main.py"
 
@@ -467,19 +475,23 @@ int multiply(int a, int b);
             # Test various URI formats
             test_cases = [
                 f"sourcecode://{main_file}",
-                f"sourcecode://{main_file}/?start_line=1&end_line=5",
-                f"sourcecode://{main_file}/?start_byte=0&end_byte=100",
             ]
 
             for uri in test_cases:
                 try:
-                    result = await client.read_resource(uri)
-                    assert result.data is not None
-                    assert len(result.data) > 0
+                    result: list[TextResourceContents] = await client.read_resource(uri)
+                    print(type(result))
+                    pprint(result)
                 except Exception as e:
                     pytest.fail(f"Failed to parse URI {uri}: {e}")
 
-    @pytest.mark.skip(reason="Flaky test - to be fixed")
+                assert isinstance(result, list)
+                assert len(result) > 0
+                assert result[0].text.startswith("def hello_world")
+                # join all texts if multiple parts
+                full_text = "".join([part.text for part in result])
+                assert full_text == sample_python_code
+
     @pytest.mark.asyncio
     async def test_concurrent_operations(self, mcp_server, test_repo_python):
         """Test concurrent MCP operations."""
@@ -492,13 +504,19 @@ int multiply(int a, int b);
                 {"repo_path": str(test_repo_python), "language": "python", "strategy": "json"},
             )
 
-            # Create multiple concurrent operations
+            # Create multiple concurrent operations using the new tool interfaces
             main_file = test_repo_python / "main.py"
             tasks = [
                 client.read_resource(f"sourcecode://{main_file}"),
-                client.read_resource(f"sourcecode://{main_file}/?start_line=1&end_line=5"),
+                client.call_tool(
+                    "fetch_source_code_by_lineno_range",
+                    {"file_path": str(main_file), "start_line": 1, "end_line": 5},
+                ),
                 client.call_tool("query_symbol", {"query": QueryByName(name="hello_world")}),
-                client.read_resource(f"sourcecode://{main_file}/?start_byte=0&end_byte=50"),
+                client.call_tool(
+                    "fetch_source_code_by_byte_range",
+                    {"file_path": str(main_file), "start_byte": 0, "end_byte": 50},
+                ),
             ]
 
             # Execute all tasks concurrently

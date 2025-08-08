@@ -81,17 +81,20 @@ async def fetch_source_code(file_path: str) -> str:
     return await service.fetch_full_source_code(path)
 
 
-@mcp.resource(
-    "sourcecode://{file_path*}/?start_line={start_line}&end_line={end_line}",
+@mcp.tool(
+    "fetch_source_code_by_lineno_range",
     annotations={"readOnlyHint": True, "idempotentHint": True},
 )
 async def fetch_source_code_by_lineno_range(
-    file_path: str, start_line: str, end_line: str, ctx: Context
+    file_path: Path,
+    start_line: int,
+    end_line: int,
+    ctx: Context,
 ) -> str:
     """Fetch a snippet of source code from a file by line range.
 
     Args:
-        file_path: The path to the file to fetch, in the format 'sourcecode://{file_path}'.
+        file_path: The path to the file to fetch.
         start_line: The starting line number (1-based, inclusive).
         end_line: The ending line number (1-based, inclusive).
         ctx: FastMCP context
@@ -100,26 +103,27 @@ async def fetch_source_code_by_lineno_range(
         The content of the specified lines as a string.
 
     """
-    start_line, end_line = int(start_line), int(end_line)
     if start_line > end_line:
         raise ValueError(f"start_line ({start_line}) cannot be greater than end_line ({end_line}).")
 
-    path = Path(file_path)
     service = SourceCodeFetchService.get_instance()
-    return await service.fetch_by_lineno_range(path, start_line, end_line, ctx)
+    return await service.fetch_by_lineno_range(file_path, start_line, end_line, ctx)
 
 
-@mcp.resource(
-    "sourcecode://{file_path*}/?start_byte={start_byte}&end_byte={end_byte}",
+@mcp.tool(
+    "fetch_source_code_by_byte_range",
     annotations={"readOnlyHint": True, "idempotentHint": True},
 )
 async def fetch_source_code_by_byte_range(
-    file_path: str, start_byte: str, end_byte: str, ctx: Context
+    file_path: Path,
+    start_byte: int,
+    end_byte: int,
+    ctx: Context,
 ) -> str:
     """Fetch a snippet of source code from a file by byte range.
 
     Args:
-        file_path: The path to the file to fetch, in the format 'sourcecode://{file_path}'.
+        file_path: The path to the file to fetch.
         start_byte: The starting byte offset (0-based, inclusive).
         end_byte: The ending byte offset (0-based, exclusive).
         ctx: FastMCP context
@@ -128,13 +132,13 @@ async def fetch_source_code_by_byte_range(
         The content of the specified byte range as a string.
 
     """
-    start_byte, end_byte = int(start_byte), int(end_byte)
-    if start_byte > end_byte:
-        raise ValueError(f"start_byte ({start_byte}) cannot be greater than end_byte ({end_byte}).")
+    if start_byte >= end_byte:
+        raise ValueError(
+            f"start_byte ({start_byte}) cannot be greater than or equal to end_byte ({end_byte})."
+        )
 
-    path = Path(file_path)
     service = SourceCodeFetchService.get_instance()
-    return await service.fetch_by_byte_range(path, start_byte, end_byte, ctx)
+    return await service.fetch_by_byte_range(file_path, start_byte, end_byte, ctx)
 
 
 # CodeIndex Service methods
