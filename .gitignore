@@ -18,3 +18,7 @@ docs/**/*.spelling
 # coverage
 htmlcov/
 .coverage
+
+
+# code-index
+.code_index.cache/
