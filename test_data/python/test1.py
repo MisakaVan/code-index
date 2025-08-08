@@ -1,8 +1,10 @@
 def func1(x: int):
     return x + 1
 
+
 def func2(x: int):
     return x + 1
+
 
 def foo(x: int):
     return x + 1
