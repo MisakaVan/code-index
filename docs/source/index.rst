@@ -61,6 +61,7 @@ Contents
    core_api
    language_processors
    index_system
+   mcp
    utilities
 
 .. toctree::
