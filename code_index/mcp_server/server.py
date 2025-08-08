@@ -55,7 +55,6 @@ This instance can be exported to and run by the FastMCP cli.
 # register source code fetching as FastMCP resources
 
 
-@mcp.tool("resolve_file_path")
 def resolve_file_path(repo_path: Path, file_path: Path) -> Path:
     """Resolve the full path of a file within a repository.
 
@@ -70,9 +69,6 @@ def resolve_file_path(repo_path: Path, file_path: Path) -> Path:
     return (repo_path / file_path).resolve().absolute()
 
 
-@mcp.resource(
-    "sourcecode://{file_path*}", annotations={"readOnlyHint": True, "idempotentHint": True}
-)
 async def fetch_source_code(file_path: str) -> str:
     """Fetch the full source code of a file.
 
@@ -88,10 +84,6 @@ async def fetch_source_code(file_path: str) -> str:
     return await service.fetch_full_source_code(path)
 
 
-@mcp.tool(
-    "fetch_source_code_by_lineno_range",
-    annotations={"readOnlyHint": True, "idempotentHint": True},
-)
 async def fetch_source_code_by_lineno_range(
     file_path: Path,
     start_line: int,
@@ -117,10 +109,6 @@ async def fetch_source_code_by_lineno_range(
     return await service.fetch_by_lineno_range(file_path, start_line, end_line, ctx)
 
 
-@mcp.tool(
-    "fetch_source_code_by_byte_range",
-    annotations={"readOnlyHint": True, "idempotentHint": True},
-)
 async def fetch_source_code_by_byte_range(
     file_path: Path,
     start_byte: int,
@@ -148,7 +136,6 @@ async def fetch_source_code_by_byte_range(
     return await service.fetch_by_byte_range(file_path, start_byte, end_byte, ctx)
 
 
-@mcp.tool("setup_repo_index")
 def setup_repo_index(
     repo_path: Path,
     language: Literal["python", "c", "cpp"],
@@ -178,7 +165,6 @@ def setup_repo_index(
     )
 
 
-@mcp.tool("query_symbol")
 def query_symbol(query: CodeQuery) -> CodeQueryResponse:
     """Query the index for symbols matching the given query.
 
@@ -194,6 +180,34 @@ def query_symbol(query: CodeQuery) -> CodeQueryResponse:
         location of the symbol, its name, and other relevant information.
     """
     return CodeIndexService.get_instance().query_symbol(query)
+
+
+# This is a workaround for sphinx autodoc to recognize the docstrings of the undecorated functions above
+# Now register the functions as FastMCP tools and resources
+
+mcp.tool(
+    name="resolve_file_path",
+    annotations={"readOnlyHint": True},
+)(resolve_file_path)
+
+mcp.resource(
+    "sourcecode://{file_path*}",
+    annotations={"readOnlyHint": True, "idempotentHint": True},
+)(fetch_source_code)
+
+mcp.tool(
+    name="fetch_source_code_by_lineno_range",
+    annotations={"readOnlyHint": True, "idempotentHint": True},
+)(fetch_source_code_by_lineno_range)
+
+mcp.tool(
+    name="fetch_source_code_by_byte_range",
+    annotations={"readOnlyHint": True, "idempotentHint": True},
+)(fetch_source_code_by_byte_range)
+
+mcp.tool(name="setup_repo_index")(setup_repo_index)
+
+mcp.tool("query_symbol")(query_symbol)
 
 
 def main():
