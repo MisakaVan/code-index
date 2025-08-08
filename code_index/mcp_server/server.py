@@ -38,12 +38,18 @@ Note:
 """
 
 from pathlib import Path
+from typing import Literal
 
 from fastmcp import FastMCP, Context
 
+from code_index.index.code_query import CodeQueryResponse, CodeQuery
 from code_index.mcp_server.services import CodeIndexService, SourceCodeFetchService
 
 mcp = FastMCP("CodeIndexService")
+"""FastMCP server instance for CodeIndexService.
+
+This instance can be exported to and run by the FastMCP cli.
+"""
 
 
 # register source code fetching as FastMCP resources
@@ -142,9 +148,52 @@ async def fetch_source_code_by_byte_range(
     return await service.fetch_by_byte_range(file_path, start_byte, end_byte, ctx)
 
 
-# CodeIndex Service methods
-mcp.tool(CodeIndexService.get_instance().setup_repo_index)
-mcp.tool(CodeIndexService.get_instance().query_symbol)
+@mcp.tool("setup_repo_index")
+def setup_repo_index(
+    repo_path: Path,
+    language: Literal["python", "c", "cpp"],
+    strategy: Literal["json", "sqlite", "auto"] = "auto",
+) -> None:
+    """Set up the indexer for a repository.
+
+    This initializes the indexer with the specified language processor. Then it indexes the repository using the
+    indexer. If any cached index data exists, it will be loaded into the indexer.
+
+    Args:
+        repo_path: The path to the repository to index.
+        language: The programming language of the repository (e.g., 'python', 'c', 'cpp').
+        strategy: The persistence strategy for the index data ('json', 'sqlite', or 'auto'). This will determine in
+            which format the index data is stored to or loaded from cache.
+
+            - 'auto': Try to select the corresponding strategy according to the format of the cached index data. If
+                no cached data exists, it will default to 'sqlite'.
+            - 'json': Use JSON format for the index data.
+            - 'sqlite': Use SQLite format for the index data.
+
+    """
+    return CodeIndexService.get_instance().setup_repo_index(
+        repo_path=repo_path,
+        language=language,
+        strategy=strategy,
+    )
+
+
+@mcp.tool("query_symbol")
+def query_symbol(query: CodeQuery) -> CodeQueryResponse:
+    """Query the index for symbols matching the given query.
+
+    `symbol` here refers to a `Function-like` entity, which can be anything with its definition or call site
+    like a function, class constructor, method. There are multiple ways to query symbols, such as by name,
+    by name regex, etc.
+
+    Args:
+        query: The query object containing search parameters.
+
+    Returns:
+        A response object containing the results of the query. There can be multiple results, each containing the
+        location of the symbol, its name, and other relevant information.
+    """
+    return CodeIndexService.get_instance().query_symbol(query)
 
 
 def main():
