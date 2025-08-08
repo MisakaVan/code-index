@@ -48,6 +48,7 @@ napoleon_use_rtype = True
 # Autodoc settings
 autodoc_default_options = {
     "show-inheritance": True,
+    "member-order": "bysource",  # Order members by source order
 }
 
 # Autosummary settings
