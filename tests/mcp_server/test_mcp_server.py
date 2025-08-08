@@ -23,7 +23,7 @@ from fastmcp import Client
 from fastmcp.client.client import CallToolResult
 from mcp.types import TextResourceContents
 
-from code_index.index.code_query import QueryByName, QueryByNameRegex
+from code_index.index.code_query import QueryByName, QueryByNameRegex, CodeQuerySingleResponse
 from code_index.mcp_server.server import mcp
 from code_index.mcp_server.services import CodeIndexService
 
@@ -234,18 +234,23 @@ int multiply(int a, int b);
             query = QueryByName(name="hello_world")
             result: CallToolResult = await client.call_tool("query_symbol", {"query": query})
 
-            assert isinstance(result.data, list)
-            assert len(result.data) > 0
+            # print(type(result))
+            # print(type(result.data))
+            # assert isinstance(result.data, CodeQueryResponse)
+            # NOTE: the .data attribute is a pydantic model that fastmcp rebuilds from the JSON schema.
+            # It behaves like the original model `CodeQueryResponse` but is not the same type. So we do
+            # not test the isinstance here.
+
+            assert isinstance(result.structured_content, dict)
+            assert len(result.data.results) > 0
 
             # Check that we found the function
             found_function = False
-            for item in result.data:
-
-                # item here is a nested dictionary.
-
-                # assert item.get("func_like") is not None
-                assert "func_like" in item
-                if item["func_like"].get("name", None) == "hello_world":
+            for item in result.data.results:
+                item: CodeQuerySingleResponse
+                # item here behaves like CodeQuerySingleResponse but is not the same type
+                assert hasattr(item, "func_like")
+                if item.func_like.name == "hello_world":
                     found_function = True
                     break
             assert found_function
@@ -264,14 +269,13 @@ int multiply(int a, int b);
             query = QueryByNameRegex(name_regex=r".*_sum")
             result = await client.call_tool("query_symbol", {"query": query})
 
-            assert isinstance(result.data, list)
-            assert len(result.data) > 0
+            # assert isinstance(result.data, CodeQueryResponse)
+            assert len(result.data.results) > 0
 
             # Should find calculate_sum function
             found_calculate_sum = False
-            for item in result.data:
-                assert "func_like" in item
-                if item["func_like"].get("name", None) == "calculate_sum":
+            for item in result.data.results:
+                if item.func_like.name == "calculate_sum":
                     found_calculate_sum = True
                     break
             assert found_calculate_sum
@@ -424,7 +428,7 @@ int multiply(int a, int b);
             # Step 2: Query for functions
             query = QueryByName(name="calculate_sum")
             query_result = await client.call_tool("query_symbol", {"query": query})
-            assert len(query_result.data) > 0
+            assert len(query_result.data.results) > 0
 
             # Step 3: Fetch source code for the file containing the function
             main_file = test_repo_python / "main.py"
@@ -452,7 +456,7 @@ int multiply(int a, int b);
             # Step 2: Query for functions
             query = QueryByName(name="add_numbers")
             query_result = await client.call_tool("query_symbol", {"query": query})
-            assert len(query_result.data) > 0
+            assert len(query_result.data.results) > 0
 
             # Step 3: Fetch source code
             main_file = test_repo_c / "main.c"

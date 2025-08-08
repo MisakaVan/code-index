@@ -260,7 +260,7 @@ class BaseIndex(ABC):
         return index
 
     @abstractmethod
-    def handle_query(self, query: CodeQuery) -> Iterable[CodeQuerySingleResponse]:
+    def handle_query(self, query: CodeQuery) -> list[CodeQuerySingleResponse]:
         """Handles a query against the index.
 
         Args:

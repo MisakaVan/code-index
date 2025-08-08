@@ -37,7 +37,7 @@ from pathlib import Path
 from typing import Optional, Literal
 
 from code_index.index.base import PersistStrategy
-from code_index.index.code_query import CodeQuery, CodeQuerySingleResponse
+from code_index.index.code_query import CodeQuery, CodeQueryResponse
 from code_index.index.persist import SqlitePersistStrategy, SingleJsonFilePersistStrategy
 from code_index.indexer import CodeIndexer
 from code_index.language_processor import language_processor_factory
@@ -150,7 +150,7 @@ class CodeIndexService:
         # index the repository
         logger.info(f"Indexing repository at {repo_path} with language '{language}'")
 
-    def query_symbol(self, query: CodeQuery) -> list[CodeQuerySingleResponse]:
+    def query_symbol(self, query: CodeQuery) -> CodeQueryResponse:
         """Query the index for symbols matching the given query.
 
         `symbol` here refers to a `Function-like` entity, which can be anything with its definition or call site
@@ -170,4 +170,4 @@ class CodeIndexService:
         logger.info(f"Querying index with: {query}")
 
         index = self._indexer.index
-        return list(index.handle_query(query))
+        return CodeQueryResponse(results=index.handle_query(query))

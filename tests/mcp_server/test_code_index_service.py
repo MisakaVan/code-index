@@ -13,12 +13,11 @@ Test Classes:
     TestCodeIndexService: Comprehensive tests for the CodeIndexService class
 """
 
-import pytest
-from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from code_index.index.code_query import QueryByName, QueryByNameRegex, CodeQuerySingleResponse
-from code_index.models import Function, CodeLocation
+import pytest
+
+from code_index.index.code_query import QueryByName, QueryByNameRegex
 from code_index.mcp_server.services import CodeIndexService
 
 
@@ -314,7 +313,8 @@ int main() {
 
         # Query for a specific function
         query = QueryByName(name="hello_world")
-        results = service.query_symbol(query)
+        response = service.query_symbol(query)
+        results = response.results
 
         assert len(results) > 0
         # Check that we found the function
@@ -337,7 +337,7 @@ int main() {
 
         # Query using regex pattern
         query = QueryByNameRegex(name_regex=r".*_sum")
-        results = service.query_symbol(query)
+        results = service.query_symbol(query).results
 
         assert len(results) > 0
         # Should find calculate_sum function
@@ -360,7 +360,7 @@ int main() {
 
         # Query for non-existent function
         query = QueryByName(name="nonexistent_function")
-        results = service.query_symbol(query)
+        results = service.query_symbol(query).results
 
         assert len(results) == 0
 

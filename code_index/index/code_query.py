@@ -99,3 +99,15 @@ class CodeQuerySingleResponse(BaseModel):
     """The complete information about the function or method, including definitions and references."""
 
     model_config = {"frozen": True}
+
+
+class CodeQueryResponse(BaseModel):
+    """Represents the response for a code query.
+
+    Contains a list of results matching the query criteria.
+    """
+
+    results: list[CodeQuerySingleResponse] = Field(default_factory=list)
+    """List of matching function or method information."""
+
+    model_config = {"frozen": True}

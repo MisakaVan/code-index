@@ -149,7 +149,7 @@ class SimpleIndex(BaseIndex):
             case _:
                 return False
 
-    def handle_query(self, query: CodeQuery) -> Iterable[CodeQuerySingleResponse]:
+    def handle_query(self, query: CodeQuery) -> list[CodeQuerySingleResponse]:
         """Processes a query against the index and returns matching results.
 
         Args:
