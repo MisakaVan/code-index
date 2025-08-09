@@ -14,7 +14,7 @@ extract function/method definitions and references.
 import pathlib
 from dataclasses import dataclass
 from itertools import chain
-from typing import Protocol, List, Iterable
+from typing import Protocol, Iterable
 
 from tree_sitter import Language, Query, Parser, Node, QueryCursor
 
@@ -56,7 +56,7 @@ class LanguageProcessor(Protocol):
         ...
 
     @property
-    def extensions(self) -> List[str]:
+    def extensions(self) -> list[str]:
         """List of file extensions supported by this processor (e.g., ['.py'])."""
         ...
 
@@ -152,7 +152,7 @@ class BaseLanguageProcessor(LanguageProcessor):
         self,
         name: str,
         language: Language,
-        extensions: List[str],
+        extensions: list[str],
         def_query_str: str,
         ref_query_str: str,
     ):
@@ -177,7 +177,7 @@ class BaseLanguageProcessor(LanguageProcessor):
         return self._name
 
     @property
-    def extensions(self) -> List[str]:
+    def extensions(self) -> list[str]:
         return self._extensions
 
     @property

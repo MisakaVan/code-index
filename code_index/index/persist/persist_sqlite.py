@@ -1,7 +1,7 @@
 from enum import StrEnum
 from pathlib import Path
 from pprint import pprint
-from typing import List, Type, TypeVar
+from typing import Type, TypeVar
 
 from sqlalchemy import (
     create_engine,
@@ -81,8 +81,8 @@ class OrmSymbol(Base):
     symbol_type: Mapped[SymbolType] = mapped_column(String)
 
     # 关系：一个 OrmSymbol 可���有多个 OrmDefinition 和 OrmReference
-    definitions: Mapped[List["OrmDefinition"]] = relationship(back_populates="symbol")
-    references: Mapped[List["OrmReference"]] = relationship(back_populates="symbol")
+    definitions: Mapped[list["OrmDefinition"]] = relationship(back_populates="symbol")
+    references: Mapped[list["OrmReference"]] = relationship(back_populates="symbol")
 
     __table_args__ = (UniqueConstraint("name", "class_name", name="uq_symbol_name_class"),)
 
@@ -109,8 +109,8 @@ class OrmCodeLocation(Base):
     end_byte: Mapped[int] = mapped_column(Integer)
 
     # Relationships: code locations can be referenced by multiple definitions and references
-    definitions: Mapped[List["OrmDefinition"]] = relationship(back_populates="location")
-    references: Mapped[List["OrmReference"]] = relationship(back_populates="location")
+    definitions: Mapped[list["OrmDefinition"]] = relationship(back_populates="location")
+    references: Mapped[list["OrmReference"]] = relationship(back_populates="location")
 
     def __repr__(self) -> str:
         return (
@@ -135,7 +135,7 @@ class OrmDefinition(Base):
     location: Mapped["OrmCodeLocation"] = relationship(back_populates="definitions")
 
     # Relationships: definitions can contain multiple references (many-to-many)
-    internal_references: Mapped[List["OrmReference"]] = relationship(
+    internal_references: Mapped[list["OrmReference"]] = relationship(
         secondary=definition_references_table, back_populates="callers"
     )
 
@@ -160,7 +160,7 @@ class OrmReference(Base):
     location: Mapped["OrmCodeLocation"] = relationship(back_populates="references")
 
     # Relationships: references can be contained in multiple definitions
-    callers: Mapped[List["OrmDefinition"]] = relationship(
+    callers: Mapped[list["OrmDefinition"]] = relationship(
         secondary=definition_references_table, back_populates="internal_references"
     )
 

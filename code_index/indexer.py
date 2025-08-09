@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from tree_sitter import Tree
 
@@ -32,7 +32,7 @@ class CodeIndexer:
     def __init__(
         self,
         processor: LanguageProcessor,
-        index: Optional[BaseIndex] = None,
+        index: BaseIndex | None = None,
         store_relative_paths: bool = True,
     ):
         """Initializes the CodeIndexer with the specified configuration.
@@ -281,7 +281,7 @@ class CodeIndexer:
             self.index_file(file_path, project_path, self._processor)
         logger.info("Project indexing complete.")
 
-    def find_definitions(self, name: str) -> List[Definition]:
+    def find_definitions(self, name: str) -> list[Definition]:
         """Finds all definitions of functions or methods with the given name.
 
         Searches the index for all definition locations of functions or methods
@@ -308,7 +308,7 @@ class CodeIndexer:
         func = Function(name=name)
         return list(self._index.get_definitions(func))
 
-    def find_references(self, name: str) -> List[Reference]:
+    def find_references(self, name: str) -> list[Reference]:
         """Finds all references to functions or methods with the given name.
 
         Searches the index for all locations where functions or methods with the
@@ -411,7 +411,7 @@ class CodeIndexer:
         """
         return self._index.get_info(func_like)
 
-    def get_all_functions(self) -> List[FunctionLike]:
+    def get_all_functions(self) -> list[FunctionLike]:
         """Retrieves all functions and methods stored in the index.
 
         Returns a list of all FunctionLike objects (Functions and Methods) that

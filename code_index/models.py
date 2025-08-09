@@ -5,7 +5,7 @@ references, definitions, and their relationships in a codebase.
 """
 
 from pathlib import Path
-from typing import List, Literal, Annotated, Any
+from typing import Literal, Annotated, Any
 
 from pydantic import BaseModel, Field
 
@@ -121,6 +121,8 @@ class PureReference(BaseModel):
     location: CodeLocation
     """The code location where the reference occurs."""
 
+    model_config = {"frozen": True}
+
 
 class PureDefinition(BaseModel):
     """Represents a function or method definition in the codebase.
@@ -130,6 +132,8 @@ class PureDefinition(BaseModel):
 
     location: CodeLocation
     """The code location where the definition occurs."""
+
+    model_config = {"frozen": True}
 
 
 class SymbolReference(BaseModel):
@@ -144,6 +148,8 @@ class SymbolReference(BaseModel):
     reference: PureReference
     """The reference information including location."""
 
+    model_config = {"frozen": True}
+
 
 class SymbolDefinition(BaseModel):
     """Represents a definition of a function-like entity with context.
@@ -157,6 +163,8 @@ class SymbolDefinition(BaseModel):
     definition: PureDefinition
     """The definition information including location."""
 
+    model_config = {"frozen": True}
+
 
 class Reference(PureReference):
     """Represents a reference to a function or method in the codebase and its optional caller.
@@ -168,6 +176,8 @@ class Reference(PureReference):
     called_by: SymbolDefinition | None = Field(default=None)
     """Optional information about the function/method that contains this reference."""
 
+    model_config = {"frozen": True}
+
 
 class Definition(PureDefinition):
     """Represents a function or method definition in the codebase.
@@ -177,7 +187,7 @@ class Definition(PureDefinition):
     made within the definition body.
     """
 
-    calls: List[SymbolReference] = Field(default_factory=list)
+    calls: list[SymbolReference] = Field(default_factory=list)
     """List of function/method calls made within this definition."""
 
 
@@ -189,9 +199,9 @@ class FunctionLikeInfo(BaseModel):
     and all references to it throughout the codebase.
     """
 
-    definitions: List[Definition] = Field(default_factory=list)
+    definitions: list[Definition] = Field(default_factory=list)
     """List of all definition locations for this symbol."""
-    references: List[Reference] = Field(default_factory=list)
+    references: list[Reference] = Field(default_factory=list)
     """List of all reference locations for this symbol."""
 
 
@@ -218,7 +228,7 @@ class IndexData(BaseModel):
 
     type: str
     """String identifier indicating the index type (e.g., "simple_index")."""
-    data: List[IndexDataEntry] = Field(default_factory=list)
+    data: list[IndexDataEntry] = Field(default_factory=list)
     """List of all indexed symbol entries."""
     metadata: dict[Any, Any] | None = None
     """Optional metadata about the index, such as the indexer version, creation timestamp, etc."""

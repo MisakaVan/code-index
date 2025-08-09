@@ -163,7 +163,7 @@ class BaseIndex(ABC):
         pass
 
     @abstractmethod
-    def update(self, mapping: Dict[FunctionLike, FunctionLikeInfo]):
+    def update(self, mapping: dict[FunctionLike, FunctionLikeInfo]):
         """Updates the index with multiple function entries.
 
         Args:

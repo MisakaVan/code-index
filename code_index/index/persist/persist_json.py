@@ -1,9 +1,7 @@
 import json
 from pathlib import Path
-from typing import Any
 
 from ..base import PersistStrategy
-from ...utils.logger import logger
 from ...models import IndexData
 
 

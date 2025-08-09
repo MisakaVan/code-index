@@ -108,7 +108,7 @@ class SimpleIndex(BaseIndex):
         return self.data.items()
 
     @override
-    def update(self, mapping: Dict[FunctionLike, FunctionLikeInfo]):
+    def update(self, mapping: dict[FunctionLike, FunctionLikeInfo]):
         for func_like, info in mapping.items():
             self[func_like] = info  # may raise KeyError if type is incorrect
 

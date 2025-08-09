@@ -45,7 +45,6 @@ Note:
     automatic bounds checking with user-friendly warnings through the MCP context.
 """
 
-from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 

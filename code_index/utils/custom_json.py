@@ -69,7 +69,7 @@ class EnhancedJSONEncoder(json.JSONEncoder):
 
 T = TypeVar("T")
 
-JSON_TYPE_REGISTRY: Dict[str, Type[Any]] = {}
+JSON_TYPE_REGISTRY: dict[str, Type[Any]] = {}
 """Global registry mapping class names to their types for JSON deserialization.
 
 This dictionary is automatically populated when classes are decorated with
