@@ -7,16 +7,19 @@ references, definitions, and their relationships in a codebase.
 from pathlib import Path
 from typing import List, Literal, Annotated, Any
 
-from pydantic import BaseModel, Field, Discriminator
+from pydantic import BaseModel, Field
 
 __all__ = [
     "CodeLocation",
     "Function",
     "Method",
     "FunctionLike",
-    "FunctionLikeRef",
-    "Reference",
+    "SymbolReference",
+    "PureReference",
     "Definition",
+    "Reference",
+    "SymbolDefinition",
+    "PureDefinition",
     "FunctionLikeInfo",
     "IndexDataEntry",
     "IndexData",
@@ -108,7 +111,7 @@ Example usage:
 """
 
 
-class Reference(BaseModel):
+class PureReference(BaseModel):
     """Represents a reference to a function or method in the codebase.
 
     A reference occurs when a function or method is called, passed as an argument,
@@ -119,7 +122,17 @@ class Reference(BaseModel):
     """The code location where the reference occurs."""
 
 
-class FunctionLikeRef(BaseModel):
+class PureDefinition(BaseModel):
+    """Represents a function or method definition in the codebase.
+
+    A definition is where a function or method is declared/implemented.
+    """
+
+    location: CodeLocation
+    """The code location where the definition occurs."""
+
+
+class SymbolReference(BaseModel):
     """Represents a reference to a function-like entity with context.
 
     This combines a function or method symbol with the specific reference location,
@@ -128,25 +141,11 @@ class FunctionLikeRef(BaseModel):
 
     symbol: FunctionLike
     """The function or method being referenced."""
-    reference: Reference
+    reference: PureReference
     """The reference information including location."""
 
 
-class Definition(BaseModel):
-    """Represents a function or method definition in the codebase.
-
-    A definition is where a function or method is declared/implemented.
-    It includes the location of the definition and tracks any function calls
-    made within the definition body.
-    """
-
-    location: CodeLocation
-    """The code location where the definition occurs."""
-    calls: List[FunctionLikeRef] = Field(default_factory=list)
-    """List of function/method calls made within this definition."""
-
-
-class FunctionLikeDef(BaseModel):
+class SymbolDefinition(BaseModel):
     """Represents a definition of a function-like entity with context.
 
     This combines a function or method symbol with the specific definition information,
@@ -155,8 +154,31 @@ class FunctionLikeDef(BaseModel):
 
     symbol: FunctionLike
     """The function or method being defined."""
-    definition: Definition
-    """The definition information including location and calls."""
+    definition: PureDefinition
+    """The definition information including location."""
+
+
+class Reference(PureReference):
+    """Represents a reference to a function or method in the codebase and its optional caller.
+
+    A reference occurs when a function or method is called, passed as an argument,
+    or otherwise used in the code (but not where it's defined).
+    """
+
+    called_by: SymbolDefinition | None = Field(default=None)
+    """Optional information about the function/method that contains this reference."""
+
+
+class Definition(PureDefinition):
+    """Represents a function or method definition in the codebase.
+
+    A definition is where a function or method is declared/implemented.
+    It includes the location of the definition and tracks any function calls
+    made within the definition body.
+    """
+
+    calls: List[SymbolReference] = Field(default_factory=list)
+    """List of function/method calls made within this definition."""
 
 
 class FunctionLikeInfo(BaseModel):

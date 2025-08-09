@@ -20,12 +20,12 @@ from tree_sitter_language_pack import get_language
 from .base import BaseLanguageProcessor, QueryContext
 from ..models import (
     Definition,
-    Reference,
     CodeLocation,
     FunctionLike,
     Function,
-    FunctionLikeRef,
+    SymbolReference,
     Method,
+    Reference,
 )
 from ..utils.logger import logger
 
@@ -99,7 +99,7 @@ class PythonProcessor(BaseLanguageProcessor):
                 call_result = self.handle_reference(call_node, ctx)
                 if call_result:
                     symbol, reference = call_result
-                    calls.append(FunctionLikeRef(symbol=symbol, reference=reference))
+                    calls.append(SymbolReference(symbol=symbol, reference=reference))
 
         # Return different symbol types based on whether it's a method definition
         if is_method:

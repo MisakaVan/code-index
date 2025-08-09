@@ -8,11 +8,11 @@ from .index.impl.simple_index import SimpleIndex
 from .language_processor import LanguageProcessor, QueryContext
 from .models import (
     Definition,
-    Reference,
     FunctionLikeInfo,
     FunctionLike,
     Function,
     Method,
+    Reference,
 )
 from .utils.logger import logger
 
@@ -319,7 +319,7 @@ class CodeIndexer:
             name: The name of the function or method to search for.
 
         Returns:
-            A list of Reference objects containing location and context information
+            A list of PureReference objects containing location and context information
             for each found reference. Returns an empty list if no references are found.
 
         Example:

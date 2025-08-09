@@ -14,7 +14,14 @@ from tree_sitter import Node
 from tree_sitter_language_pack import get_language
 
 from .base import BaseLanguageProcessor, QueryContext
-from ..models import Definition, Reference, CodeLocation, FunctionLike, Function, FunctionLikeRef
+from ..models import (
+    Definition,
+    CodeLocation,
+    FunctionLike,
+    Function,
+    SymbolReference,
+    Reference,
+)
 
 
 class CppProcessor(BaseLanguageProcessor):
@@ -85,7 +92,7 @@ class CppProcessor(BaseLanguageProcessor):
                 call_result = self.handle_reference(call_node, ctx)
                 if call_result:
                     symbol, reference = call_result
-                    calls.append(FunctionLikeRef(symbol=symbol, reference=reference))
+                    calls.append(SymbolReference(symbol=symbol, reference=reference))
 
         return (
             Function(name=func_name),
@@ -140,7 +147,7 @@ class CppProcessor(BaseLanguageProcessor):
             ctx: Query context containing file information.
 
         Returns:
-            A tuple of (Function, Reference) if successful, None if the call
+            A tuple of (Function, PureReference) if successful, None if the call
             expression cannot be processed.
         """
         assert node.type == "call_expression", f"Expected call_expression, got {node.type}"

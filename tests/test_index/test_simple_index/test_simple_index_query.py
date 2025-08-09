@@ -16,10 +16,11 @@ from code_index.index.impl.simple_index import SimpleIndex
 from code_index.models import (
     CodeLocation,
     Definition,
-    Reference,
+    PureReference,
     FunctionLikeInfo,
     Function,
     Method,
+    Reference,
 )
 
 

@@ -5,7 +5,7 @@ import pytest
 from code_index.language_processor.base import QueryContext
 from code_index.language_processor.impl_c import CProcessor
 from code_index.language_processor.impl_cpp import CppProcessor
-from code_index.models import Function, Definition, Reference
+from code_index.models import Function, Definition, PureReference
 
 
 class TestCProcessor:
@@ -90,7 +90,7 @@ int main() {
         func, reference = result
         assert isinstance(func, Function)
         assert func.name in ["helper_func", "printf"]  # 可能是helper_func或printf调用
-        assert isinstance(reference, Reference)
+        assert isinstance(reference, PureReference)
 
         # 找到helper_func的引用
         helper_refs = []

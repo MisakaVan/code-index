@@ -5,10 +5,10 @@ from typing import Dict, Iterable, Iterator
 from .code_query import CodeQuery, CodeQuerySingleResponse
 from ..models import (
     Definition,
-    Reference,
     FunctionLikeInfo,
     FunctionLike,
     IndexData,
+    Reference,
 )
 
 
@@ -212,7 +212,7 @@ class BaseIndex(ABC):
             func_like: The function or method to retrieve references for.
 
         Returns:
-            An iterable of Reference objects.
+            An iterable of PureReference objects.
         """
         pass
 

@@ -14,13 +14,13 @@ from ..code_query import (
 )
 from ...models import (
     Definition,
-    Reference,
     FunctionLikeInfo,
     FunctionLike,
     Function,
     Method,
     IndexData,
     IndexDataEntry,
+    Reference,
 )
 
 

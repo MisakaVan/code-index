@@ -20,6 +20,8 @@ import dataclasses
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
 
+from pydantic import BaseModel
+
 from ..models import (
     IndexData,
 )
@@ -73,6 +75,11 @@ def normalize_dataclass_for_comparison(obj: Any) -> Any:
         >>> normalized["items"]
         ["a", "b"]  # Sorted for consistent comparison
     """
+    if isinstance(obj, BaseModel):
+        # Convert Pydantic model to dictionary
+        result = obj.model_dump()
+        # Recursively process dictionary values
+        return {k: normalize_dataclass_for_comparison(v) for k, v in result.items()}
     if dataclasses.is_dataclass(obj):
         # Convert dataclass to dictionary
         result = dataclasses.asdict(obj)

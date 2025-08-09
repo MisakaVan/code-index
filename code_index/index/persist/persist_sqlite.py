@@ -29,10 +29,11 @@ from ...models import (
     Function,
     FunctionLikeInfo,
     CodeLocation,
+    PureReference,
     Reference,
     IndexDataEntry,
     Definition,
-    FunctionLikeRef,
+    SymbolReference,
 )
 from ...utils.logger import logger
 
@@ -281,7 +282,7 @@ class SqlitePersistStrategy(PersistStrategy):
         # handle what this definition calls
         for func_ref in definition_dc.calls:
             called_symbol_dc: FunctionLike = func_ref.symbol
-            called_reference_dc: Reference = func_ref.reference
+            called_reference_dc: PureReference = func_ref.reference
 
             # make called symbol
             called_symbol_db, _ = get_or_create(
@@ -308,7 +309,7 @@ class SqlitePersistStrategy(PersistStrategy):
                 definition_db.internal_references.append(called_reference_db)
 
     def _handle_reference_for_symbol(
-        self, session: Session, symbol_db: OrmSymbol, reference_dc: Reference
+        self, session: Session, symbol_db: OrmSymbol, reference_dc: PureReference
     ):
         # make location
         loc_db, _ = get_or_create(
@@ -411,10 +412,10 @@ class SqlitePersistStrategy(PersistStrategy):
             end_byte=loc_db.end_byte,
         )
         # handle what this definition calls
-        calls: list[FunctionLikeRef] = []
+        calls: list[SymbolReference] = []
         for ref_db in def_db.internal_references:
             calls.append(
-                FunctionLikeRef(
+                SymbolReference(
                     symbol=self._make_function_like(ref_db.symbol),
                     reference=self._handle_load_reference(session, ref_db),
                 )

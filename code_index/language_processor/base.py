@@ -18,7 +18,7 @@ from typing import Protocol, List, Iterable
 
 from tree_sitter import Language, Query, Parser, Node, QueryCursor
 
-from ..models import Definition, Reference, FunctionLike
+from ..models import Definition, FunctionLike, Reference
 from ..utils.logger import logger
 
 

@@ -76,9 +76,9 @@ def sample_index_data(
                 Definition(
                     location=locations[2],
                     calls=[
-                        FunctionLikeRef(
+                        SymbolReference(
                             symbol=Function(name="func_1"),
-                            reference=Reference(
+                            reference=PureReference(
                                 location=locations[1],
                             ),
                         )
@@ -101,11 +101,11 @@ def sample_index_data(
                 Definition(
                     location=locations[4],
                     calls=[
-                        FunctionLikeRef(
+                        SymbolReference(
                             symbol=func_1_entry.symbol,
                             reference=func_1_entry.info.references[0],
                         ),
-                        FunctionLikeRef(
+                        SymbolReference(
                             symbol=func_2_entry.symbol,
                             reference=func_2_entry.info.references[0],
                         ),
@@ -163,9 +163,9 @@ def sample_index_integration_data(
         for j in range(1, i):
             prev_func = Function(name=f"func_{j}")
             definition_calls.append(
-                FunctionLikeRef(
+                SymbolReference(
                     symbol=prev_func,
-                    reference=Reference(location=locations[j]),  # 1 through 10
+                    reference=PureReference(location=locations[j]),  # 1 through 10
                 )
             )
         index.add_definition(

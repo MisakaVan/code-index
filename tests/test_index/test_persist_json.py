@@ -7,7 +7,7 @@ from code_index.index.persist.persist_json import SingleJsonFilePersistStrategy
 from code_index.models import (
     CodeLocation,
     Definition,
-    Reference,
+    PureReference,
     FunctionLikeInfo,
     Function,
     Method,
@@ -24,7 +24,7 @@ def clear_registry():
     # 重新注册需要的模型类
     register_json_type(CodeLocation)
     register_json_type(Definition)
-    register_json_type(Reference)
+    register_json_type(PureReference)
     register_json_type(FunctionLikeInfo)
     register_json_type(Function)
     register_json_type(Method)
