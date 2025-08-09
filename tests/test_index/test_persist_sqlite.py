@@ -1,6 +1,5 @@
 import tempfile
 from pathlib import Path
-from pprint import pprint
 
 import pytest
 from sqlalchemy import create_engine
@@ -291,9 +290,6 @@ class TestSqlitePersistStrategy:
 
             # 加载数据
             loaded_data = strategy.load(path)
-
-            pprint(loaded_data.model_dump())
-            pprint(sample_index_data.model_dump())
 
             # 使用工具函数进行深度比较，不考虑列表顺序
             assert_index_data_equal(
