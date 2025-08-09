@@ -7,18 +7,17 @@ from pathlib import Path
 import pytest
 
 from code_index.index.code_query import (
+    FilterOption,
     QueryByKey,
     QueryByName,
     QueryByNameRegex,
-    FilterOption,
 )
 from code_index.index.impl.simple_index import SimpleIndex
 from code_index.models import (
     CodeLocation,
     Definition,
-    PureReference,
-    FunctionLikeInfo,
     Function,
+    FunctionLikeInfo,
     Method,
     Reference,
 )

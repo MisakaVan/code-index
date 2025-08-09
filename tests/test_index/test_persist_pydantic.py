@@ -4,14 +4,25 @@ This module tests the JSON persistence strategy that uses Pydantic models
 for serialization and deserialization instead of the deprecated custom JSON handling.
 """
 
-import tempfile
 import json
+import tempfile
 from pathlib import Path
 
 import pytest
 
 from code_index.index.persist.persist_json import SingleJsonFilePersistStrategy
-from code_index.models import *
+from code_index.models import (
+    CodeLocation,
+    Definition,
+    Function,
+    FunctionLikeInfo,
+    IndexData,
+    IndexDataEntry,
+    Method,
+    PureReference,
+    Reference,
+    SymbolReference,
+)
 
 
 @pytest.fixture

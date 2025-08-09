@@ -1,20 +1,19 @@
 #!/usr/bin/env python3
 """Test script to verify JSON serialization/deserialization of Pydantic models."""
 
-import json
 import tempfile
 from pathlib import Path
 
 from code_index.models import (
-    IndexData,
-    IndexDataEntry,
-    FunctionLikeInfo,
-    Function,
-    Method,
     CodeLocation,
     Definition,
-    Reference,
+    Function,
+    FunctionLikeInfo,
     FunctionLikeRef,
+    IndexData,
+    IndexDataEntry,
+    Method,
+    Reference,
 )
 
 
@@ -165,9 +164,9 @@ def test_json_serialization():
     # Clean up
     Path(temp_file_path).unlink()
 
-    print(f"\n✅ JSON serialization test completed successfully!")
-    print(f"✅ Discriminated unions work correctly!")
-    print(f"✅ Nested objects serialize/deserialize properly!")
+    print("\n✅ JSON serialization test completed successfully!")
+    print("✅ Discriminated unions work correctly!")
+    print("✅ Nested objects serialize/deserialize properly!")
 
     return reconstructed_data
 

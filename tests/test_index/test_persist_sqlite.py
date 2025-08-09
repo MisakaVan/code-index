@@ -19,11 +19,14 @@ from code_index.models import (
     Definition,
     Function,
     FunctionLikeInfo,
-    FunctionLikeRef,
     IndexData,
     IndexDataEntry,
     Method,
+    PureDefinition,
+    PureReference,
     Reference,
+    SymbolDefinition,
+    SymbolReference,
 )
 from code_index.utils.test import assert_index_data_equal
 
@@ -170,8 +173,11 @@ def sample_index_integration_data(
 
     index = SimpleIndex()
 
-    get_symbol = lambda x: Function(name=f"func_{x}")
-    get_caller_def_location = lambda x: locations[x + 20]  # 21 through 30
+    def get_symbol(x: int) -> Function:
+        return Function(name=f"func_{x}")
+
+    def get_caller_def_location(x: int) -> CodeLocation:
+        return locations[x + 20]  # 21 through 30
 
     # insert 10 symbols, each with 2 references
     for i in range(1, 11):

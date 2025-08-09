@@ -14,9 +14,9 @@ extract function/method definitions and references.
 import pathlib
 from dataclasses import dataclass
 from itertools import chain
-from typing import Protocol, Iterable
+from typing import Iterable, Protocol
 
-from tree_sitter import Language, Query, Parser, Node, QueryCursor
+from tree_sitter import Language, Node, Parser, Query, QueryCursor
 
 from ..models import Definition, FunctionLike, Reference
 from ..utils.logger import logger

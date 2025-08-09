@@ -5,7 +5,7 @@ references, definitions, and their relationships in a codebase.
 """
 
 from pathlib import Path
-from typing import Literal, Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -100,11 +100,11 @@ Example usage:
 
     # For standalone validation of FunctionLike objects
     funclike_adapter = TypeAdapter(FunctionLike)
-    
+
     # Validate from dict
     func_data = {"type": "function", "name": "my_func"}
     function_obj = funclike_adapter.validate_python(func_data)
-    
+
     # Validate from JSON
     method_json = '{"type": "method", "name": "my_method", "class_name": "MyClass"}'
     method_obj = funclike_adapter.validate_json(method_json)

@@ -7,12 +7,13 @@ from code_index.index.persist.persist_json import SingleJsonFilePersistStrategy
 from code_index.models import (
     CodeLocation,
     Definition,
-    PureReference,
-    FunctionLikeInfo,
     Function,
+    FunctionLikeInfo,
     Method,
+    PureReference,
+    Reference,
 )
-from code_index.utils.custom_json import register_json_type, JSON_TYPE_REGISTRY
+from code_index.utils.custom_json import JSON_TYPE_REGISTRY, register_json_type
 
 
 # 在每个测试前清理注册表，避免测试间相互影响

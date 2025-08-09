@@ -5,17 +5,28 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Iterable, Iterator, TypeAlias
 
+from ...models import (
+    Definition,
+    Function,
+    FunctionLike,
+    FunctionLikeInfo,
+    IndexData,
+    IndexDataEntry,
+    Method,
+    PureDefinition,
+    PureReference,
+    Reference,
+)
+from ...utils.logger import logger
 from ..base import BaseIndex
 from ..code_query import (
     CodeQuery,
     CodeQuerySingleResponse,
+    FilterOption,
     QueryByKey,
     QueryByName,
     QueryByNameRegex,
-    FilterOption,
 )
-from ...models import *
-from ...utils.logger import logger
 
 
 class CrossRefIndex(BaseIndex):
@@ -81,14 +92,14 @@ class CrossRefIndex(BaseIndex):
         super().__init__()
         self.data: CrossRefIndex.Index = defaultdict(lambda: CrossRefIndex.Info())
         """Internal dictionary storing function/method information.
-        
+
         The keys are FunctionLike objects (Function, Method).
         The values are Info objects containing definitions and references.
-        
+
         Each Info object contains:
             - definitions: A dictionary mapping PureDefinition to Definition.
             - references: A dictionary mapping PureReference to Reference.
-            
+
             These dictionaries enable fast lookups and efficient storage of
             definitions and references at given locations in the codebase.
         """

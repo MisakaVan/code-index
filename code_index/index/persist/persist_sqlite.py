@@ -4,40 +4,40 @@ from pprint import pprint
 from typing import Type, TypeVar
 
 from sqlalchemy import (
-    create_engine,
-    ForeignKey,
-    String,
-    Integer,
-    Table,
     Column,
+    ForeignKey,
+    Integer,
+    String,
+    Table,
     UniqueConstraint,
+    create_engine,
     select,
 )
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
+    Session,
     mapped_column,
     relationship,
     sessionmaker,
-    Session,
 )
 
-from ..base import IndexData, PersistStrategy
 from ...models import (
-    FunctionLike,
-    Method,
-    Function,
-    FunctionLikeInfo,
     CodeLocation,
+    Definition,
+    Function,
+    FunctionLike,
+    FunctionLikeInfo,
+    IndexDataEntry,
+    Method,
+    PureDefinition,
     PureReference,
     Reference,
-    IndexDataEntry,
-    Definition,
-    SymbolReference,
     SymbolDefinition,
-    PureDefinition,
+    SymbolReference,
 )
 from ...utils.logger import logger
+from ..base import IndexData, PersistStrategy
 
 
 # --- 1. Database model base class ---
@@ -440,15 +440,6 @@ class SqlitePersistStrategy(PersistStrategy):
     ) -> PureDefinition:
         # get the location for this definition
         loc_db = def_db.location
-        location = CodeLocation(
-            file_path=Path(loc_db.file_path),
-            start_lineno=loc_db.start_lineno,
-            start_col=loc_db.start_col,
-            end_lineno=loc_db.end_lineno,
-            end_col=loc_db.end_col,
-            start_byte=loc_db.start_byte,
-            end_byte=loc_db.end_byte,
-        )
         # create the definition object
         return PureDefinition(
             location=CodeLocation(

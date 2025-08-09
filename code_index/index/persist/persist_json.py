@@ -1,8 +1,8 @@
 import json
 from pathlib import Path
 
-from ..base import PersistStrategy
 from ...models import IndexData
+from ..base import PersistStrategy
 
 
 class SingleJsonFilePersistStrategy(PersistStrategy):

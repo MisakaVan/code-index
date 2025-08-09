@@ -5,7 +5,7 @@ import pytest
 from code_index.language_processor.base import QueryContext
 from code_index.language_processor.impl_c import CProcessor
 from code_index.language_processor.impl_cpp import CppProcessor
-from code_index.models import Function, Definition, PureReference
+from code_index.models import Definition, Function, PureReference
 
 
 class TestCProcessor:
@@ -498,7 +498,7 @@ public:
     int add(int a, int b) {
         return a + b;
     }
-    
+
     int multiply(int a, int b) {
         return a * b;
     }

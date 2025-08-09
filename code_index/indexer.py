@@ -8,9 +8,9 @@ from .index.impl.simple_index import SimpleIndex
 from .language_processor import LanguageProcessor, QueryContext
 from .models import (
     Definition,
-    FunctionLikeInfo,
-    FunctionLike,
     Function,
+    FunctionLike,
+    FunctionLikeInfo,
     Method,
     Reference,
 )
@@ -226,7 +226,7 @@ class CodeIndexer:
         if not file_path.is_file():
             logger.warning(f"Skipping non-file path: {file_path}")
             return
-        if not file_path.suffix in self._processor.extensions:
+        if file_path.suffix not in self._processor.extensions:
             logger.warning(
                 f"Unsupported file extension {file_path.suffix} for file {file_path}. Trying to parse anyway."
             )
@@ -276,7 +276,7 @@ class CodeIndexer:
         for file_path in project_path.rglob("*"):
             if not file_path.is_file():
                 continue
-            if not file_path.suffix in self._processor.extensions:
+            if file_path.suffix not in self._processor.extensions:
                 continue
             self.index_file(file_path, project_path, self._processor)
         logger.info("Project indexing complete.")
@@ -353,6 +353,7 @@ class CodeIndexer:
             .. code-block:: python
 
                 from code_index.index.persist import JSONPersistStrategy
+
                 indexer.dump_index(Path("index.json"), JSONPersistStrategy())
         """
         self.index.persist_to(output_path, persist_strategy)
@@ -381,6 +382,7 @@ class CodeIndexer:
             .. code-block:: python
 
                 from code_index.index.persist import JSONPersistStrategy
+
                 indexer.load_index(Path("index.json"), JSONPersistStrategy())
         """
         self._index = self.index.__class__.load_from(input_path, persist_strategy)
