@@ -173,7 +173,7 @@ class Reference(PureReference):
     or otherwise used in the code (but not where it's defined).
     """
 
-    called_by: SymbolDefinition | None = Field(default=None)
+    called_by: list[SymbolDefinition] = Field(default_factory=list)
     """Optional information about the function/method that contains this reference."""
 
     model_config = {"frozen": True}

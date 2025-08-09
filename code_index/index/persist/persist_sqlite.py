@@ -34,6 +34,8 @@ from ...models import (
     IndexDataEntry,
     Definition,
     SymbolReference,
+    SymbolDefinition,
+    PureDefinition,
 )
 from ...utils.logger import logger
 
@@ -309,7 +311,7 @@ class SqlitePersistStrategy(PersistStrategy):
                 definition_db.internal_references.append(called_reference_db)
 
     def _handle_reference_for_symbol(
-        self, session: Session, symbol_db: OrmSymbol, reference_dc: PureReference
+        self, session: Session, symbol_db: OrmSymbol, reference_dc: Reference
     ):
         # make location
         loc_db, _ = get_or_create(
@@ -325,6 +327,34 @@ class SqlitePersistStrategy(PersistStrategy):
             symbol=symbol_db,  # this should add this reference to the symbol's references
             location=loc_db,
         )
+
+        for func_def in reference_dc.called_by:
+            caller_symbol_dc: FunctionLike = func_def.symbol
+            caller_definition_dc: PureDefinition = func_def.definition
+
+            # make caller symbol
+            caller_symbol_db, _ = get_or_create(
+                session,
+                OrmSymbol,
+                **self._func_like_as_criteria(caller_symbol_dc),
+            )
+            # make caller location
+            caller_location_db, _ = get_or_create(
+                session,
+                OrmCodeLocation,
+                **self._location_as_criteria(caller_definition_dc.location),
+            )
+            # make caller definition
+            caller_definition_db, _ = get_or_create(
+                session,
+                OrmDefinition,
+                symbol=caller_symbol_db,
+                location=caller_location_db,
+            )
+
+            # add the reference to the reference-definition relationship
+            if caller_definition_db not in reference_db.callers:
+                reference_db.callers.append(caller_definition_db)
 
     def _handle_entry(self, session: Session, entry: IndexDataEntry):
         symbol_dc: FunctionLike = entry.symbol
@@ -386,6 +416,52 @@ class SqlitePersistStrategy(PersistStrategy):
         else:
             raise ValueError(f"Unsupported symbol type: {symbol_db.symbol_type}")
 
+    def _handle_load_pure_reference(
+        self,
+        _session: Session,
+        ref_db: OrmReference,
+    ) -> PureReference:
+        loc_db = ref_db.location
+        location = CodeLocation(
+            file_path=Path(loc_db.file_path),
+            start_lineno=loc_db.start_lineno,
+            start_col=loc_db.start_col,
+            end_lineno=loc_db.end_lineno,
+            end_col=loc_db.end_col,
+            start_byte=loc_db.start_byte,
+            end_byte=loc_db.end_byte,
+        )
+        return PureReference(location=location)
+
+    def _handle_load_pure_definition(
+        self,
+        session: Session,
+        def_db: OrmDefinition,
+    ) -> PureDefinition:
+        # get the location for this definition
+        loc_db = def_db.location
+        location = CodeLocation(
+            file_path=Path(loc_db.file_path),
+            start_lineno=loc_db.start_lineno,
+            start_col=loc_db.start_col,
+            end_lineno=loc_db.end_lineno,
+            end_col=loc_db.end_col,
+            start_byte=loc_db.start_byte,
+            end_byte=loc_db.end_byte,
+        )
+        # create the definition object
+        return PureDefinition(
+            location=CodeLocation(
+                file_path=Path(loc_db.file_path),
+                start_lineno=loc_db.start_lineno,
+                start_col=loc_db.start_col,
+                end_lineno=loc_db.end_lineno,
+                end_col=loc_db.end_col,
+                start_byte=loc_db.start_byte,
+                end_byte=loc_db.end_byte,
+            )
+        )
+
     def _handle_load_reference(self, _session: Session, ref_db: OrmReference) -> Reference:
         loc_db = ref_db.location
         location = CodeLocation(
@@ -397,7 +473,17 @@ class SqlitePersistStrategy(PersistStrategy):
             start_byte=loc_db.start_byte,
             end_byte=loc_db.end_byte,
         )
-        return Reference(location=location)
+
+        called_by: list[SymbolDefinition] = []
+        for def_db in ref_db.callers:
+            called_by.append(
+                SymbolDefinition(
+                    symbol=self._make_function_like(def_db.symbol),
+                    definition=self._handle_load_pure_definition(_session, def_db),
+                )
+            )
+
+        return Reference(location=location, called_by=called_by)
 
     def _handle_load_definition(self, session: Session, def_db: OrmDefinition) -> Definition:
         # get the location for this definition
@@ -417,26 +503,23 @@ class SqlitePersistStrategy(PersistStrategy):
             calls.append(
                 SymbolReference(
                     symbol=self._make_function_like(ref_db.symbol),
-                    reference=self._handle_load_reference(session, ref_db),
+                    reference=self._handle_load_pure_reference(session, ref_db),
                 )
             )
         # create the definition object
-        return Definition(
-            location=location,
-            calls=calls,
-        )
+        return Definition(location=location, calls=calls)
 
     def _handle_load_info_for_symbol(
         self, session: Session, symbol_db: OrmSymbol
     ) -> FunctionLikeInfo:
         # get the definitions for this symbol
-        definitions = []
+        definitions: list[Definition] = []
         for def_db in symbol_db.definitions:
             definition = self._handle_load_definition(session, def_db)
             definitions.append(definition)
 
         # get the references for this symbol
-        references = []
+        references: list[Reference] = []
         for ref_db in symbol_db.references:
             reference = self._handle_load_reference(session, ref_db)
             references.append(reference)
