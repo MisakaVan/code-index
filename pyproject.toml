@@ -45,6 +45,16 @@ exclude = '''
 package = true
 
 [dependency-groups]
+demo = [
+    "notebook>=7.4.5",
+    "langchain>=0.3.27",
+    "langchain-core>=0.3.74",
+    "langchain-deepseek>=0.1.4",
+    "langchain-mcp-adapters>=0.1.9",
+    "langchain-openai>=0.3.29",
+    "langgraph>=0.6.4",
+    "python-dotenv>=1.1.1",
+]
 dev = [
     "black>=25.1.0",
     "pre-commit>=4.2.0",
