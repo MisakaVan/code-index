@@ -246,8 +246,8 @@ int multiply(int a, int b);
 
             # Check that we found the function
             found_function = False
-            for item in result.data.results:
-                item: CodeQuerySingleResponse
+            for item in result.structured_content["results"]:
+                item = CodeQuerySingleResponse.model_validate(item)
                 # item here behaves like CodeQuerySingleResponse but is not the same type
                 assert hasattr(item, "func_like")
                 if item.func_like.name == "hello_world":
@@ -274,7 +274,8 @@ int multiply(int a, int b);
 
             # Should find calculate_sum function
             found_calculate_sum = False
-            for item in result.data.results:
+            for item in result.structured_content["results"]:
+                item = CodeQuerySingleResponse.model_validate(item)
                 if item.func_like.name == "calculate_sum":
                     found_calculate_sum = True
                     break

@@ -259,6 +259,9 @@ class TestDataClassRegistry:
         assert "NewDataClass" in JSON_TYPE_REGISTRY
         assert JSON_TYPE_REGISTRY["NewDataClass"] == NewDataClass
 
+    @pytest.mark.skip(
+        reason="Deprecated test case, as now registering non-dataclass causes warning logging instead of exception."
+    )
     def test_register_non_dataclass_raises_error(self):
         """测试注册非数据类应该抛出异常"""
 

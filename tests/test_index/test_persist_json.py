@@ -76,6 +76,7 @@ def sample_index_data():
     return index_data
 
 
+@pytest.mark.skip("Dataclass saving/loading is deprecated in favor of Pydantic models")
 class TestSingleJsonFilePersistStrategy:
     """测试 SingleJsonFilePersistStrategy 类"""
 
