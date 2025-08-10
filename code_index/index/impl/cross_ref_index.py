@@ -65,10 +65,10 @@ class CrossRefIndex(BaseIndex):
             """Creates an Info object from a FunctionLikeInfo object."""
             info = cls()
             for definition in func_like_info.definitions:
-                key = PureDefinition(**definition.model_dump())
+                key = definition.to_pure()
                 info.definitions[key] = definition
             for reference in func_like_info.references:
-                key = PureReference(**reference.model_dump())
+                key = reference.to_pure()
                 info.references[key] = reference
             return info
 
@@ -118,7 +118,7 @@ class CrossRefIndex(BaseIndex):
             func_like: The function or method information.
             definition: The definition details including location and context.
         """
-        key = PureDefinition(**definition.model_dump())
+        key = definition.to_pure()
         self.data[func_like].definitions[key] = definition
 
     def add_reference(self, func_like: FunctionLike, reference: Reference):
@@ -128,7 +128,7 @@ class CrossRefIndex(BaseIndex):
             func_like: The function or method information.
             reference: The reference details including location and context.
         """
-        key = PureReference(**reference.model_dump())
+        key = reference.to_pure()
         self.data[func_like].references[key] = reference
 
     def __len__(self) -> int:

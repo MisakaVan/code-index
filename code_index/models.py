@@ -178,6 +178,10 @@ class Reference(PureReference):
 
     model_config = {"frozen": True}
 
+    def to_pure(self) -> PureReference:
+        """Convert this Reference to a PureReference containing only the location."""
+        return PureReference(location=self.location)
+
 
 class Definition(PureDefinition):
     """Represents a function or method definition in the codebase.
@@ -189,6 +193,10 @@ class Definition(PureDefinition):
 
     calls: list[SymbolReference] = Field(default_factory=list)
     """List of function/method calls made within this definition."""
+
+    def to_pure(self) -> PureDefinition:
+        """Convert this Definition to a PureDefinition containing only the location."""
+        return PureDefinition(location=self.location)
 
 
 class FunctionLikeInfo(BaseModel):
