@@ -112,10 +112,15 @@ Example usage:
 
 
 class PureReference(BaseModel):
-    """Represents a reference to a function or method in the codebase.
+    """A minimal, hashable fingerprint of a function or method reference.
 
-    A reference occurs when a function or method is called, passed as an argument,
-    or otherwise used in the code (but not where it's defined).
+    This class serves as a unique identifier containing only the essential
+    location information needed to distinguish one reference from another.
+    It acts as a fingerprint for the more comprehensive Reference class
+    and is designed to be used as a dictionary key for fast lookups.
+
+    The "Pure" designation indicates this contains only the core, immutable
+    identity of a reference without any additional contextual information.
     """
 
     location: CodeLocation
@@ -125,9 +130,15 @@ class PureReference(BaseModel):
 
 
 class PureDefinition(BaseModel):
-    """Represents a function or method definition in the codebase.
+    """A minimal, hashable fingerprint of a function or method definition.
 
-    A definition is where a function or method is declared/implemented.
+    This class serves as a unique identifier containing only the essential
+    location information needed to distinguish one definition from another.
+    It acts as a fingerprint for the more comprehensive Definition class
+    and is designed to be used as a dictionary key for fast lookups.
+
+    The "Pure" designation indicates this contains only the core, immutable
+    identity of a definition without any additional contextual information.
     """
 
     location: CodeLocation
@@ -167,35 +178,63 @@ class SymbolDefinition(BaseModel):
 
 
 class Reference(PureReference):
-    """Represents a reference to a function or method in the codebase and its optional caller.
+    """Extended reference information with additional contextual data.
+
+    This class inherits from PureReference (which serves as its fingerprint)
+    and adds optional contextual information about the reference. The design
+    is extensible, allowing future additions of more reference-related data
+    without breaking the core identification mechanism provided by PureReference.
 
     A reference occurs when a function or method is called, passed as an argument,
     or otherwise used in the code (but not where it's defined).
     """
 
     called_by: list[SymbolDefinition] = Field(default_factory=list)
-    """Optional information about the function/method that contains this reference."""
+    """The definitions that call this reference, if applicable.
+
+    Note this means "which definitions call this reference" rather than "which symbols call this reference?".
+    Though there should be no more than one caller of a given call-site, we hold this as an iterable, because
+    there are lambdas, closures, wrapped functions, and one call-site may be found inside the scope of multiple
+    definitions.
+    """
 
     model_config = {"frozen": True}
 
     def to_pure(self) -> PureReference:
-        """Convert this Reference to a PureReference containing only the location."""
+        """Extract the pure fingerprint of this reference for use as a dictionary key.
+
+        Returns:
+            A PureReference containing only the location information,
+            suitable for hashing and fast lookups.
+        """
         return PureReference(location=self.location)
 
 
 class Definition(PureDefinition):
-    """Represents a function or method definition in the codebase.
+    """Extended definition information with additional contextual data.
 
-    A definition is where a function or method is declared/implemented.
-    It includes the location of the definition and tracks any function calls
-    made within the definition body.
+    This class inherits from PureDefinition (which serves as its fingerprint)
+    and adds comprehensive information about the definition's context and behavior.
+    The design is extensible, allowing future additions of more definition-related
+    data without breaking the core identification mechanism provided by PureDefinition.
+
+    A definition is where a function or method is declared/implemented,
+    including the location and any function calls made within its body.
     """
 
     calls: list[SymbolReference] = Field(default_factory=list)
-    """List of function/method calls made within this definition."""
+    """List of function/method calls made within this definition.
+
+    This may include calls inside any wrapped functions, closures, or lambdas inside the definition.
+    """
 
     def to_pure(self) -> PureDefinition:
-        """Convert this Definition to a PureDefinition containing only the location."""
+        """Extract the pure fingerprint of this definition for use as a dictionary key.
+
+        Returns:
+            A PureDefinition containing only the location information,
+            suitable for hashing and fast lookups.
+        """
         return PureDefinition(location=self.location)
 
 
