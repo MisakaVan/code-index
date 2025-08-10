@@ -13,8 +13,8 @@ syntax) are not yet implemented. Currently only handles standalone function call
 from tree_sitter import Node
 from tree_sitter_language_pack import get_language
 
+from ..models import CodeLocation, Definition, Function, FunctionLike, FunctionLikeRef, Reference
 from .base import BaseLanguageProcessor, QueryContext
-from ..models import Definition, Reference, CodeLocation, FunctionLike, Function, FunctionLikeRef
 
 
 class CppProcessor(BaseLanguageProcessor):

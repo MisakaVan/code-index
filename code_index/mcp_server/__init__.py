@@ -17,6 +17,7 @@ Example:
     .. code-block:: python
 
         from code_index.mcp_server.server import main
+
         main()
 
 Note:

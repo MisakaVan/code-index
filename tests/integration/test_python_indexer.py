@@ -6,7 +6,6 @@ from code_index.indexer import CodeIndexer
 from code_index.language_processor import PythonProcessor
 from code_index.models import Function, Method
 
-
 # --- Fixtures ---
 
 
@@ -67,13 +66,13 @@ calculate_sum(5, 3)  # 函数引用
 class Calculator:
     def __init__(self, name):
         self.name = name
-    
+
     def add(self, a, b):
         return a + b
-    
+
     def multiply(self, a, b):
         return a * b
-    
+
     def calculate(self, x, y):
         sum_result = self.add(x, y)  # 方法引用
         product = self.multiply(x, y)  # 方法引用
@@ -130,10 +129,10 @@ final = calc.calculate(2, 3)  # 方法引用
 def outer_function(x):
     def inner_function(y):
         return y * 2
-    
+
     def another_inner(z):
         return inner_function(z) + 1  # 内部函数引用
-    
+
     result = inner_function(x)  # 内部函数引用
     return another_inner(result)  # 内部函数引用
 
@@ -181,11 +180,11 @@ def utility_function(data):
 class DataProcessor:
     def __init__(self, items):
         self.items = items
-    
+
     def process(self):
         count = utility_function(self.items)  # 函数引用
         return self.transform(count)  # 方法引用
-    
+
     def transform(self, value):
         return value * 2
 
@@ -240,7 +239,7 @@ def global_func():
 class MyClass:
     def method_one(self):
         pass
-    
+
     def method_two(self):
         pass
 
@@ -368,7 +367,7 @@ class FirstClass:
 class SecondClass:
     def common_method(self):
         return "second"
-    
+
     def call_method(self):
         return self.common_method()  # 方法引用
 

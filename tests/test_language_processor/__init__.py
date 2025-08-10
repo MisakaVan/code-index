@@ -20,10 +20,10 @@ The common test file includes:
 - QueryContext behavior tests
 """
 
-from .test_c_cpp_processor import TestCProcessor, TestCppProcessor
+from .test_c_cpp_processor import TestCppProcessor, TestCProcessor
 from .test_common import (
-    TestLanguageProcessorFactory,
     TestLanguageProcessorCommonBehavior,
+    TestLanguageProcessorFactory,
     TestQueryContextBehavior,
 )
 from .test_python_processor import TestPythonProcessor

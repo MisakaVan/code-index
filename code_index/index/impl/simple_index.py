@@ -1,26 +1,26 @@
 import re
 from collections import defaultdict
 from pprint import pformat
-from typing import Iterable, Dict, override, Iterator
+from typing import Dict, Iterable, Iterator, override
 
+from ...models import (
+    Definition,
+    Function,
+    FunctionLike,
+    FunctionLikeInfo,
+    IndexData,
+    IndexDataEntry,
+    Method,
+    Reference,
+)
 from ..base import BaseIndex
 from ..code_query import (
     CodeQuery,
     CodeQuerySingleResponse,
+    FilterOption,
     QueryByKey,
     QueryByName,
     QueryByNameRegex,
-    FilterOption,
-)
-from ...models import (
-    Definition,
-    Reference,
-    FunctionLikeInfo,
-    FunctionLike,
-    Function,
-    Method,
-    IndexData,
-    IndexDataEntry,
 )
 
 

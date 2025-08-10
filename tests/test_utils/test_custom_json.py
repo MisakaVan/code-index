@@ -6,12 +6,12 @@ from pathlib import Path
 import pytest
 
 from code_index.utils.custom_json import (
-    register_json_type,
+    JSON_TYPE_REGISTRY,
     EnhancedJSONEncoder,
     custom_json_decoder,
     dump_index_to_json,
     load_index_from_json,
-    JSON_TYPE_REGISTRY,
+    register_json_type,
 )
 
 
