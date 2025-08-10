@@ -16,6 +16,8 @@ from ...models import (
     PureDefinition,
     PureReference,
     Reference,
+    SymbolDefinition,
+    SymbolReference,
 )
 from ...utils.logger import logger
 from ..base import BaseIndex
@@ -27,6 +29,78 @@ from ..code_query import (
     QueryByName,
     QueryByNameRegex,
 )
+
+
+class ReferenceDict(dict[PureReference, Reference]):
+    """A specialized dictionary that maintains the invariant: key == value.to_pure().
+
+    When accessing a key that doesn't exist, it creates a new Reference with that
+    PureReference as its location and stores it.
+    """
+
+    def __getitem__(self, key: PureReference) -> Reference:
+        if key not in self:
+            # Create a new Reference with the pure key as its fingerprint
+            new_reference = Reference(location=key.location)
+            self[key] = new_reference
+        return super().__getitem__(key)
+
+    def __setitem__(self, key: PureReference, value: Reference) -> None:
+        # Ensure invariant: key == value.to_pure()
+        if key != value.to_pure():
+            raise ValueError(f"Key {key} does not match value.to_pure() {value.to_pure()}")
+        super().__setitem__(key, value)
+
+    def merge_or_insert(self, value: Reference) -> None:
+        """Merges a Reference into the dictionary or inserts it if not present.
+
+        If the pure key doesn't exist, creates a new entry.
+        If it exists, merges the information (extends the called_by list in-place).
+
+        Args:
+            value: The Reference to merge or insert.
+        """
+        key = value.to_pure()
+        existing = self[key]  # This will create if not present due to our __getitem__
+
+        # Merge the called_by lists in-place
+        existing.called_by.extend(value.called_by)
+
+
+class DefinitionDict(dict[PureDefinition, Definition]):
+    """A specialized dictionary that maintains the invariant: key == value.to_pure().
+
+    When accessing a key that doesn't exist, it creates a new Definition with that
+    PureDefinition as its location and stores it.
+    """
+
+    def __getitem__(self, key: PureDefinition) -> Definition:
+        if key not in self:
+            # Create a new Definition with the pure key as its fingerprint
+            new_definition = Definition(location=key.location)
+            self[key] = new_definition
+        return super().__getitem__(key)
+
+    def __setitem__(self, key: PureDefinition, value: Definition) -> None:
+        # Ensure invariant: key == value.to_pure()
+        if key != value.to_pure():
+            raise ValueError(f"Key {key} does not match value.to_pure() {value.to_pure()}")
+        super().__setitem__(key, value)
+
+    def merge_or_insert(self, value: Definition) -> None:
+        """Merges a Definition into the dictionary or inserts it if not present.
+
+        If the pure key doesn't exist, creates a new entry.
+        If it exists, merges the information (extends the calls list in-place).
+
+        Args:
+            value: The Definition to merge or insert.
+        """
+        key = value.to_pure()
+        existing = self[key]  # This will create if not present due to our __getitem__
+
+        # Merge the calls lists in-place
+        existing.calls.extend(value.calls)
 
 
 class CrossRefIndex(BaseIndex):
@@ -50,8 +124,16 @@ class CrossRefIndex(BaseIndex):
         This class manages both definitions and references with hashmaps for fast lookups.
         """
 
-        definitions: CrossRefIndex.DefinitionDict = field(default_factory=defaultdict)
-        references: CrossRefIndex.ReferenceDict = field(default_factory=defaultdict)
+        definitions: DefinitionDict = field(default_factory=DefinitionDict)
+        """A dictionary mapping PureDefinition to Definition.
+
+        Invariant: forall k, v in definitions: k = v.to_pure()
+        """
+        references: ReferenceDict = field(default_factory=ReferenceDict)
+        """A dictionary mapping PureReference to Reference.
+
+        Invariant: forall k, v in references: k = v.to_pure()
+        """
 
         def to_function_like_info(self) -> FunctionLikeInfo:
             """Converts this Info object to a FunctionLikeInfo object."""
@@ -73,12 +155,20 @@ class CrossRefIndex(BaseIndex):
             return info
 
         def update_from(self, other: CrossRefIndex.Info | FunctionLikeInfo):
-            """Updates this Info object with data from another Info or FunctionLikeInfo."""
+            """Updates this Info object with data from another Info or FunctionLikeInfo.
+
+            Uses merge_or_insert to properly merge information when the same pure keys exist.
+            """
             if isinstance(other, FunctionLikeInfo):
                 other = CrossRefIndex.Info.from_function_like_info(other)
             assert isinstance(other, CrossRefIndex.Info)
-            self.references.update(other.references)
-            self.definitions.update(other.definitions)
+
+            # Use merge_or_insert to properly merge references and definitions
+            for reference in other.references.values():
+                self.references.merge_or_insert(reference)
+
+            for definition in other.definitions.values():
+                self.definitions.merge_or_insert(definition)
 
         def __str__(self) -> str:
             return (
@@ -112,24 +202,104 @@ class CrossRefIndex(BaseIndex):
         return f"CrossRefIndex(items={len(self.data)}, total_definitions={sum(len(info.definitions) for info in self.data.values())}, total_references={sum(len(info.references) for info in self.data.values())})"
 
     def add_definition(self, func_like: FunctionLike, definition: Definition):
-        """Adds a function or method definition to the index.
+        """Adds a function or method definition to the index with cross-referencing.
+
+        This method not only stores the definition but also establishes bidirectional
+        cross-references. For each function call within this definition, it ensures
+        that the called function's references list includes this definition as a caller.
+
+        Example:
+            Given a definition of function `foo` that calls functions `bar` and `baz`:
+
+            .. code-block:: python
+
+                # Definition of foo() that calls bar() and baz()
+                foo_definition = Definition(
+                    location=CodeLocation(...),  # where foo is defined
+                    calls=[
+                        SymbolReference(symbol=Function(name="bar"), reference=PureReference(...)),
+                        SymbolReference(symbol=Function(name="baz"), reference=PureReference(...)),
+                    ],
+                )
+
+                # Adding this definition will:
+                # 1. Store foo's definition in self.data[foo].definitions
+                # 2. Add foo to bar's called_by list: self.data[bar].references[...].called_by
+                # 3. Add foo to baz's called_by list: self.data[baz].references[...].called_by
+                index.add_definition(Function(name="foo"), foo_definition)
 
         Args:
             func_like: The function or method information.
             definition: The definition details including location and context.
         """
-        key = definition.to_pure()
-        self.data[func_like].definitions[key] = definition
+        # First, add the definition using merge_or_insert to conform to the invariant
+        self.data[func_like].definitions.merge_or_insert(definition)
+
+        # Now do cross-referencing: for each call this definition makes,
+        # ensure this definition is in the called_by list of that reference
+        for symbol_reference in definition.calls:
+            called_func_like = symbol_reference.symbol
+            pure_reference = symbol_reference.reference
+
+            # Get or create the reference in the called function's references
+            target_reference = self.data[called_func_like].references[pure_reference]
+
+            # Create a SymbolDefinition for this definition to add to called_by
+            symbol_definition = SymbolDefinition(symbol=func_like, definition=definition.to_pure())
+
+            # Add this definition to the called_by list if not already present
+            if symbol_definition not in target_reference.called_by:
+                target_reference.called_by.append(symbol_definition)
 
     def add_reference(self, func_like: FunctionLike, reference: Reference):
-        """Adds a function or method reference to the index.
+        """Adds a function or method reference to the index with cross-referencing.
+
+        This method not only stores the reference but also establishes bidirectional
+        cross-references. For each caller in the reference's called_by list, it ensures
+        that the caller's definition includes this reference in its calls list.
+
+        Example:
+            Given a reference to function `bar` that is called by functions `foo` and `main`:
+
+            .. code-block:: python
+
+                # Reference to bar() that is called by foo() and main()
+                bar_reference = Reference(
+                    location=CodeLocation(...),  # where bar is called
+                    called_by=[
+                        SymbolDefinition(symbol=Function(name="foo"), definition=PureDefinition(...)),
+                        SymbolDefinition(symbol=Function(name="main"), definition=PureDefinition(...)),
+                    ],
+                )
+
+                # Adding this reference will:
+                # 1. Store bar's reference in self.data[bar].references
+                # 2. Add bar to foo's calls list: self.data[foo].definitions[...].calls
+                # 3. Add bar to main's calls list: self.data[main].definitions[...].calls
+                index.add_reference(Function(name="bar"), bar_reference)
 
         Args:
             func_like: The function or method information.
             reference: The reference details including location and context.
         """
-        key = reference.to_pure()
-        self.data[func_like].references[key] = reference
+        # First, add the reference using merge_or_insert to conform to the invariant
+        self.data[func_like].references.merge_or_insert(reference)
+
+        # Now do cross-referencing: for each caller in the called_by list,
+        # ensure this reference is in the calls list of that definition
+        for symbol_definition in reference.called_by:
+            caller_func_like = symbol_definition.symbol
+            pure_definition = symbol_definition.definition
+
+            # Get or create the definition in the caller function's definitions
+            caller_definition = self.data[caller_func_like].definitions[pure_definition]
+
+            # Create a SymbolReference for this reference to add to calls
+            symbol_reference = SymbolReference(symbol=func_like, reference=reference.to_pure())
+
+            # Add this reference to the calls list if not already present
+            if symbol_reference not in caller_definition.calls:
+                caller_definition.calls.append(symbol_reference)
 
     def __len__(self) -> int:
         return len(self.data)
