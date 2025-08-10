@@ -17,17 +17,17 @@ The processor supports:
 from tree_sitter import Node
 from tree_sitter_language_pack import get_language
 
-from .base import BaseLanguageProcessor, QueryContext
 from ..models import (
-    Definition,
-    Reference,
     CodeLocation,
-    FunctionLike,
+    Definition,
     Function,
+    FunctionLike,
     FunctionLikeRef,
     Method,
+    Reference,
 )
 from ..utils.logger import logger
+from .base import BaseLanguageProcessor, QueryContext
 
 
 class PythonProcessor(BaseLanguageProcessor):

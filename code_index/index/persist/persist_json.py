@@ -2,8 +2,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from ..base import PersistStrategy
 from ...utils.custom_json import dump_index_to_json, load_index_from_json
+from ..base import PersistStrategy
 
 
 class SingleJsonFilePersistStrategy(PersistStrategy):

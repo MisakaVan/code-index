@@ -62,10 +62,10 @@ def calculate_sum(a: int, b: int) -> int:
 
 class Calculator:
     """A simple calculator class."""
-    
+
     def __init__(self):
         self.history = []
-    
+
     def add(self, a: int, b: int) -> int:
         """Add two numbers."""
         return calculate_sum(a, b)

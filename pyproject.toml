@@ -26,21 +26,6 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["code_index"]
 
-[tool.black]
-# 设置每行的最大长度，100 或 120 是常见选择
-line-length = 100
-# 排除你不想被格式化的目录
-exclude = '''
-/(
-    \.git
-  | \.venv
-  | _build
-  | build
-  | dist
-  | test_data
-)/
-'''
-
 [tool.uv]
 package = true
 
@@ -56,7 +41,7 @@ demo = [
     "python-dotenv>=1.1.1",
 ]
 dev = [
-    "black>=25.1.0",
+    "ruff>=0.12.8",
     "pre-commit>=4.2.0",
     "pytest>=8.4.1",
     "pytest-asyncio>=1.1.0",

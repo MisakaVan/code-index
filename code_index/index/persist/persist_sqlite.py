@@ -4,37 +4,37 @@ from pprint import pprint
 from typing import List, Type, TypeVar
 
 from sqlalchemy import (
-    create_engine,
-    ForeignKey,
-    String,
-    Integer,
-    Table,
     Column,
+    ForeignKey,
+    Integer,
+    String,
+    Table,
     UniqueConstraint,
+    create_engine,
     select,
 )
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
+    Session,
     mapped_column,
     relationship,
     sessionmaker,
-    Session,
 )
 
-from ..base import IndexData, PersistStrategy
 from ...models import (
-    FunctionLike,
-    Method,
-    Function,
-    FunctionLikeInfo,
     CodeLocation,
-    Reference,
-    IndexDataEntry,
     Definition,
+    Function,
+    FunctionLike,
+    FunctionLikeInfo,
     FunctionLikeRef,
+    IndexDataEntry,
+    Method,
+    Reference,
 )
 from ...utils.logger import logger
+from ..base import IndexData, PersistStrategy
 
 
 # --- 1. Database model base class ---
