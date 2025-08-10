@@ -6,15 +6,25 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from code_index.index.persist.persist_sqlite import (
-    SqlitePersistStrategy,
-    SymbolType,
-    OrmSymbol,
+    OrmCodeLocation,
+    OrmDefinition,
     OrmMetadata,
     OrmReference,
-    OrmDefinition,
-    OrmCodeLocation,
+    OrmSymbol,
+    SqlitePersistStrategy,
+    SymbolType,
 )
-from code_index.models import *
+from code_index.models import (
+    CodeLocation,
+    Definition,
+    Function,
+    FunctionLikeInfo,
+    FunctionLikeRef,
+    IndexData,
+    IndexDataEntry,
+    Method,
+    Reference,
+)
 from code_index.utils.test import assert_index_data_equal
 
 

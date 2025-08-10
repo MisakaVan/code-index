@@ -13,7 +13,7 @@ Test Classes:
     TestCodeIndexService: Comprehensive tests for the CodeIndexService class
 """
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -46,10 +46,10 @@ def calculate_sum(a: int, b: int) -> int:
 
 class Calculator:
     """A simple calculator class."""
-    
+
     def __init__(self):
         self.history = []
-    
+
     def add(self, a: int, b: int) -> int:
         """Add two numbers and store in history."""
         result = calculate_sum(a, b)  # Call to calculate_sum

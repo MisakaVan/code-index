@@ -255,7 +255,7 @@ def compare_index_data(data1: IndexData, data2: IndexData) -> Tuple[bool, list[s
                         for i, (item1, item2) in enumerate(zip(l1, l2)):
                             diffs.extend(compare_values(item1, item2, f"{path}[{i}]"))
 
-                case _ if type(v1) != type(v2):
+                case _ if type(v1) is not type(v2):
                     # Type mismatch
                     diffs.append(
                         f"{path}: Type mismatch: {type(v1).__name__} != {type(v2).__name__}"
@@ -299,8 +299,9 @@ def assert_index_data_equal(
         >>> def test_indexing():
         ...     actual_data = index_some_code()
         ...     expected_data = load_expected_data()
-        ...     assert_index_data_equal(actual_data, expected_data,
-        ...                           "Code indexing produced unexpected results")
+        ...     assert_index_data_equal(
+        ...         actual_data, expected_data, "Code indexing produced unexpected results"
+        ...     )
     """
     is_equal, differences = compare_index_data(actual, expected)
 

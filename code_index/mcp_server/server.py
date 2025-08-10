@@ -40,9 +40,9 @@ Note:
 from pathlib import Path
 from typing import Literal
 
-from fastmcp import FastMCP, Context
+from fastmcp import Context, FastMCP
 
-from code_index.index.code_query import CodeQueryResponse, CodeQuery
+from code_index.index.code_query import CodeQuery, CodeQueryResponse
 from code_index.mcp_server.services import CodeIndexService, SourceCodeFetchService
 
 mcp = FastMCP("CodeIndexService")

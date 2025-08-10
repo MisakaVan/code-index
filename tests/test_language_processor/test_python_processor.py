@@ -265,7 +265,7 @@ def outer_func():
     def nested_func():
         inner_helper()
         return "nested"
-    
+
     result = nested_func()
     return result
 
@@ -393,16 +393,16 @@ def func_calling_empty():
     obj = MyClass()
     result1 = obj.method1()
     result2 = obj.method2(arg1, arg2)
-    
+
     # 链式调用
     chained = obj.method1().method2()
-    
+
     # 静态方法风格调用
     static_result = MyClass.static_method()
-    
+
     # 普通函数调用
     func_result = regular_function()
-    
+
     return result1
 
 def another_function():
@@ -541,10 +541,10 @@ def another_function():
         chained_calls_code = """def test_chained():
     # 简单链式调用
     result1 = obj.method1().method2()
-    
+
     # 复杂链式调用
     result2 = obj.first().second().third()
-    
+
     # 混合链式调用
     result3 = get_obj().process().finalize()
 """
@@ -589,7 +589,7 @@ def another_function():
         method_def_code = """class MyClass:
     def method1(self):
         return "method1"
-        
+
     def method2(self, arg1, arg2):
         return arg1 + arg2
 """

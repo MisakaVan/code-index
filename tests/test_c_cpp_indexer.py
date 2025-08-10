@@ -7,7 +7,6 @@ from code_index.indexer import CodeIndexer
 from code_index.language_processor.impl_c import CProcessor
 from code_index.language_processor.impl_cpp import CppProcessor
 
-
 # --- Fixtures: 为 C 和 C++ 测试提供可重用的处理器 ---
 
 

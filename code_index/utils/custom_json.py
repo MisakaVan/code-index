@@ -21,9 +21,9 @@ Functions:
 """
 
 import json
-from dataclasses import is_dataclass, fields
+from dataclasses import fields, is_dataclass
 from pathlib import Path
-from typing import Dict, Type, TypeVar, Any
+from typing import Any, Dict, Type, TypeVar
 
 from .logger import logger
 

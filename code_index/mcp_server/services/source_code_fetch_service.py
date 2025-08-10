@@ -31,14 +31,10 @@ Example:
         content = await service.fetch_full_source_code(Path("file.py"))
 
         # Fetch line range
-        snippet = await service.fetch_by_lineno_range(
-            Path("file.py"), 10, 20, ctx
-        )
+        snippet = await service.fetch_by_lineno_range(Path("file.py"), 10, 20, ctx)
 
         # Fetch byte range
-        snippet = await service.fetch_by_byte_range(
-            Path("file.py"), 100, 200, ctx
-        )
+        snippet = await service.fetch_by_byte_range(Path("file.py"), 100, 200, ctx)
 
 Note:
     This service uses LRU caching to optimize repeated file access and provides

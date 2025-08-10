@@ -13,7 +13,7 @@ The module includes:
 
 from typing import Optional
 
-from .base import QueryContext, LanguageProcessor
+from .base import LanguageProcessor, QueryContext
 from .impl_c import CProcessor
 from .impl_cpp import CppProcessor
 from .impl_python import PythonProcessor
@@ -30,7 +30,7 @@ def language_processor_factory(name: str) -> Optional[LanguageProcessor]:
         no processor is available for the given language name.
 
     Example:
-        >>> processor = language_processor_factory('python')
+        >>> processor = language_processor_factory("python")
         >>> if processor:
         ...     # Use the processor to analyze Python code
         ...     pass

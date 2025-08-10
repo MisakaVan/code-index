@@ -1,0 +1,69 @@
+# Ruff configuration file
+# See: https://docs.astral.sh/ruff/configuration/
+
+line-length = 100
+
+indent-width = 4
+
+target-version = "py312"
+
+exclude = [
+    ".git",
+    ".venv",
+    "_build",
+    "build",
+    "test_data",
+    "__pycache__",
+    "*.egg-info",
+    ".pytest_cache",
+    "docs/build",
+]
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+]
+
+ignore = [
+    "E501",  # 行长度由 line-length 设置控制
+    "E741",  # ambiguous-variable-name: 允许使用易混淆的变量名
+]
+
+# 允许自动修复的规则
+fixable = ["ALL"]
+unfixable = []
+
+# 允许unused变量以下划线开头
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[lint.per-file-ignores]
+
+# __init__.py 文件中允许未使用的导入
+"**/__init__.py" = [
+    "F401",  # 导入但未使用
+]
+# tests/
+"tests/**" = [
+    "F841",  # 允许未使用的变量
+]
+
+[lint.isort]
+# isort 配置
+force-single-line = false
+force-sort-within-sections = false
+known-first-party = ["code_index"]
+split-on-trailing-comma = true
+
+[lint.mccabe]
+max-complexity = 10
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+docstring-code-format = true
+docstring-code-line-length = "dynamic"

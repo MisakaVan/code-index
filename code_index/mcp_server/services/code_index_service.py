@@ -21,11 +21,7 @@ Example:
     .. code-block:: python
 
         service = CodeIndexService.get_instance()
-        service.setup_repo_index(
-            repo_path=Path("/path/to/repo"),
-            language="python",
-            strategy="auto"
-        )
+        service.setup_repo_index(repo_path=Path("/path/to/repo"), language="python", strategy="auto")
         results = service.query_symbol(query_object)
 
 Note:
@@ -34,11 +30,11 @@ Note:
 """
 
 from pathlib import Path
-from typing import Optional, Literal
+from typing import Literal, Optional
 
 from code_index.index.base import PersistStrategy
 from code_index.index.code_query import CodeQuery, CodeQueryResponse
-from code_index.index.persist import SqlitePersistStrategy, SingleJsonFilePersistStrategy
+from code_index.index.persist import SingleJsonFilePersistStrategy, SqlitePersistStrategy
 from code_index.indexer import CodeIndexer
 from code_index.language_processor import language_processor_factory
 from code_index.utils.logger import logger

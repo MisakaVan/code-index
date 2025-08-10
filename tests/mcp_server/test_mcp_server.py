@@ -23,7 +23,7 @@ from fastmcp import Client
 from fastmcp.client.client import CallToolResult
 from mcp.types import TextResourceContents
 
-from code_index.index.code_query import QueryByName, QueryByNameRegex, CodeQuerySingleResponse
+from code_index.index.code_query import CodeQuerySingleResponse, QueryByName, QueryByNameRegex
 from code_index.mcp_server.server import mcp
 from code_index.mcp_server.services import CodeIndexService
 
@@ -51,10 +51,10 @@ def calculate_sum(a: int, b: int) -> int:
 
 class Calculator:
     """A simple calculator class."""
-    
+
     def __init__(self):
         self.history = []
-    
+
     def add(self, a: int, b: int) -> int:
         """Add two numbers and store in history."""
         result = calculate_sum(a, b)  # Call to calculate_sum
