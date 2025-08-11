@@ -36,6 +36,7 @@ from typing import Literal, Optional
 
 from code_index.index.base import PersistStrategy
 from code_index.index.code_query import CodeQuery, CodeQueryResponse
+from code_index.index.impl.cross_ref_index import CrossRefIndex
 from code_index.index.persist import SingleJsonFilePersistStrategy, SqlitePersistStrategy
 from code_index.indexer import CodeIndexer
 from code_index.language_processor import language_processor_factory
@@ -117,7 +118,7 @@ class CodeIndexService:
             logger.warning("Indexer is already initialized, reinitializing...")
         l = language_processor_factory(language)
         assert l is not None, f"No language processor found for '{language}'"
-        self._indexer = CodeIndexer(processor=l)
+        self._indexer = CodeIndexer(processor=l, index=CrossRefIndex())
 
         # try to load existing index data
         cache_path, persist_strategy = self._get_cache_config(repo_path, strategy)
