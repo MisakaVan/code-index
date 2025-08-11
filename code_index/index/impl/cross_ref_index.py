@@ -271,8 +271,12 @@ class CrossRefIndex(BaseIndex):
                 bar_reference = Reference(
                     location=CodeLocation(...),  # where bar is called
                     called_by=[
-                        SymbolDefinition(symbol=Function(name="foo"), definition=PureDefinition(...)),
-                        SymbolDefinition(symbol=Function(name="main"), definition=PureDefinition(...)),
+                        SymbolDefinition(
+                            symbol=Function(name="foo"), definition=PureDefinition(...)
+                        ),
+                        SymbolDefinition(
+                            symbol=Function(name="main"), definition=PureDefinition(...)
+                        ),
                     ],
                 )
 

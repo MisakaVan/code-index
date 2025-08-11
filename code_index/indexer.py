@@ -72,12 +72,16 @@ class CodeIndexer:
                 # Find definitions of a specific function
                 definitions = indexer.find_definitions("my_function")
                 for defn in definitions:
-                    print(f"Found definition at {defn.location.file_path}:{defn.location.start_lineno}")
+                    print(
+                        f"Found definition at {defn.location.file_path}:{defn.location.start_lineno}"
+                    )
 
                 # Find references to a specific function
                 references = indexer.find_references("my_function")
                 for ref in references:
-                    print(f"Found reference at {ref.location.file_path}:{ref.location.start_lineno}")
+                    print(
+                        f"Found reference at {ref.location.file_path}:{ref.location.start_lineno}"
+                    )
 
                 # Save the index to a JSON file
                 indexer.dump_index(Path("index.json"), SingleJsonFilePersistStrategy())
@@ -300,7 +304,9 @@ class CodeIndexer:
 
                 definitions = indexer.find_definitions("calculate_total")
                 for defn in definitions:
-                    print(f"Found definition at {defn.location.file_path}:{defn.location.start_lineno}")
+                    print(
+                        f"Found definition at {defn.location.file_path}:{defn.location.start_lineno}"
+                    )
                 # Output: Found definition at src/utils.py:15
 
         """
@@ -327,7 +333,9 @@ class CodeIndexer:
 
                 references = indexer.find_references("calculate_total")
                 for ref in references:
-                    print(f"Found reference at {ref.location.file_path}:{ref.location.start_lineno}")
+                    print(
+                        f"Found reference at {ref.location.file_path}:{ref.location.start_lineno}"
+                    )
                 # Output: Found reference at src/main.py:42
 
         """

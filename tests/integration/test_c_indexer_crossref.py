@@ -363,4 +363,6 @@ class TestCIndexerCrossRef:
                         if found_back_reference:
                             break
 
-                    assert found_back_reference, f"Missing back-reference: {func.name} calls {called_func.name} but {called_func.name} doesn't have {func.name} in called_by"
+                    assert found_back_reference, (
+                        f"Missing back-reference: {func.name} calls {called_func.name} but {called_func.name} doesn't have {func.name} in called_by"
+                    )

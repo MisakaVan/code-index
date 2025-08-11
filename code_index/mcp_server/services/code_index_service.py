@@ -21,7 +21,9 @@ Example:
     .. code-block:: python
 
         service = CodeIndexService.get_instance()
-        service.setup_repo_index(repo_path=Path("/path/to/repo"), language="python", strategy="auto")
+        service.setup_repo_index(
+            repo_path=Path("/path/to/repo"), language="python", strategy="auto"
+        )
         results = service.query_symbol(query_object)
 
 Note:

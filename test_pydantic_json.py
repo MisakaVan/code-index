@@ -135,7 +135,7 @@ def test_json_serialization():
     print("\n4. Detailed verification...")
 
     for i, (orig_entry, recon_entry) in enumerate(zip(original_data.data, reconstructed_data.data)):
-        print(f"  Entry {i+1}:")
+        print(f"  Entry {i + 1}:")
         print(f"    Symbol type: {orig_entry.symbol.type} == {recon_entry.symbol.type}")
         print(f"    Symbol name: {orig_entry.symbol.name} == {recon_entry.symbol.name}")
 

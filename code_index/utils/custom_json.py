@@ -108,8 +108,7 @@ def register_json_type(cls: Type[T]) -> Type[T]:
     """
     if not is_dataclass(cls):
         logger.warning(
-            f"Attempted to register {cls.__name__} which is not a dataclass. "
-            "Skipping registration."
+            f"Attempted to register {cls.__name__} which is not a dataclass. Skipping registration."
         )
     JSON_TYPE_REGISTRY[cls.__name__] = cls
     return cls
