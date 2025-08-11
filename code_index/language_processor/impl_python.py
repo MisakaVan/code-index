@@ -99,7 +99,7 @@ class PythonProcessor(BaseLanguageProcessor):
                 call_result = self.handle_reference(call_node, ctx)
                 if call_result:
                     symbol, reference = call_result
-                    calls.append(SymbolReference(symbol=symbol, reference=reference))
+                    calls.append(SymbolReference(symbol=symbol, reference=reference.to_pure()))
 
         # Return different symbol types based on whether it's a method definition
         if is_method:

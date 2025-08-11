@@ -87,7 +87,7 @@ class CProcessor(BaseLanguageProcessor):
                 call_result = self.handle_reference(call_node, ctx)
                 if call_result:
                     symbol, reference = call_result
-                    calls.append(SymbolReference(symbol=symbol, reference=reference))
+                    calls.append(SymbolReference(symbol=symbol, reference=reference.to_pure()))
 
         return (
             Function(name=func_name),

@@ -177,7 +177,7 @@ class SymbolDefinition(BaseModel):
     model_config = {"frozen": True}
 
 
-class Reference(PureReference):
+class Reference(BaseModel):
     """Extended reference information with additional contextual data.
 
     This class inherits from PureReference (which serves as its fingerprint)
@@ -188,6 +188,9 @@ class Reference(PureReference):
     A reference occurs when a function or method is called, passed as an argument,
     or otherwise used in the code (but not where it's defined).
     """
+
+    location: CodeLocation
+    """The code location where the reference occurs."""
 
     called_by: list[SymbolDefinition] = Field(default_factory=list)
     """The definitions that call this reference, if applicable.
@@ -210,7 +213,7 @@ class Reference(PureReference):
         return PureReference(location=self.location)
 
 
-class Definition(PureDefinition):
+class Definition(BaseModel):
     """Extended definition information with additional contextual data.
 
     This class inherits from PureDefinition (which serves as its fingerprint)
@@ -221,6 +224,9 @@ class Definition(PureDefinition):
     A definition is where a function or method is declared/implemented,
     including the location and any function calls made within its body.
     """
+
+    location: CodeLocation
+    """The code location where the definition occurs."""
 
     calls: list[SymbolReference] = Field(default_factory=list)
     """List of function/method calls made within this definition.
