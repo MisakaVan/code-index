@@ -216,6 +216,22 @@ class Reference(BaseModel):
         """
         return PureReference(location=self.location)
 
+    @classmethod
+    def from_pure(cls, pure_ref: PureReference) -> "Reference":
+        """Create a Reference instance from a PureReference.
+
+        This method allows creating a Reference instance with an empty context
+        (no call sites) from a PureReference, which is useful for initializing
+        references before additional context is added.
+
+        Args:
+            pure_ref (PureReference): The pure reference to convert.
+
+        Returns:
+            Reference: A new Reference instance with the same location as the PureReference.
+        """
+        return cls(location=pure_ref.location, called_by=[])
+
     def merge(self, other: "Reference") -> None:
         """Merge information about the same PureReference.
 
@@ -266,6 +282,22 @@ class Definition(BaseModel):
             suitable for hashing and fast lookups.
         """
         return PureDefinition(location=self.location)
+
+    @classmethod
+    def from_pure(cls, pure_def: PureDefinition) -> "Definition":
+        """Create a Definition instance from a PureDefinition.
+
+        This method allows creating a Definition instance with an empty context
+        (no calls) from a PureDefinition, which is useful for initializing
+        definitions before additional context is added.
+
+        Args:
+            pure_def (PureDefinition): The pure definition to convert.
+
+        Returns:
+            Definition: A new Definition instance with the same location as the PureDefinition.
+        """
+        return cls(location=pure_def.location, calls=[])
 
     def merge(self, other: "Definition") -> None:
         """Merge information about the same PureDefinition.

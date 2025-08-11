@@ -5,6 +5,15 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Iterable, Iterator, TypeAlias
 
+from ...index.base import BaseIndex
+from ...index.code_query import (
+    CodeQuery,
+    CodeQuerySingleResponse,
+    FilterOption,
+    QueryByKey,
+    QueryByName,
+    QueryByNameRegex,
+)
 from ...models import (
     Definition,
     Function,
@@ -20,15 +29,6 @@ from ...models import (
     SymbolReference,
 )
 from ...utils.logger import logger
-from ..base import BaseIndex
-from ..code_query import (
-    CodeQuery,
-    CodeQuerySingleResponse,
-    FilterOption,
-    QueryByKey,
-    QueryByName,
-    QueryByNameRegex,
-)
 
 
 class ReferenceDict(dict[PureReference, Reference]):
@@ -41,7 +41,7 @@ class ReferenceDict(dict[PureReference, Reference]):
     def __getitem__(self, key: PureReference) -> Reference:
         if key not in self:
             # Create a new Reference with the pure key as its fingerprint
-            new_reference = Reference(location=key.location)
+            new_reference = Reference.from_pure(key)
             self[key] = new_reference
         return super().__getitem__(key)
 
@@ -76,7 +76,7 @@ class DefinitionDict(dict[PureDefinition, Definition]):
     def __getitem__(self, key: PureDefinition) -> Definition:
         if key not in self:
             # Create a new Definition with the pure key as its fingerprint
-            new_definition = Definition(location=key.location)
+            new_definition = Definition.from_pure(key)
             self[key] = new_definition
         return super().__getitem__(key)
 
@@ -109,11 +109,6 @@ class CrossRefIndex(BaseIndex):
     handle queries related to where functions/methods are defined and where they
     are referenced in the codebase.
     """
-
-    ReferenceDict: TypeAlias = dict[PureReference, Reference]
-    """The keys are PureReference objects which provide a unique identifier for each reference."""
-    DefinitionDict: TypeAlias = dict[PureDefinition, Definition]
-    """The keys are PureDefinition objects which provide a unique identifier for each definition."""
 
     @dataclass
     class Info:
