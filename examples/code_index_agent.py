@@ -27,7 +27,16 @@ client = MultiServerMCPClient(
                 # "--project",
                 # str(project_root),
             ],
-        }
+        },
+        "filesystem": {
+            "transport": "stdio",
+            "command": "npx",
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-filesystem",
+                str(project_root / "test_data"),
+            ],
+        },
     }
 )
 

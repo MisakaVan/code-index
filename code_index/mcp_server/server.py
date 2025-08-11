@@ -75,6 +75,10 @@ async def fetch_source_code(file_path: str) -> str:
     Args:
         file_path: The path to the file to fetch, in the format 'sourcecode://{file_path}'.
 
+    Note:
+        In case the relative path may not be addressed correctly, it is recommended to resolve the
+        absolute path using `resolve_file_path` before calling this function.
+
     Returns:
         The content of the file as a string.
 
@@ -97,6 +101,10 @@ async def fetch_source_code_by_lineno_range(
         start_line: The starting line number (1-based, inclusive).
         end_line: The ending line number (1-based, inclusive).
         ctx: FastMCP context
+
+    Note:
+        In case the relative path may not be addressed correctly, it is recommended to resolve the
+        absolute path using `resolve_file_path` before calling this function.
 
     Returns:
         The content of the specified lines as a string.
@@ -122,6 +130,10 @@ async def fetch_source_code_by_byte_range(
         start_byte: The starting byte offset (0-based, inclusive).
         end_byte: The ending byte offset (0-based, exclusive).
         ctx: FastMCP context
+
+    Note:
+        In case the relative path may not be addressed correctly, it is recommended to resolve the
+        absolute path using `resolve_file_path` before calling this function.
 
     Returns:
         The content of the specified byte range as a string.
