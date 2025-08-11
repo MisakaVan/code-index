@@ -63,10 +63,7 @@ class ReferenceDict(dict[PureReference, Reference]):
         key = value.to_pure()
         existing = self[key]  # This will create if not present due to our __getitem__
 
-        # Merge the called_by lists in-place, avoiding duplicates
-        for item in value.called_by:
-            if item not in existing.called_by:
-                existing.called_by.append(item)
+        existing.merge(value)
 
 
 class DefinitionDict(dict[PureDefinition, Definition]):
@@ -101,10 +98,7 @@ class DefinitionDict(dict[PureDefinition, Definition]):
         key = value.to_pure()
         existing = self[key]  # This will create if not present due to our __getitem__
 
-        # Merge the calls lists in-place, avoiding duplicates
-        for item in value.calls:
-            if item not in existing.calls:
-                existing.calls.append(item)
+        existing.merge(value)
 
 
 class CrossRefIndex(BaseIndex):

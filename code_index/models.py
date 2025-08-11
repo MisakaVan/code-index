@@ -50,6 +50,10 @@ class CodeLocation(BaseModel):
 
     model_config = {"frozen": True}
 
+    def __str__(self) -> str:
+        """Return a string representation of the code location."""
+        return f"CodeLocation({self.file_path}, {self.start_lineno}:{self.start_col}-{self.end_lineno}:{self.end_col}, {self.start_byte}-{self.end_byte})"
+
 
 class Function(BaseModel):
     """Represents a standalone function in the codebase.
@@ -212,6 +216,26 @@ class Reference(BaseModel):
         """
         return PureReference(location=self.location)
 
+    def merge(self, other: "Reference") -> None:
+        """Merge information about the same PureReference.
+
+        This method allows merging additional contextual information from another Reference
+        into this one, such as additional call sites or definitions that reference this location.
+
+        Args:
+            other (Reference): Another Reference instance with additional context to merge.
+
+        Raises:
+            ValueError: If the other reference does not have the same PureReference.
+        """
+        if self.location != other.location:  # equivalent to PureReference equality
+            raise ValueError("Cannot merge references with different PureReference locations.")
+
+        # Merge the call sites
+        for call in other.called_by:
+            if call not in self.called_by:
+                self.called_by.append(call)
+
 
 class Definition(BaseModel):
     """Extended definition information with additional contextual data.
@@ -242,6 +266,26 @@ class Definition(BaseModel):
             suitable for hashing and fast lookups.
         """
         return PureDefinition(location=self.location)
+
+    def merge(self, other: "Definition") -> None:
+        """Merge information about the same PureDefinition.
+
+        This method allows merging additional contextual information from another Definition
+        into this one, such as additional calls made within the definition.
+
+        Args:
+            other (Definition): Another Definition instance with additional context to merge.
+
+        Raises:
+            ValueError: If the other definition does not have the same PureDefinition.
+        """
+        if self.location != other.location:  # equivalent to PureDefinition equality
+            raise ValueError("Cannot merge definitions with different PureDefinition locations.")
+
+        # Merge the calls
+        for call in other.calls:
+            if call not in self.calls:
+                self.calls.append(call)
 
 
 class FunctionLikeInfo(BaseModel):
