@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from tree_sitter import Tree
 
@@ -32,7 +32,7 @@ class CodeIndexer:
     def __init__(
         self,
         processor: LanguageProcessor,
-        index: Optional[BaseIndex] = None,
+        index: BaseIndex | None = None,
         store_relative_paths: bool = True,
     ):
         """Initializes the CodeIndexer with the specified configuration.
@@ -72,12 +72,16 @@ class CodeIndexer:
                 # Find definitions of a specific function
                 definitions = indexer.find_definitions("my_function")
                 for defn in definitions:
-                    print(f"Found definition at {defn.location.file_path}:{defn.location.start_lineno}")
+                    print(
+                        f"Found definition at {defn.location.file_path}:{defn.location.start_lineno}"
+                    )
 
                 # Find references to a specific function
                 references = indexer.find_references("my_function")
                 for ref in references:
-                    print(f"Found reference at {ref.location.file_path}:{ref.location.start_lineno}")
+                    print(
+                        f"Found reference at {ref.location.file_path}:{ref.location.start_lineno}"
+                    )
 
                 # Save the index to a JSON file
                 indexer.dump_index(Path("index.json"), SingleJsonFilePersistStrategy())
@@ -281,7 +285,7 @@ class CodeIndexer:
             self.index_file(file_path, project_path, self._processor)
         logger.info("Project indexing complete.")
 
-    def find_definitions(self, name: str) -> List[Definition]:
+    def find_definitions(self, name: str) -> list[Definition]:
         """Finds all definitions of functions or methods with the given name.
 
         Searches the index for all definition locations of functions or methods
@@ -300,7 +304,9 @@ class CodeIndexer:
 
                 definitions = indexer.find_definitions("calculate_total")
                 for defn in definitions:
-                    print(f"Found definition at {defn.location.file_path}:{defn.location.start_lineno}")
+                    print(
+                        f"Found definition at {defn.location.file_path}:{defn.location.start_lineno}"
+                    )
                 # Output: Found definition at src/utils.py:15
 
         """
@@ -308,7 +314,7 @@ class CodeIndexer:
         func = Function(name=name)
         return list(self._index.get_definitions(func))
 
-    def find_references(self, name: str) -> List[Reference]:
+    def find_references(self, name: str) -> list[Reference]:
         """Finds all references to functions or methods with the given name.
 
         Searches the index for all locations where functions or methods with the
@@ -319,7 +325,7 @@ class CodeIndexer:
             name: The name of the function or method to search for.
 
         Returns:
-            A list of Reference objects containing location and context information
+            A list of PureReference objects containing location and context information
             for each found reference. Returns an empty list if no references are found.
 
         Example:
@@ -327,7 +333,9 @@ class CodeIndexer:
 
                 references = indexer.find_references("calculate_total")
                 for ref in references:
-                    print(f"Found reference at {ref.location.file_path}:{ref.location.start_lineno}")
+                    print(
+                        f"Found reference at {ref.location.file_path}:{ref.location.start_lineno}"
+                    )
                 # Output: Found reference at src/main.py:42
 
         """
@@ -413,7 +421,7 @@ class CodeIndexer:
         """
         return self._index.get_info(func_like)
 
-    def get_all_functions(self) -> List[FunctionLike]:
+    def get_all_functions(self) -> list[FunctionLike]:
         """Retrieves all functions and methods stored in the index.
 
         Returns a list of all FunctionLike objects (Functions and Methods) that

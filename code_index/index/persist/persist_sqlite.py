@@ -1,7 +1,7 @@
 from enum import StrEnum
 from pathlib import Path
 from pprint import pprint
-from typing import List, Type, TypeVar
+from typing import Type, TypeVar
 
 from sqlalchemy import (
     Column,
@@ -28,10 +28,13 @@ from ...models import (
     Function,
     FunctionLike,
     FunctionLikeInfo,
-    FunctionLikeRef,
     IndexDataEntry,
     Method,
+    PureDefinition,
+    PureReference,
     Reference,
+    SymbolDefinition,
+    SymbolReference,
 )
 from ...utils.logger import logger
 from ..base import IndexData, PersistStrategy
@@ -80,8 +83,8 @@ class OrmSymbol(Base):
     symbol_type: Mapped[SymbolType] = mapped_column(String)
 
     # 关系：一个 OrmSymbol 可���有多个 OrmDefinition 和 OrmReference
-    definitions: Mapped[List["OrmDefinition"]] = relationship(back_populates="symbol")
-    references: Mapped[List["OrmReference"]] = relationship(back_populates="symbol")
+    definitions: Mapped[list["OrmDefinition"]] = relationship(back_populates="symbol")
+    references: Mapped[list["OrmReference"]] = relationship(back_populates="symbol")
 
     __table_args__ = (UniqueConstraint("name", "class_name", name="uq_symbol_name_class"),)
 
@@ -108,8 +111,8 @@ class OrmCodeLocation(Base):
     end_byte: Mapped[int] = mapped_column(Integer)
 
     # Relationships: code locations can be referenced by multiple definitions and references
-    definitions: Mapped[List["OrmDefinition"]] = relationship(back_populates="location")
-    references: Mapped[List["OrmReference"]] = relationship(back_populates="location")
+    definitions: Mapped[list["OrmDefinition"]] = relationship(back_populates="location")
+    references: Mapped[list["OrmReference"]] = relationship(back_populates="location")
 
     def __repr__(self) -> str:
         return (
@@ -134,7 +137,7 @@ class OrmDefinition(Base):
     location: Mapped["OrmCodeLocation"] = relationship(back_populates="definitions")
 
     # Relationships: definitions can contain multiple references (many-to-many)
-    internal_references: Mapped[List["OrmReference"]] = relationship(
+    internal_references: Mapped[list["OrmReference"]] = relationship(
         secondary=definition_references_table, back_populates="callers"
     )
 
@@ -159,7 +162,7 @@ class OrmReference(Base):
     location: Mapped["OrmCodeLocation"] = relationship(back_populates="references")
 
     # Relationships: references can be contained in multiple definitions
-    callers: Mapped[List["OrmDefinition"]] = relationship(
+    callers: Mapped[list["OrmDefinition"]] = relationship(
         secondary=definition_references_table, back_populates="internal_references"
     )
 
@@ -281,7 +284,7 @@ class SqlitePersistStrategy(PersistStrategy):
         # handle what this definition calls
         for func_ref in definition_dc.calls:
             called_symbol_dc: FunctionLike = func_ref.symbol
-            called_reference_dc: Reference = func_ref.reference
+            called_reference_dc: PureReference = func_ref.reference
 
             # make called symbol
             called_symbol_db, _ = get_or_create(
@@ -324,6 +327,34 @@ class SqlitePersistStrategy(PersistStrategy):
             symbol=symbol_db,  # this should add this reference to the symbol's references
             location=loc_db,
         )
+
+        for func_def in reference_dc.called_by:
+            caller_symbol_dc: FunctionLike = func_def.symbol
+            caller_definition_dc: PureDefinition = func_def.definition
+
+            # make caller symbol
+            caller_symbol_db, _ = get_or_create(
+                session,
+                OrmSymbol,
+                **self._func_like_as_criteria(caller_symbol_dc),
+            )
+            # make caller location
+            caller_location_db, _ = get_or_create(
+                session,
+                OrmCodeLocation,
+                **self._location_as_criteria(caller_definition_dc.location),
+            )
+            # make caller definition
+            caller_definition_db, _ = get_or_create(
+                session,
+                OrmDefinition,
+                symbol=caller_symbol_db,
+                location=caller_location_db,
+            )
+
+            # add the reference to the reference-definition relationship
+            if caller_definition_db not in reference_db.callers:
+                reference_db.callers.append(caller_definition_db)
 
     def _handle_entry(self, session: Session, entry: IndexDataEntry):
         symbol_dc: FunctionLike = entry.symbol
@@ -385,6 +416,43 @@ class SqlitePersistStrategy(PersistStrategy):
         else:
             raise ValueError(f"Unsupported symbol type: {symbol_db.symbol_type}")
 
+    def _handle_load_pure_reference(
+        self,
+        _session: Session,
+        ref_db: OrmReference,
+    ) -> PureReference:
+        loc_db = ref_db.location
+        location = CodeLocation(
+            file_path=Path(loc_db.file_path),
+            start_lineno=loc_db.start_lineno,
+            start_col=loc_db.start_col,
+            end_lineno=loc_db.end_lineno,
+            end_col=loc_db.end_col,
+            start_byte=loc_db.start_byte,
+            end_byte=loc_db.end_byte,
+        )
+        return PureReference(location=location)
+
+    def _handle_load_pure_definition(
+        self,
+        session: Session,
+        def_db: OrmDefinition,
+    ) -> PureDefinition:
+        # get the location for this definition
+        loc_db = def_db.location
+        # create the definition object
+        return PureDefinition(
+            location=CodeLocation(
+                file_path=Path(loc_db.file_path),
+                start_lineno=loc_db.start_lineno,
+                start_col=loc_db.start_col,
+                end_lineno=loc_db.end_lineno,
+                end_col=loc_db.end_col,
+                start_byte=loc_db.start_byte,
+                end_byte=loc_db.end_byte,
+            )
+        )
+
     def _handle_load_reference(self, _session: Session, ref_db: OrmReference) -> Reference:
         loc_db = ref_db.location
         location = CodeLocation(
@@ -396,7 +464,17 @@ class SqlitePersistStrategy(PersistStrategy):
             start_byte=loc_db.start_byte,
             end_byte=loc_db.end_byte,
         )
-        return Reference(location=location)
+
+        called_by: list[SymbolDefinition] = []
+        for def_db in ref_db.callers:
+            called_by.append(
+                SymbolDefinition(
+                    symbol=self._make_function_like(def_db.symbol),
+                    definition=self._handle_load_pure_definition(_session, def_db),
+                )
+            )
+
+        return Reference(location=location, called_by=called_by)
 
     def _handle_load_definition(self, session: Session, def_db: OrmDefinition) -> Definition:
         # get the location for this definition
@@ -411,31 +489,28 @@ class SqlitePersistStrategy(PersistStrategy):
             end_byte=loc_db.end_byte,
         )
         # handle what this definition calls
-        calls: list[FunctionLikeRef] = []
+        calls: list[SymbolReference] = []
         for ref_db in def_db.internal_references:
             calls.append(
-                FunctionLikeRef(
+                SymbolReference(
                     symbol=self._make_function_like(ref_db.symbol),
-                    reference=self._handle_load_reference(session, ref_db),
+                    reference=self._handle_load_pure_reference(session, ref_db),
                 )
             )
         # create the definition object
-        return Definition(
-            location=location,
-            calls=calls,
-        )
+        return Definition(location=location, calls=calls)
 
     def _handle_load_info_for_symbol(
         self, session: Session, symbol_db: OrmSymbol
     ) -> FunctionLikeInfo:
         # get the definitions for this symbol
-        definitions = []
+        definitions: list[Definition] = []
         for def_db in symbol_db.definitions:
             definition = self._handle_load_definition(session, def_db)
             definitions.append(definition)
 
         # get the references for this symbol
-        references = []
+        references: list[Reference] = []
         for ref_db in symbol_db.references:
             reference = self._handle_load_reference(session, ref_db)
             references.append(reference)

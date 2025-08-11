@@ -1,7 +1,7 @@
 import re
 from collections import defaultdict
 from pprint import pformat
-from typing import Dict, Iterable, Iterator, override
+from typing import Iterable, Iterator, override
 
 from ...models import (
     Definition,
@@ -108,7 +108,7 @@ class SimpleIndex(BaseIndex):
         return self.data.items()
 
     @override
-    def update(self, mapping: Dict[FunctionLike, FunctionLikeInfo]):
+    def update(self, mapping: dict[FunctionLike, FunctionLikeInfo]):
         for func_like, info in mapping.items():
             self[func_like] = info  # may raise KeyError if type is incorrect
 

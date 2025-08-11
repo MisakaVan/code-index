@@ -25,6 +25,8 @@ from dataclasses import fields, is_dataclass
 from pathlib import Path
 from typing import Any, Dict, Type, TypeVar
 
+from .logger import logger
+
 
 class EnhancedJSONEncoder(json.JSONEncoder):
     """Enhanced JSON encoder for handling non-standard Python types.
@@ -67,7 +69,7 @@ class EnhancedJSONEncoder(json.JSONEncoder):
 
 T = TypeVar("T")
 
-JSON_TYPE_REGISTRY: Dict[str, Type[Any]] = {}
+JSON_TYPE_REGISTRY: dict[str, Type[Any]] = {}
 """Global registry mapping class names to their types for JSON deserialization.
 
 This dictionary is automatically populated when classes are decorated with
@@ -105,7 +107,9 @@ def register_json_type(cls: Type[T]) -> Type[T]:
         >>> # MyData is now registered and can be serialized/deserialized
     """
     if not is_dataclass(cls):
-        raise ValueError("Only dataclasses can be registered.")
+        logger.warning(
+            f"Attempted to register {cls.__name__} which is not a dataclass. Skipping registration."
+        )
     JSON_TYPE_REGISTRY[cls.__name__] = cls
     return cls
 

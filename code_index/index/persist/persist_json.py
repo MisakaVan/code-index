@@ -1,8 +1,7 @@
 import json
 from pathlib import Path
-from typing import Any
 
-from ...utils.custom_json import dump_index_to_json, load_index_from_json
+from ...models import IndexData
 from ..base import PersistStrategy
 
 
@@ -21,7 +20,7 @@ class SingleJsonFilePersistStrategy(PersistStrategy):
         """Returns a string representation of the persistence strategy."""
         return f"{self.__class__.__name__}()"
 
-    def save(self, data: Any, path: Path):
+    def save(self, data: IndexData, path: Path):
         """Saves index data to a JSON file.
 
         Args:
@@ -49,11 +48,13 @@ class SingleJsonFilePersistStrategy(PersistStrategy):
             raise ValueError(f"Parent path is not a directory: {parent_dir}")
 
         try:
-            dump_index_to_json(data, path)
+            # dump_index_to_json(data, path)
+            dumped_json_str = data.model_dump_json(indent=2)
+            path.write_text(dumped_json_str, encoding="utf-8")
         except Exception as e:
             raise RuntimeError(f"Error saving index data to file {path}: {e}")
 
-    def load(self, path: Path) -> Any:
+    def load(self, path: Path) -> IndexData:
         """Loads index data from a JSON file.
 
         Args:
@@ -81,7 +82,8 @@ class SingleJsonFilePersistStrategy(PersistStrategy):
             raise ValueError(f"Path exists but is not a regular file: {path}")
 
         try:
-            return load_index_from_json(path)
+            json_str = path.read_text(encoding="utf-8")
+            return IndexData.model_validate_json(json_str)
         except json.JSONDecodeError as e:
             raise json.JSONDecodeError(f"File {path} is not valid JSON: {e.msg}", e.doc, e.pos)
         except Exception as e:

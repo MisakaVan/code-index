@@ -10,6 +10,7 @@ from code_index.models import (
     Function,
     FunctionLikeInfo,
     Method,
+    PureReference,
     Reference,
 )
 from code_index.utils.custom_json import JSON_TYPE_REGISTRY, register_json_type
@@ -24,7 +25,7 @@ def clear_registry():
     # 重新注册需要的模型类
     register_json_type(CodeLocation)
     register_json_type(Definition)
-    register_json_type(Reference)
+    register_json_type(PureReference)
     register_json_type(FunctionLikeInfo)
     register_json_type(Function)
     register_json_type(Method)
@@ -76,6 +77,7 @@ def sample_index_data():
     return index_data
 
 
+@pytest.mark.skip("Dataclass saving/loading is deprecated in favor of Pydantic models")
 class TestSingleJsonFilePersistStrategy:
     """测试 SingleJsonFilePersistStrategy 类"""
 

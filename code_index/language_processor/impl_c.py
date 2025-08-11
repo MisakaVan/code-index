@@ -15,7 +15,14 @@ The processor supports:
 from tree_sitter import Node
 from tree_sitter_language_pack import get_language
 
-from ..models import CodeLocation, Definition, Function, FunctionLike, FunctionLikeRef, Reference
+from ..models import (
+    CodeLocation,
+    Definition,
+    Function,
+    FunctionLike,
+    Reference,
+    SymbolReference,
+)
 from .base import BaseLanguageProcessor, QueryContext
 
 
@@ -80,7 +87,7 @@ class CProcessor(BaseLanguageProcessor):
                 call_result = self.handle_reference(call_node, ctx)
                 if call_result:
                     symbol, reference = call_result
-                    calls.append(FunctionLikeRef(symbol=symbol, reference=reference))
+                    calls.append(SymbolReference(symbol=symbol, reference=reference.to_pure()))
 
         return (
             Function(name=func_name),
@@ -154,7 +161,7 @@ class CProcessor(BaseLanguageProcessor):
             ctx: Query context containing file information.
 
         Returns:
-            A tuple of (Function, Reference) if successful, None if the call
+            A tuple of (Function, PureReference) if successful, None if the call
             expression doesn't have a recognizable function identifier.
         """
         name_node = node.child_by_field_name("function")

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, Iterable, Iterator
+from typing import Iterable, Iterator
 
 from ..models import (
     Definition,
@@ -163,7 +163,7 @@ class BaseIndex(ABC):
         pass
 
     @abstractmethod
-    def update(self, mapping: Dict[FunctionLike, FunctionLikeInfo]):
+    def update(self, mapping: dict[FunctionLike, FunctionLikeInfo]):
         """Updates the index with multiple function entries.
 
         Args:
@@ -212,7 +212,7 @@ class BaseIndex(ABC):
             func_like: The function or method to retrieve references for.
 
         Returns:
-            An iterable of Reference objects.
+            An iterable of PureReference objects.
         """
         pass
 

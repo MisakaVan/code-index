@@ -13,7 +13,14 @@ syntax) are not yet implemented. Currently only handles standalone function call
 from tree_sitter import Node
 from tree_sitter_language_pack import get_language
 
-from ..models import CodeLocation, Definition, Function, FunctionLike, FunctionLikeRef, Reference
+from ..models import (
+    CodeLocation,
+    Definition,
+    Function,
+    FunctionLike,
+    Reference,
+    SymbolReference,
+)
 from .base import BaseLanguageProcessor, QueryContext
 
 
@@ -85,7 +92,7 @@ class CppProcessor(BaseLanguageProcessor):
                 call_result = self.handle_reference(call_node, ctx)
                 if call_result:
                     symbol, reference = call_result
-                    calls.append(FunctionLikeRef(symbol=symbol, reference=reference))
+                    calls.append(SymbolReference(symbol=symbol, reference=reference.to_pure()))
 
         return (
             Function(name=func_name),
@@ -140,7 +147,7 @@ class CppProcessor(BaseLanguageProcessor):
             ctx: Query context containing file information.
 
         Returns:
-            A tuple of (Function, Reference) if successful, None if the call
+            A tuple of (Function, PureReference) if successful, None if the call
             expression cannot be processed.
         """
         assert node.type == "call_expression", f"Expected call_expression, got {node.type}"

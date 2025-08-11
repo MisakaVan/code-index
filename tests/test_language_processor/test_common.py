@@ -139,15 +139,15 @@ class TestLanguageProcessorCommonBehavior:
         """测试处理器的文件扩展名格式正确"""
         for processor in all_processors:
             for ext in processor.extensions:
-                assert ext.startswith(
-                    "."
-                ), f"Extension {ext} for {processor.name} should start with '.'"
-                assert (
-                    len(ext) > 1
-                ), f"Extension {ext} for {processor.name} should have content after '.'"
-                assert (
-                    ext.islower() or ext == ".h"
-                ), f"Extension {ext} for {processor.name} should be lowercase (except .h)"
+                assert ext.startswith("."), (
+                    f"Extension {ext} for {processor.name} should start with '.'"
+                )
+                assert len(ext) > 1, (
+                    f"Extension {ext} for {processor.name} should have content after '.'"
+                )
+                assert ext.islower() or ext == ".h", (
+                    f"Extension {ext} for {processor.name} should be lowercase (except .h)"
+                )
 
     def test_processor_names_are_consistent(self, all_processors):
         """测试处理器名称与其类型一致"""
@@ -155,9 +155,9 @@ class TestLanguageProcessorCommonBehavior:
 
         for processor in all_processors:
             expected_name = expected_names.get(type(processor))
-            assert (
-                processor.name == expected_name
-            ), f"Expected {expected_name}, got {processor.name}"
+            assert processor.name == expected_name, (
+                f"Expected {expected_name}, got {processor.name}"
+            )
 
 
 class TestQueryContextBehavior:

@@ -19,11 +19,14 @@ from code_index.models import (
     Definition,
     Function,
     FunctionLikeInfo,
-    FunctionLikeRef,
     IndexData,
     IndexDataEntry,
     Method,
+    PureDefinition,
+    PureReference,
     Reference,
+    SymbolDefinition,
+    SymbolReference,
 )
 from code_index.utils.test import assert_index_data_equal
 
@@ -49,21 +52,16 @@ def locations() -> list[CodeLocation]:
 def sample_index_data(
     locations: list[CodeLocation],
 ) -> IndexData:
-    # locations = [
-    #     CodeLocation(
-    #         file_path=Path(f"/path/to/file_{i}.py"),
-    #         start_lineno=i,
-    #         start_col=1,
-    #         end_lineno=50 + i,
-    #         end_col=i,
-    #         start_byte=i * 10,
-    #         end_byte=i * 10 + 100,
-    #     )
-    #     for i in range(1, 11)
-    # ]
+    symbol_1 = Function(name="func_1")
+    symbol_2 = Function(name="func_2")
+    symbol_3 = Method(name="func_3", class_name="ClassFoo")
 
+    symbol_1_called_loc = locations[1]
+    symbol_2_def_loc = locations[2]
+    symbol_2_called_loc = locations[3]
+    symbol_3_def_loc = locations[4]
     func_1_entry: IndexDataEntry = IndexDataEntry(
-        symbol=Function(name="func_1"),
+        symbol=symbol_1,
         info=FunctionLikeInfo(
             definitions=[
                 Definition(
@@ -73,23 +71,38 @@ def sample_index_data(
             ],
             references=[
                 Reference(
-                    location=locations[1],
-                )
+                    location=symbol_1_called_loc,
+                    called_by=[
+                        SymbolDefinition(
+                            symbol=symbol_2,
+                            definition=PureDefinition(
+                                location=symbol_2_def_loc,
+                            ),
+                        ),
+                        SymbolDefinition(
+                            symbol=symbol_3,
+                            definition=PureDefinition(
+                                location=symbol_3_def_loc,
+                            ),
+                        ),
+                    ],
+                ),
             ],
         ),
     )
 
+    # func_2 calls func_1.
     func_2_entry: IndexDataEntry = IndexDataEntry(
-        symbol=Function(name="func_2"),
+        symbol=symbol_2,
         info=FunctionLikeInfo(
             definitions=[
                 Definition(
-                    location=locations[2],
+                    location=symbol_2_def_loc,
                     calls=[
-                        FunctionLikeRef(
-                            symbol=Function(name="func_1"),
-                            reference=Reference(
-                                location=locations[1],
+                        SymbolReference(
+                            symbol=symbol_1,
+                            reference=PureReference(
+                                location=symbol_1_called_loc,
                             ),
                         )
                     ],
@@ -97,7 +110,15 @@ def sample_index_data(
             ],
             references=[
                 Reference(
-                    location=locations[3],
+                    location=symbol_2_called_loc,
+                    called_by=[
+                        SymbolDefinition(
+                            symbol=symbol_3,
+                            definition=PureDefinition(
+                                location=symbol_3_def_loc,
+                            ),
+                        )
+                    ],
                 )
             ],
         ),
@@ -105,19 +126,19 @@ def sample_index_data(
 
     # func_3 calls func_1 and func_2.
     func_3_entry: IndexDataEntry = IndexDataEntry(
-        symbol=Method(name="func_3", class_name="ClassFoo"),
+        symbol=symbol_3,
         info=FunctionLikeInfo(
             definitions=[
                 Definition(
-                    location=locations[4],
+                    location=symbol_3_def_loc,
                     calls=[
-                        FunctionLikeRef(
+                        SymbolReference(
                             symbol=func_1_entry.symbol,
-                            reference=func_1_entry.info.references[0],
+                            reference=PureReference(location=symbol_1_called_loc),
                         ),
-                        FunctionLikeRef(
+                        SymbolReference(
                             symbol=func_2_entry.symbol,
-                            reference=func_2_entry.info.references[0],
+                            reference=PureReference(location=symbol_2_called_loc),
                         ),
                     ],
                 )
@@ -152,14 +173,29 @@ def sample_index_integration_data(
 
     index = SimpleIndex()
 
+    def get_symbol(x: int) -> Function:
+        return Function(name=f"func_{x}")
+
+    def get_caller_def_location(x: int) -> CodeLocation:
+        return locations[x + 20]  # 21 through 30
+
     # insert 10 symbols, each with 2 references
     for i in range(1, 11):
-        func = Function(name=f"func_{i}")
+        func = get_symbol(i)
+
+        # each symbol is called by all later symbols
+        called_by = []
+        for j in range(i + 1, 11):
+            called_by.append(
+                SymbolDefinition(
+                    symbol=get_symbol(j),
+                    definition=PureDefinition(location=get_caller_def_location(j)),  # 21 through 30
+                )
+            )
+
         index.add_reference(
             func,
-            Reference(
-                location=locations[i],  # 1 through 10
-            ),
+            Reference(location=locations[i], called_by=called_by),  # 1 through 10
         )
         index.add_reference(
             func,
@@ -173,15 +209,15 @@ def sample_index_integration_data(
         for j in range(1, i):
             prev_func = Function(name=f"func_{j}")
             definition_calls.append(
-                FunctionLikeRef(
-                    symbol=prev_func,
-                    reference=Reference(location=locations[j]),  # 1 through 10
+                SymbolReference(
+                    symbol=get_symbol(j),
+                    reference=PureReference(location=locations[j]),  # 1 through 10
                 )
             )
         index.add_definition(
             func,
             Definition(
-                location=locations[i + 20],  # 21 through 30
+                location=get_caller_def_location(i),  # 21 through 30
                 calls=definition_calls,
             ),
         )

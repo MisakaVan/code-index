@@ -18,7 +18,9 @@ Functions:
 
 import dataclasses
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Tuple, Union
+
+from pydantic import BaseModel
 
 from ..models import (
     IndexData,
@@ -67,12 +69,17 @@ def normalize_dataclass_for_comparison(obj: Any) -> Any:
     Example:
         >>> @dataclass
         ... class TestData:
-        ...     items: List[str]
+        ...     items: list[str]
         >>> obj = TestData(items=["b", "a"])
         >>> normalized = normalize_dataclass_for_comparison(obj)
         >>> normalized["items"]
         ["a", "b"]  # Sorted for consistent comparison
     """
+    if isinstance(obj, BaseModel):
+        # Convert Pydantic model to dictionary
+        result = obj.model_dump()
+        # Recursively process dictionary values
+        return {k: normalize_dataclass_for_comparison(v) for k, v in result.items()}
     if dataclasses.is_dataclass(obj):
         # Convert dataclass to dictionary
         result = dataclasses.asdict(obj)
@@ -98,7 +105,7 @@ def normalize_dataclass_for_comparison(obj: Any) -> Any:
         return obj
 
 
-def normalize_index_data_for_comparison(data: IndexData) -> Dict[str, Any]:
+def normalize_index_data_for_comparison(data: IndexData) -> dict[str, Any]:
     """Normalize IndexData objects for reliable test comparison.
 
     Converts IndexData to a standardized dictionary format with consistent
@@ -179,7 +186,7 @@ def normalize_index_data_for_comparison(data: IndexData) -> Dict[str, Any]:
     return normalized
 
 
-def compare_index_data(data1: IndexData, data2: IndexData) -> Tuple[bool, List[str]]:
+def compare_index_data(data1: IndexData, data2: IndexData) -> Tuple[bool, list[str]]:
     """Compare two IndexData objects for test equality with detailed difference reporting.
 
     Performs a deep comparison of two IndexData objects after normalization,
@@ -193,7 +200,7 @@ def compare_index_data(data1: IndexData, data2: IndexData) -> Tuple[bool, List[s
     Returns:
         A tuple containing:
             - bool: True if objects are equal, False otherwise
-            - List[str]: List of difference descriptions (empty if equal)
+            - list[str]: List of difference descriptions (empty if equal)
 
     Example:
         >>> data1 = IndexData(...)
@@ -210,7 +217,7 @@ def compare_index_data(data1: IndexData, data2: IndexData) -> Tuple[bool, List[s
         normalized2 = normalize_index_data_for_comparison(data2)
 
         # Recursive value comparison with detailed difference tracking
-        def compare_values(v1: Any, v2: Any, path: str = "") -> List[str]:
+        def compare_values(v1: Any, v2: Any, path: str = "") -> list[str]:
             """Recursively compare two values and track differences.
 
             Args:
