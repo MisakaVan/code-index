@@ -82,6 +82,9 @@ def normalize_dataclass_for_comparison(obj: Any) -> Any:
         return {k: normalize_dataclass_for_comparison(v) for k, v in result.items()}
     if dataclasses.is_dataclass(obj):
         # Convert dataclass to dictionary
+        # assert it is an instance of dataclass, not a class
+        if isinstance(obj, type):
+            raise TypeError("Expected an instance of a dataclass, not a class.")
         result = dataclasses.asdict(obj)
         # Recursively process dictionary values
         return {k: normalize_dataclass_for_comparison(v) for k, v in result.items()}

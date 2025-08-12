@@ -140,11 +140,9 @@ class CrossRefIndex(BaseIndex):
             """Creates an Info object from a FunctionLikeInfo object."""
             info = cls()
             for definition in func_like_info.definitions:
-                key = definition.to_pure()
-                info.definitions[key] = definition
+                info.definitions[definition.to_pure()] = definition
             for reference in func_like_info.references:
-                key = reference.to_pure()
-                info.references[key] = reference
+                info.references[reference.to_pure()] = reference
             return info
 
         def update_from(self, other: CrossRefIndex.Info | FunctionLikeInfo):
@@ -170,7 +168,7 @@ class CrossRefIndex(BaseIndex):
 
     Index: TypeAlias = dict[FunctionLike, Info]
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initializes an empty CrossRefIndex."""
         super().__init__()
         self.data: CrossRefIndex.Index = defaultdict(lambda: CrossRefIndex.Info())

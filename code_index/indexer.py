@@ -189,7 +189,7 @@ class CodeIndexer:
             by the language processor and adds them to the index storage.
         """
         if processor is None:
-            processor: LanguageProcessor = self._processor
+            processor = self._processor
         context = QueryContext(file_path=file_path, source_bytes=source_bytes)
         for node in processor.get_reference_nodes(tree.root_node):
             result = processor.handle_reference(node, context)
