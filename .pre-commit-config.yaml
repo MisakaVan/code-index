@@ -5,7 +5,6 @@ repos:
     rev: v5.0.0
     hooks:
       - id: end-of-file-fixer     # 确保文件以一个空行结尾
-      - id: trailing-whitespace   # 删除行尾空格
       - id: check-yaml            # 检查 YAML 文件语法
       - id: check-toml            # 检查 TOML 文件语法
 
