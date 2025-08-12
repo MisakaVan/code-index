@@ -609,6 +609,83 @@ def another_function():
         assert ("method1", 2) in my_class_methods
         assert ("method2", 5) in my_class_methods
 
+    def test_python_docstring_extraction(self, python_processor):
+        """测试Python文档字符串提取功能"""
+        docstring_code = '''def function_with_docstring():
+    """
+    This is a comprehensive docstring.
+
+    Args:
+        None
+
+    Returns:
+        str: A greeting message
+    """
+    return "Hello, World!"
+
+def function_with_single_line_docstring():
+    "Single line docstring"
+    return "Done"
+
+def function_without_docstring():
+    return "No docs"
+
+class MyClass:
+    def method_with_docstring(self):
+        """Method docstring here."""
+        return True
+'''
+        source_bytes = docstring_code.encode("utf-8")
+        tree = python_processor.parser.parse(source_bytes)
+        ctx = QueryContext(file_path=Path("docstring_test.py"), source_bytes=source_bytes)
+
+        definition_nodes = list(python_processor.get_definition_nodes(tree.root_node))
+        results = {}
+
+        for def_node in definition_nodes:
+            result = python_processor.handle_definition(def_node, ctx)
+            if result:
+                symbol, definition = result
+                results[symbol.name] = definition.doc
+
+        # 测试带有多行文档字符串的函数
+        assert "function_with_docstring" in results
+        docstring = results["function_with_docstring"]
+        assert docstring is not None
+        assert "This is a comprehensive docstring." in docstring
+        assert "Args:" in docstring
+        assert "Returns:" in docstring
+
+        # 测试带有单行文档字符串的函数
+        assert "function_with_single_line_docstring" in results
+        single_line_docstring = results["function_with_single_line_docstring"]
+        assert single_line_docstring is not None
+        assert single_line_docstring.strip() == "Single line docstring"
+
+        # 测试没有文档字符串的函数
+        assert "function_without_docstring" in results
+        assert results["function_without_docstring"] is None
+
+        # 测试带有文档字符串的方法
+        assert "method_with_docstring" in results
+        method_docstring = results["method_with_docstring"]
+        assert method_docstring is not None
+        assert "Method docstring here." in method_docstring
+
+    def test_python_docstring_cleaning(self, python_processor):
+        """测试Python文档字符串清理功能"""
+        test_cases = [
+            ('"""Triple quoted docstring"""', "Triple quoted docstring"),
+            ("'''Single triple quoted'''", "Single triple quoted"),
+            ('"Double quoted"', "Double quoted"),
+            ("'Single quoted'", "Single quoted"),
+            ('"""  Whitespace test  """', "Whitespace test"),
+        ]
+
+        for raw_docstring, expected_clean in test_cases:
+            cleaned = python_processor._clean_python_docstring(raw_docstring)
+            assert cleaned == expected_clean
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

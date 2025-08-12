@@ -69,7 +69,7 @@ class PythonProcessor(BaseLanguageProcessor):
 
         Handles function_definition nodes and determines whether they represent
         standalone functions or class methods based on their context. Also
-        analyzes function calls within the definition body.
+        analyzes function calls within the definition body and extracts docstrings.
 
         Args:
             node: A function_definition syntax tree node.
@@ -87,6 +87,9 @@ class PythonProcessor(BaseLanguageProcessor):
 
         # Determine if this is a method definition (inside a class)
         is_method = self._is_method_definition(node)
+
+        # Extract docstring from function body
+        docstring = self._extract_docstring(node, ctx)
 
         # Find all function calls within the function body
         calls = []
@@ -124,6 +127,7 @@ class PythonProcessor(BaseLanguageProcessor):
                     start_byte=definition_node.start_byte,
                     end_byte=definition_node.end_byte,
                 ),
+                doc=docstring,
                 calls=calls,
             ),
         )
@@ -269,3 +273,60 @@ class PythonProcessor(BaseLanguageProcessor):
                 f"Unexpected function node type '{function_node.type}' at {ctx.file_path}"
             )
             return None
+
+    def _extract_docstring(self, node: Node, ctx: QueryContext) -> str | None:
+        """Extract the docstring from a function or method definition.
+
+        Args:
+            node: A function_definition syntax tree node.
+            ctx: Query context containing file information.
+
+        Returns:
+            The docstring as a string, or None if not present.
+        """
+        # Get the function body node
+        body_node = node.child_by_field_name("body")
+        if not body_node:
+            return None
+
+        # Look for the first statement in the body
+        for child in body_node.children:
+            if child.type == "expression_statement":
+                # Check if this expression statement contains a string
+                for expr_child in child.children:
+                    if expr_child.type == "string":
+                        # Extract the string content, removing quotes
+                        docstring_text = ctx.source_bytes[
+                            expr_child.start_byte : expr_child.end_byte
+                        ].decode("utf8")
+                        # Clean up the docstring by removing quotes and normalizing
+                        return self._clean_python_docstring(docstring_text)
+            elif child.type not in [":", "newline", "indent", "dedent"]:
+                # Stop at the first non-formatting node that's not a docstring
+                break
+
+        return None
+
+    def _clean_python_docstring(self, raw_docstring: str) -> str:
+        """Clean up a Python docstring by removing quotes and normalizing whitespace.
+
+        Args:
+            raw_docstring: The raw docstring text including quotes.
+
+        Returns:
+            The cleaned docstring text.
+        """
+        # Remove triple quotes or single quotes
+        if raw_docstring.startswith('"""') and raw_docstring.endswith('"""'):
+            content = raw_docstring[3:-3]
+        elif raw_docstring.startswith("'''") and raw_docstring.endswith("'''"):
+            content = raw_docstring[3:-3]
+        elif raw_docstring.startswith('"') and raw_docstring.endswith('"'):
+            content = raw_docstring[1:-1]
+        elif raw_docstring.startswith("'") and raw_docstring.endswith("'"):
+            content = raw_docstring[1:-1]
+        else:
+            content = raw_docstring
+
+        # Normalize whitespace - strip leading/trailing and normalize internal whitespace
+        return content.strip()

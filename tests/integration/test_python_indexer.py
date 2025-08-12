@@ -482,3 +482,109 @@ sample_function()
         retrieved_info = indexer.index[sample_func]
         assert len(retrieved_info.definitions) == len(original_definitions)
         assert len(retrieved_info.references) == len(original_references)
+
+    def test_python_docstring_extraction_integration(self, indexer: CodeIndexer, tmp_path: Path):
+        """测试Python文档字符串提取的集成功能。"""
+        python_code = '''
+def calculate_area(length, width):
+    """
+    Calculate the area of a rectangle.
+
+    Args:
+        length (float): The length of the rectangle
+        width (float): The width of the rectangle
+
+    Returns:
+        float: The area of the rectangle
+    """
+    return length * width
+
+def process_data(data_list):
+    """Process a list of data items."""
+    results = []
+    for item in data_list:
+        area = calculate_area(item[0], item[1])  # 函数引用
+        results.append(area)
+    return results
+
+class Calculator:
+    """A simple calculator class."""
+
+    def __init__(self, initial_value=0):
+        """
+        Initialize the calculator.
+
+        Args:
+            initial_value (int): Starting value
+        """
+        self.value = initial_value
+
+    def add(self, number):
+        """Add a number to the current value."""
+        self.value += number
+        result = calculate_area(self.value, number)  # 函数引用
+        return result
+
+def function_without_docs():
+    return "No documentation"
+
+def main():
+    calc = Calculator(10)
+    result = calc.add(5)  # 方法引用
+    data = process_data([(2, 3), (4, 5)])  # 函数引用
+    return result
+'''
+        test_file = tmp_path / "documented_code.py"
+        test_file.write_text(python_code)
+
+        indexer.index_file(test_file, project_path=tmp_path)
+
+        # 测试带有完整文档字符串的函数
+        calculate_area_func = Function(name="calculate_area")
+        area_definitions = list(indexer.index.get_definitions(calculate_area_func))
+        assert len(area_definitions) == 1
+        area_def = area_definitions[0]
+        assert area_def.doc is not None
+        assert "Calculate the area of a rectangle" in area_def.doc
+        assert "Args:" in area_def.doc
+        assert "Returns:" in area_def.doc
+        assert "length (float)" in area_def.doc
+        assert "width (float)" in area_def.doc
+
+        # 测试带有简单文档字符串的函数
+        process_data_func = Function(name="process_data")
+        process_definitions = list(indexer.index.get_definitions(process_data_func))
+        assert len(process_definitions) == 1
+        process_def = process_definitions[0]
+        assert process_def.doc is not None
+        assert "Process a list of data items" in process_def.doc
+
+        # 测试类方法的文档字符串
+        init_method = Method(name="__init__", class_name="Calculator")
+        init_definitions = list(indexer.index.get_definitions(init_method))
+        assert len(init_definitions) == 1
+        init_def = init_definitions[0]
+        assert init_def.doc is not None
+        assert "Initialize the calculator" in init_def.doc
+        assert "Args:" in init_def.doc
+
+        add_method = Method(name="add", class_name="Calculator")
+        add_definitions = list(indexer.index.get_definitions(add_method))
+        assert len(add_definitions) == 1
+        add_def = add_definitions[0]
+        assert add_def.doc is not None
+        assert "Add a number to the current value" in add_def.doc
+
+        # 测试没有文档字符串的函数
+        no_docs_func = Function(name="function_without_docs")
+        no_docs_definitions = list(indexer.index.get_definitions(no_docs_func))
+        assert len(no_docs_definitions) == 1
+        assert no_docs_definitions[0].doc is None
+
+        # 验证函数调用仍然正常工作
+        area_references = list(indexer.index.get_references(calculate_area_func))
+        assert len(area_references) == 2  # 在process_data和Calculator.add中被调用
+
+        # 验证文档字符串不影响交叉引用功能
+        process_references = list(indexer.index.get_references(process_data_func))
+        assert len(process_references) == 1  # 在main中被调用

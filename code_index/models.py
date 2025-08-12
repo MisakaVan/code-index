@@ -380,6 +380,10 @@ class Definition(BaseModel):
         if self.location != other.location:  # equivalent to PureDefinition equality
             raise ValueError("Cannot merge definitions with different PureDefinition locations.")
 
+        # add doc if not already set
+        if self.doc is None:
+            self.doc = other.doc
+
         # Merge the calls
         for callee in other.calls:
             self.add_callee(callee)

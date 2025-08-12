@@ -290,6 +290,101 @@ void func_calling_empty() {
         assert "empty_func" in calling_func_calls
         assert "func_with_comment" in calling_func_calls
 
+    def test_c_comment_extraction(self, c_processor):
+        """测试C语言注释提取功能"""
+        comment_code = """/**
+ * Calculate the factorial of a number.
+ *
+ * @param n The number to calculate factorial for
+ * @return The factorial of n, or -1 if n is negative
+ */
+int factorial(int n) {
+    if (n < 0) {
+        return -1;
+    }
+    return n == 0 ? 1 : n * factorial(n - 1);
+}
+
+// Single line comment for helper
+void helper_function() {
+    printf("Helper called\\n");
+}
+
+void function_without_comment() {
+    return;
+}
+"""
+        source_bytes = comment_code.encode("utf-8")
+        tree = c_processor.parser.parse(source_bytes)
+        ctx = QueryContext(file_path=Path("comment_test.c"), source_bytes=source_bytes)
+
+        definition_nodes = list(c_processor.get_definition_nodes(tree.root_node))
+        results = {}
+
+        for def_node in definition_nodes:
+            result = c_processor.handle_definition(def_node, ctx)
+            if result:
+                symbol, definition = result
+                results[symbol.name] = definition.doc
+
+        # 测试带有多行注释的函数
+        assert "factorial" in results
+        doc = results["factorial"]
+        assert doc is not None
+        assert "Calculate the factorial of a number." in doc
+        assert "@param n" in doc
+        assert "@return" in doc
+
+        # 测试带有单行注释的函数
+        assert "helper_function" in results
+        helper_doc = results["helper_function"]
+        assert helper_doc is not None
+        assert "Single line comment for helper" in helper_doc
+
+        # 测试没有注释的函数
+        assert "function_without_comment" in results
+        assert results["function_without_comment"] is None
+
+    def test_c_comment_cleaning(self, c_processor):
+        """测试C语言注释清理功能"""
+        test_cases = [
+            ("/* Simple comment */", "Simple comment"),
+            ("// Single line comment", "Single line comment"),
+            ("/**\n * Multi-line comment\n * with stars\n */", "Multi-line comment\nwith stars"),
+            ("/*  Whitespace test  */", "Whitespace test"),
+        ]
+
+        for raw_comment, expected_clean in test_cases:
+            cleaned = c_processor._clean_c_comment(raw_comment)
+            assert cleaned == expected_clean
+
+    def test_c_multiple_preceding_comments(self, c_processor):
+        """测试C语言多个连续注释的提取"""
+        multiple_comments_code = """// First comment line
+// Second comment line
+/* Block comment */
+int multi_comment_function() {
+    return 42;
+}
+"""
+        source_bytes = multiple_comments_code.encode("utf-8")
+        tree = c_processor.parser.parse(source_bytes)
+        ctx = QueryContext(file_path=Path("multi_comment.c"), source_bytes=source_bytes)
+
+        definition_nodes = list(c_processor.get_definition_nodes(tree.root_node))
+
+        for def_node in definition_nodes:
+            result = c_processor.handle_definition(def_node, ctx)
+            if result and result[0].name == "multi_comment_function":
+                doc = result[1].doc
+                assert doc is not None
+                assert "First comment line" in doc
+                assert "Second comment line" in doc
+                assert "Block comment" in doc
+                break
+        else:
+            assert False, "multi_comment_function not found"
+
 
 class TestCppProcessor:
     """测试C++语言处理器"""
@@ -610,6 +705,101 @@ void func_calling_empty() {
         calling_func_calls = [call.symbol.name for call in results["func_calling_empty"][1].calls]
         assert "empty_func" in calling_func_calls
         assert "func_with_comment" in calling_func_calls
+
+    def test_cpp_comment_extraction(self, cpp_processor):
+        """测试C++语言注释提取功能"""
+        comment_code = """/**
+ * @brief A simple calculator class demonstrating basic C++ features.
+ *
+ * This class provides basic arithmetic operations and maintains
+ * an internal state value.
+ */
+class Calculator {
+private:
+    double value_;
+
+public:
+    /**
+     * @brief Constructor with optional initial value.
+     * @param initial_value Starting value for calculations
+     */
+    Calculator(double initial_value = 0.0) : value_(initial_value) {}
+};
+
+// Single line comment for helper function
+void helper_function() {
+    cout << "Helper called" << endl;
+}
+
+void function_without_comment() {
+    return;
+}
+"""
+        source_bytes = comment_code.encode("utf-8")
+        tree = cpp_processor.parser.parse(source_bytes)
+        ctx = QueryContext(file_path=Path("comment_test.cpp"), source_bytes=source_bytes)
+
+        definition_nodes = list(cpp_processor.get_definition_nodes(tree.root_node))
+        results = {}
+
+        for def_node in definition_nodes:
+            result = cpp_processor.handle_definition(def_node, ctx)
+            if result:
+                symbol, definition = result
+                results[symbol.name] = definition.doc
+
+        # 测试带有单行注释的函数
+        assert "helper_function" in results
+        helper_doc = results["helper_function"]
+        assert helper_doc is not None
+        assert "Single line comment for helper function" in helper_doc
+
+        # 测试没有注释的函数
+        assert "function_without_comment" in results
+        assert results["function_without_comment"] is None
+
+    def test_cpp_comment_cleaning(self, cpp_processor):
+        """测试C++语言注释清理功能"""
+        test_cases = [
+            ("/* Simple comment */", "Simple comment"),
+            ("// Single line comment", "Single line comment"),
+            (
+                "/**\n * @brief Multi-line comment\n * with stars\n */",
+                "@brief Multi-line comment\nwith stars",
+            ),
+            ("/*  Whitespace test  */", "Whitespace test"),
+        ]
+
+        for raw_comment, expected_clean in test_cases:
+            cleaned = cpp_processor._clean_cpp_comment(raw_comment)
+            assert cleaned == expected_clean
+
+    def test_cpp_multiple_preceding_comments(self, cpp_processor):
+        """测试C++语言多个连续注释的提取"""
+        multiple_comments_code = """// First comment line
+// Second comment line
+/* Block comment */
+int multi_comment_function() {
+    return 42;
+}
+"""
+        source_bytes = multiple_comments_code.encode("utf-8")
+        tree = cpp_processor.parser.parse(source_bytes)
+        ctx = QueryContext(file_path=Path("multi_comment.cpp"), source_bytes=source_bytes)
+
+        definition_nodes = list(cpp_processor.get_definition_nodes(tree.root_node))
+
+        for def_node in definition_nodes:
+            result = cpp_processor.handle_definition(def_node, ctx)
+            if result and result[0].name == "multi_comment_function":
+                doc = result[1].doc
+                assert doc is not None
+                assert "First comment line" in doc
+                assert "Second comment line" in doc
+                assert "Block comment" in doc
+                break
+        else:
+            assert False, "multi_comment_function not found"
 
 
 if __name__ == "__main__":
