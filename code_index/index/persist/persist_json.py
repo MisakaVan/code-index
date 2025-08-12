@@ -49,7 +49,7 @@ class SingleJsonFilePersistStrategy(PersistStrategy):
 
         try:
             # dump_index_to_json(data, path)
-            dumped_json_str = data.model_dump_json(indent=2)
+            dumped_json_str = data.model_dump_json(indent=2, exclude_defaults=True)
             path.write_text(dumped_json_str, encoding="utf-8")
         except Exception as e:
             raise RuntimeError(f"Error saving index data to file {path}: {e}")

@@ -4,10 +4,11 @@ This module defines the core data structures used to model functions, methods,
 references, definitions, and their relationships in a codebase.
 """
 
+from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_serializer
 
 __all__ = [
     "CodeLocation",
@@ -55,14 +56,45 @@ class CodeLocation(BaseModel):
         return f"CodeLocation({self.file_path}, {self.start_lineno}:{self.start_col}-{self.end_lineno}:{self.end_col}, {self.start_byte}-{self.end_byte})"
 
 
-class Function(BaseModel):
+class SymbolType(StrEnum):
+    """Enumeration of symbol types for code elements.
+
+    This enum defines the types of symbols that can be represented in the codebase,
+    such as functions, methods, classes, etc. It is used to categorize and identify
+    different kinds of code elements.
+    """
+
+    UNSET = "unset"
+    """An unset or unknown symbol type."""
+    FUNCTION = "function"
+    """A standalone function."""
+    METHOD = "method"
+    """A method bound to a class."""
+
+
+class BaseSymbol(BaseModel):
+    """Base class for all code symbols.
+
+    This class makes sure that all symbols have a ``type`` discriminator field
+    that won't be excluded from serialization (when exclude_defaults=True is set).
+    """
+
+    @model_serializer(mode="wrap")
+    def serialize(self, nxt):
+        dumped = nxt(self)
+        # Ensure the type field is always present
+        dumped["type"] = self.type.value
+        return dumped
+
+
+class Function(BaseSymbol):
     """Represents a standalone function in the codebase.
 
     A function is a callable code block that is not bound to any class.
     This includes module-level functions, nested functions, and lambda functions.
     """
 
-    type: Literal["function"] = "function"
+    type: Literal[SymbolType.FUNCTION] = SymbolType.FUNCTION
     """Type discriminator for function."""
     name: str
     """The name of the function."""
@@ -70,14 +102,14 @@ class Function(BaseModel):
     model_config = {"frozen": True}
 
 
-class Method(BaseModel):
+class Method(BaseSymbol):
     """Represents a method bound to a class in the codebase.
 
     A method is a function that belongs to a class. The class_name may be None
     for method calls where the class context cannot be determined statically.
     """
 
-    type: Literal["method"] = "method"
+    type: Literal[SymbolType.METHOD] = SymbolType.METHOD
     """Type discriminator for method."""
     name: str
     """The name of the method."""
@@ -282,6 +314,9 @@ class Definition(BaseModel):
 
     location: CodeLocation
     """The code location where the definition occurs."""
+
+    doc: str | None = Field(default=None)
+    """Optional documentation string for the definition, if available."""
 
     calls: list[SymbolReference] = Field(default_factory=list)
     """List of function/method calls made within this definition.
