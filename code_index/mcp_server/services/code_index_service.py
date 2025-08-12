@@ -55,7 +55,7 @@ class CodeIndexService:
             CodeIndexService._instance = CodeIndexService()
         return CodeIndexService._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._indexer: CodeIndexer | None = None
 
     def _clear_indexer(self) -> None:
@@ -80,7 +80,7 @@ class CodeIndexService:
         match strategy:
             case "json" | "sqlite":
                 # Return the specified strategy and its corresponding cache file path
-                return strategy_config_mapping.get(strategy)
+                return strategy_config_mapping[strategy]
             case "auto":
                 # Try to determine the strategy based on existing cache files
                 for key, (path, strategy_instance) in strategy_config_mapping.items():

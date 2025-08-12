@@ -4,10 +4,11 @@ This module defines the core data structures used to model functions, methods,
 references, definitions, and their relationships in a codebase.
 """
 
+from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_serializer
 
 __all__ = [
     "CodeLocation",
@@ -50,15 +51,50 @@ class CodeLocation(BaseModel):
 
     model_config = {"frozen": True}
 
+    def __str__(self) -> str:
+        """Return a string representation of the code location."""
+        return f"CodeLocation({self.file_path}, {self.start_lineno}:{self.start_col}-{self.end_lineno}:{self.end_col}, {self.start_byte}-{self.end_byte})"
 
-class Function(BaseModel):
+
+class SymbolType(StrEnum):
+    """Enumeration of symbol types for code elements.
+
+    This enum defines the types of symbols that can be represented in the codebase,
+    such as functions, methods, classes, etc. It is used to categorize and identify
+    different kinds of code elements.
+    """
+
+    UNSET = "unset"
+    """An unset or unknown symbol type."""
+    FUNCTION = "function"
+    """A standalone function."""
+    METHOD = "method"
+    """A method bound to a class."""
+
+
+class BaseSymbol(BaseModel):
+    """Base class for all code symbols.
+
+    This class makes sure that all symbols have a ``type`` discriminator field
+    that won't be excluded from serialization (when exclude_defaults=True is set).
+    """
+
+    @model_serializer(mode="wrap")
+    def serialize(self, nxt):
+        dumped = nxt(self)
+        # Ensure the type field is always present
+        dumped["type"] = self.type.value
+        return dumped
+
+
+class Function(BaseSymbol):
     """Represents a standalone function in the codebase.
 
     A function is a callable code block that is not bound to any class.
     This includes module-level functions, nested functions, and lambda functions.
     """
 
-    type: Literal["function"] = "function"
+    type: Literal[SymbolType.FUNCTION] = SymbolType.FUNCTION
     """Type discriminator for function."""
     name: str
     """The name of the function."""
@@ -66,14 +102,14 @@ class Function(BaseModel):
     model_config = {"frozen": True}
 
 
-class Method(BaseModel):
+class Method(BaseSymbol):
     """Represents a method bound to a class in the codebase.
 
     A method is a function that belongs to a class. The class_name may be None
     for method calls where the class context cannot be determined statically.
     """
 
-    type: Literal["method"] = "method"
+    type: Literal[SymbolType.METHOD] = SymbolType.METHOD
     """Type discriminator for method."""
     name: str
     """The name of the method."""
@@ -212,6 +248,57 @@ class Reference(BaseModel):
         """
         return PureReference(location=self.location)
 
+    @classmethod
+    def from_pure(cls, pure_ref: PureReference) -> "Reference":
+        """Create a Reference instance from a PureReference.
+
+        This method allows creating a Reference instance with an empty context
+        (no call sites) from a PureReference, which is useful for initializing
+        references before additional context is added.
+
+        Args:
+            pure_ref (PureReference): The pure reference to convert.
+
+        Returns:
+            Reference: A new Reference instance with the same location as the PureReference.
+        """
+        return cls(location=pure_ref.location, called_by=[])
+
+    def add_caller(self, caller: SymbolDefinition) -> "Reference":
+        """Add a caller definition to this reference.
+
+        This method allows adding a definition that call this reference.
+        It ensures that the caller is added only if it is not already present.
+
+        Args:
+            caller:
+
+        Returns:
+            Reference: The updated Reference instance with the new caller(s) added.
+        """
+        if caller not in self.called_by:
+            self.called_by.append(caller)
+        return self
+
+    def merge(self, other: "Reference") -> None:
+        """Merge information about the same PureReference.
+
+        This method allows merging additional contextual information from another Reference
+        into this one, such as additional call sites or definitions that reference this location.
+
+        Args:
+            other (Reference): Another Reference instance with additional context to merge.
+
+        Raises:
+            ValueError: If the other reference does not have the same PureReference.
+        """
+        if self.location != other.location:  # equivalent to PureReference equality
+            raise ValueError("Cannot merge references with different PureReference locations.")
+
+        # Merge the call sites
+        for caller in other.called_by:
+            self.add_caller(caller)
+
 
 class Definition(BaseModel):
     """Extended definition information with additional contextual data.
@@ -228,6 +315,9 @@ class Definition(BaseModel):
     location: CodeLocation
     """The code location where the definition occurs."""
 
+    doc: str | None = Field(default=None)
+    """Optional documentation string for the definition, if available."""
+
     calls: list[SymbolReference] = Field(default_factory=list)
     """List of function/method calls made within this definition.
 
@@ -242,6 +332,61 @@ class Definition(BaseModel):
             suitable for hashing and fast lookups.
         """
         return PureDefinition(location=self.location)
+
+    @classmethod
+    def from_pure(cls, pure_def: PureDefinition) -> "Definition":
+        """Create a Definition instance from a PureDefinition.
+
+        This method allows creating a Definition instance with an empty context
+        (no calls) from a PureDefinition, which is useful for initializing
+        definitions before additional context is added.
+
+        Args:
+            pure_def (PureDefinition): The pure definition to convert.
+
+        Returns:
+            Definition: A new Definition instance with the same location as the PureDefinition.
+        """
+        return cls(location=pure_def.location, calls=[])
+
+    def add_callee(self, callee: SymbolReference) -> "Definition":
+        """Add a callee reference to this definition.
+
+        This method allows adding a reference to a function or method that is called
+        within this definition. It ensures that the callee is added only if it is not already present.
+
+        Args:
+            callee (SymbolReference): The callee reference to add.
+
+        Returns:
+            Definition: The updated Definition instance with the new callee(s) added.
+        """
+        if callee not in self.calls:
+            self.calls.append(callee)
+        return self
+
+    def merge(self, other: "Definition") -> None:
+        """Merge information about the same PureDefinition.
+
+        This method allows merging additional contextual information from another Definition
+        into this one, such as additional calls made within the definition.
+
+        Args:
+            other (Definition): Another Definition instance with additional context to merge.
+
+        Raises:
+            ValueError: If the other definition does not have the same PureDefinition.
+        """
+        if self.location != other.location:  # equivalent to PureDefinition equality
+            raise ValueError("Cannot merge definitions with different PureDefinition locations.")
+
+        # add doc if not already set
+        if self.doc is None:
+            self.doc = other.doc
+
+        # Merge the calls
+        for callee in other.calls:
+            self.add_callee(callee)
 
 
 class FunctionLikeInfo(BaseModel):

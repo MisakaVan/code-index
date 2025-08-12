@@ -5,6 +5,15 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Iterable, Iterator, TypeAlias
 
+from ...index.base import BaseIndex
+from ...index.code_query import (
+    CodeQuery,
+    CodeQuerySingleResponse,
+    FilterOption,
+    QueryByKey,
+    QueryByName,
+    QueryByNameRegex,
+)
 from ...models import (
     Definition,
     Function,
@@ -20,15 +29,6 @@ from ...models import (
     SymbolReference,
 )
 from ...utils.logger import logger
-from ..base import BaseIndex
-from ..code_query import (
-    CodeQuery,
-    CodeQuerySingleResponse,
-    FilterOption,
-    QueryByKey,
-    QueryByName,
-    QueryByNameRegex,
-)
 
 
 class ReferenceDict(dict[PureReference, Reference]):
@@ -41,7 +41,7 @@ class ReferenceDict(dict[PureReference, Reference]):
     def __getitem__(self, key: PureReference) -> Reference:
         if key not in self:
             # Create a new Reference with the pure key as its fingerprint
-            new_reference = Reference(location=key.location)
+            new_reference = Reference.from_pure(key)
             self[key] = new_reference
         return super().__getitem__(key)
 
@@ -63,10 +63,7 @@ class ReferenceDict(dict[PureReference, Reference]):
         key = value.to_pure()
         existing = self[key]  # This will create if not present due to our __getitem__
 
-        # Merge the called_by lists in-place, avoiding duplicates
-        for item in value.called_by:
-            if item not in existing.called_by:
-                existing.called_by.append(item)
+        existing.merge(value)
 
 
 class DefinitionDict(dict[PureDefinition, Definition]):
@@ -79,7 +76,7 @@ class DefinitionDict(dict[PureDefinition, Definition]):
     def __getitem__(self, key: PureDefinition) -> Definition:
         if key not in self:
             # Create a new Definition with the pure key as its fingerprint
-            new_definition = Definition(location=key.location)
+            new_definition = Definition.from_pure(key)
             self[key] = new_definition
         return super().__getitem__(key)
 
@@ -101,10 +98,7 @@ class DefinitionDict(dict[PureDefinition, Definition]):
         key = value.to_pure()
         existing = self[key]  # This will create if not present due to our __getitem__
 
-        # Merge the calls lists in-place, avoiding duplicates
-        for item in value.calls:
-            if item not in existing.calls:
-                existing.calls.append(item)
+        existing.merge(value)
 
 
 class CrossRefIndex(BaseIndex):
@@ -115,11 +109,6 @@ class CrossRefIndex(BaseIndex):
     handle queries related to where functions/methods are defined and where they
     are referenced in the codebase.
     """
-
-    ReferenceDict: TypeAlias = dict[PureReference, Reference]
-    """The keys are PureReference objects which provide a unique identifier for each reference."""
-    DefinitionDict: TypeAlias = dict[PureDefinition, Definition]
-    """The keys are PureDefinition objects which provide a unique identifier for each definition."""
 
     @dataclass
     class Info:
@@ -151,11 +140,9 @@ class CrossRefIndex(BaseIndex):
             """Creates an Info object from a FunctionLikeInfo object."""
             info = cls()
             for definition in func_like_info.definitions:
-                key = definition.to_pure()
-                info.definitions[key] = definition
+                info.definitions[definition.to_pure()] = definition
             for reference in func_like_info.references:
-                key = reference.to_pure()
-                info.references[key] = reference
+                info.references[reference.to_pure()] = reference
             return info
 
         def update_from(self, other: CrossRefIndex.Info | FunctionLikeInfo):
@@ -181,7 +168,7 @@ class CrossRefIndex(BaseIndex):
 
     Index: TypeAlias = dict[FunctionLike, Info]
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initializes an empty CrossRefIndex."""
         super().__init__()
         self.data: CrossRefIndex.Index = defaultdict(lambda: CrossRefIndex.Info())
@@ -241,19 +228,17 @@ class CrossRefIndex(BaseIndex):
 
         # Now do cross-referencing: for each call this definition makes,
         # ensure this definition is in the called_by list of that reference
-        for symbol_reference in definition.calls:
-            called_func_like = symbol_reference.symbol
-            pure_reference = symbol_reference.reference
-
-            # Get or create the reference in the called function's references
-            target_reference = self.data[called_func_like].references[pure_reference]
-
-            # Create a SymbolDefinition for this definition to add to called_by
-            symbol_definition = SymbolDefinition(symbol=func_like, definition=definition.to_pure())
-
-            # Add this definition to the called_by list if not already present
-            if symbol_definition not in target_reference.called_by:
-                target_reference.called_by.append(symbol_definition)
+        for callee in definition.calls:
+            callee_func_like = callee.symbol
+            cross_ref_reference = Reference.from_pure(callee.reference).add_caller(
+                SymbolDefinition(
+                    symbol=func_like,  # this is the function being defined
+                    definition=definition.to_pure(),  # where it is defined
+                )
+            )
+            # this should make the index aware that this function at this def loc calls the callee
+            # at the callee's ref loc
+            self.data[callee_func_like].references.merge_or_insert(cross_ref_reference)
 
     def add_reference(self, func_like: FunctionLike, reference: Reference):
         """Adds a function or method reference to the index with cross-referencing.
@@ -295,19 +280,17 @@ class CrossRefIndex(BaseIndex):
 
         # Now do cross-referencing: for each caller in the called_by list,
         # ensure this reference is in the calls list of that definition
-        for symbol_definition in reference.called_by:
-            caller_func_like = symbol_definition.symbol
-            pure_definition = symbol_definition.definition
-
-            # Get or create the definition in the caller function's definitions
-            caller_definition = self.data[caller_func_like].definitions[pure_definition]
-
-            # Create a SymbolReference for this reference to add to calls
-            symbol_reference = SymbolReference(symbol=func_like, reference=reference.to_pure())
-
-            # Add this reference to the calls list if not already present
-            if symbol_reference not in caller_definition.calls:
-                caller_definition.calls.append(symbol_reference)
+        for caller in reference.called_by:
+            caller_func_like = caller.symbol
+            cross_ref_definition = Definition.from_pure(caller.definition).add_callee(
+                SymbolReference(
+                    symbol=func_like,  # this is the function being referenced
+                    reference=reference.to_pure(),  # where it is referenced
+                )
+            )
+            # this should make the index aware that this function at this ref loc is called by the caller
+            # at the caller's def loc
+            self.data[caller_func_like].definitions.merge_or_insert(cross_ref_definition)
 
     def __len__(self) -> int:
         return len(self.data)

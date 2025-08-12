@@ -59,7 +59,8 @@ class CppProcessor(BaseLanguageProcessor):
         """Handle a C++ function definition node.
 
         Processes function_definition nodes to extract the function name and
-        analyze function calls within the definition body.
+        analyze function calls within the definition body. Also extracts
+        preceding documentation comments.
 
         Args:
             node: A function_definition syntax tree node.
@@ -80,6 +81,9 @@ class CppProcessor(BaseLanguageProcessor):
             return None
 
         func_name = ctx.source_bytes[name_node.start_byte : name_node.end_byte].decode("utf8")
+
+        # Extract preceding comment/documentation
+        doc_comment = self._extract_preceding_comment(node, ctx)
 
         # Find all function calls within the function body
         calls = []
@@ -106,6 +110,7 @@ class CppProcessor(BaseLanguageProcessor):
                     start_byte=node.start_byte,
                     end_byte=node.end_byte,
                 ),
+                doc=doc_comment,
                 calls=calls,
             ),
         )
@@ -218,3 +223,78 @@ class CppProcessor(BaseLanguageProcessor):
             )
 
         return None
+
+    def _extract_preceding_comment(self, node: Node, ctx: QueryContext) -> str | None:
+        """Extract the preceding comment/documentation for a C++ function definition.
+
+        Looks for comment nodes that appear immediately before the function definition.
+        Handles both single-line (//) and multi-line (/* */) comment styles.
+
+        Args:
+            node: A function_definition syntax tree node.
+            ctx: Query context containing file information.
+
+        Returns:
+            The comment text as a string, or None if not present.
+        """
+        # Look for comment nodes that precede this function definition
+        current = node.prev_sibling
+        comments = []
+
+        # Traverse backwards through siblings to find comments
+        while current:
+            if current.type == "comment":
+                comment_text = ctx.source_bytes[current.start_byte : current.end_byte].decode(
+                    "utf8"
+                )
+                comments.append(self._clean_cpp_comment(comment_text))
+            elif current.type not in [
+                "preproc_include",
+                "preproc_def",
+                "preproc_ifdef",
+                "preproc_ifndef",
+                "preproc_endif",
+                "preproc_else",
+                "preproc_elif",
+            ]:
+                # Stop if we hit a non-comment, non-preprocessor node
+                break
+            current = current.prev_sibling
+
+        if comments:
+            # Reverse to get comments in the original order
+            comments.reverse()
+            return "\n".join(comments)
+
+        return None
+
+    def _clean_cpp_comment(self, raw_comment: str) -> str:
+        """Clean up a C++ comment by removing comment delimiters and normalizing whitespace.
+
+        Args:
+            raw_comment: The raw comment text including delimiters.
+
+        Returns:
+            The cleaned comment text.
+        """
+        # Remove comment delimiters
+        if raw_comment.startswith("/*") and raw_comment.endswith("*/"):
+            content = raw_comment[2:-2]
+        elif raw_comment.startswith("//"):
+            content = raw_comment[2:]
+        else:
+            content = raw_comment
+
+        # Clean up whitespace and common comment formatting
+        lines = content.split("\n")
+        cleaned_lines = []
+        for line in lines:
+            # Remove leading whitespace and common comment prefixes
+            line = line.strip()
+            if line.startswith("* "):
+                line = line[2:]
+            elif line.startswith("*"):
+                line = line[1:]
+            cleaned_lines.append(line)
+
+        return "\n".join(cleaned_lines).strip()
