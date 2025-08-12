@@ -36,6 +36,12 @@ ignore = [
 fixable = ["ALL"]
 unfixable = []
 
+# enable --fix to apply these unsafe fixes
+extend-safe-fixes = [
+    "W291",  # trailing whitespace
+    "W293",  # blank line contains whitespace
+]
+
 # 允许unused变量以下划线开头
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
