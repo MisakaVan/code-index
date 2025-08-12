@@ -153,13 +153,9 @@ class CodeIndexer:
             processor = self._processor
         context = QueryContext(file_path=file_path, source_bytes=source_bytes)
         for node in processor.get_definition_nodes(tree.root_node):
-            result = processor.handle_definition(node, context)
-
-            match result:
-                case (Function() as func, Definition() as def_):
-                    self._index.add_definition(func, def_)
-                case (Method() as method, Definition() as def_):
-                    self._index.add_definition(method, def_)
+            match processor.handle_definition(node, context):
+                case (Function() | Method() as symbol, Definition() as def_):
+                    self._index.add_definition(symbol, def_)
                 case None:
                     pass
 
@@ -192,13 +188,9 @@ class CodeIndexer:
             processor = self._processor
         context = QueryContext(file_path=file_path, source_bytes=source_bytes)
         for node in processor.get_reference_nodes(tree.root_node):
-            result = processor.handle_reference(node, context)
-
-            match result:
-                case (Function() as func, Reference() as ref):
-                    self._index.add_reference(func, ref)
-                case (Method() as method, Reference() as ref):
-                    self._index.add_reference(method, ref)
+            match processor.handle_reference(node, context):
+                case (Function() | Method() as symbol, Reference() as ref):
+                    self._index.add_reference(symbol, ref)
                 case None:
                     pass
 
