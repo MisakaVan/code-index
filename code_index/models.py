@@ -232,6 +232,22 @@ class Reference(BaseModel):
         """
         return cls(location=pure_ref.location, called_by=[])
 
+    def add_caller(self, caller: SymbolDefinition) -> "Reference":
+        """Add a caller definition to this reference.
+
+        This method allows adding a definition that call this reference.
+        It ensures that the caller is added only if it is not already present.
+
+        Args:
+            caller:
+
+        Returns:
+            Reference: The updated Reference instance with the new caller(s) added.
+        """
+        if caller not in self.called_by:
+            self.called_by.append(caller)
+        return self
+
     def merge(self, other: "Reference") -> None:
         """Merge information about the same PureReference.
 
@@ -298,6 +314,22 @@ class Definition(BaseModel):
             Definition: A new Definition instance with the same location as the PureDefinition.
         """
         return cls(location=pure_def.location, calls=[])
+
+    def add_callee(self, callee: SymbolReference) -> "Definition":
+        """Add a callee reference to this definition.
+
+        This method allows adding a reference to a function or method that is called
+        within this definition. It ensures that the callee is added only if it is not already present.
+
+        Args:
+            callee (SymbolReference): The callee reference to add.
+
+        Returns:
+            Definition: The updated Definition instance with the new callee(s) added.
+        """
+        if callee not in self.calls:
+            self.calls.append(callee)
+        return self
 
     def merge(self, other: "Definition") -> None:
         """Merge information about the same PureDefinition.

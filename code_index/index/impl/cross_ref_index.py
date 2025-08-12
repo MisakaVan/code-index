@@ -230,19 +230,17 @@ class CrossRefIndex(BaseIndex):
 
         # Now do cross-referencing: for each call this definition makes,
         # ensure this definition is in the called_by list of that reference
-        for symbol_reference in definition.calls:
-            called_func_like = symbol_reference.symbol
-            pure_reference = symbol_reference.reference
-
-            # Get or create the reference in the called function's references
-            target_reference = self.data[called_func_like].references[pure_reference]
-
-            # Create a SymbolDefinition for this definition to add to called_by
-            symbol_definition = SymbolDefinition(symbol=func_like, definition=definition.to_pure())
-
-            # Add this definition to the called_by list if not already present
-            if symbol_definition not in target_reference.called_by:
-                target_reference.called_by.append(symbol_definition)
+        for callee in definition.calls:
+            callee_func_like = callee.symbol
+            cross_ref_reference = Reference.from_pure(callee.reference).add_caller(
+                SymbolDefinition(
+                    symbol=func_like,  # this is the function being defined
+                    definition=definition.to_pure(),  # where it is defined
+                )
+            )
+            # this should make the index aware that this function at this def loc calls the callee
+            # at the callee's ref loc
+            self.data[callee_func_like].references.merge_or_insert(cross_ref_reference)
 
     def add_reference(self, func_like: FunctionLike, reference: Reference):
         """Adds a function or method reference to the index with cross-referencing.
@@ -284,19 +282,17 @@ class CrossRefIndex(BaseIndex):
 
         # Now do cross-referencing: for each caller in the called_by list,
         # ensure this reference is in the calls list of that definition
-        for symbol_definition in reference.called_by:
-            caller_func_like = symbol_definition.symbol
-            pure_definition = symbol_definition.definition
-
-            # Get or create the definition in the caller function's definitions
-            caller_definition = self.data[caller_func_like].definitions[pure_definition]
-
-            # Create a SymbolReference for this reference to add to calls
-            symbol_reference = SymbolReference(symbol=func_like, reference=reference.to_pure())
-
-            # Add this reference to the calls list if not already present
-            if symbol_reference not in caller_definition.calls:
-                caller_definition.calls.append(symbol_reference)
+        for caller in reference.called_by:
+            caller_func_like = caller.symbol
+            cross_ref_definition = Definition.from_pure(caller.definition).add_callee(
+                SymbolReference(
+                    symbol=func_like,  # this is the function being referenced
+                    reference=reference.to_pure(),  # where it is referenced
+                )
+            )
+            # this should make the index aware that this function at this ref loc is called by the caller
+            # at the caller's def loc
+            self.data[caller_func_like].definitions.merge_or_insert(cross_ref_definition)
 
     def __len__(self) -> int:
         return len(self.data)
