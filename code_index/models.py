@@ -264,9 +264,8 @@ class Reference(BaseModel):
             raise ValueError("Cannot merge references with different PureReference locations.")
 
         # Merge the call sites
-        for call in other.called_by:
-            if call not in self.called_by:
-                self.called_by.append(call)
+        for caller in other.called_by:
+            self.add_caller(caller)
 
 
 class Definition(BaseModel):
@@ -347,9 +346,8 @@ class Definition(BaseModel):
             raise ValueError("Cannot merge definitions with different PureDefinition locations.")
 
         # Merge the calls
-        for call in other.calls:
-            if call not in self.calls:
-                self.calls.append(call)
+        for callee in other.calls:
+            self.add_callee(callee)
 
 
 class FunctionLikeInfo(BaseModel):
