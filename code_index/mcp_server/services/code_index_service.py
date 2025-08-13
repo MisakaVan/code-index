@@ -49,6 +49,9 @@ from code_index.utils.logger import logger
 class IndexState:
     """Memory of the current state of the indexer service."""
 
+    indexer: CodeIndexer
+    """The current indexer instance being used."""
+
     repo_path: Path
     """Path to the repository being indexed."""
 
@@ -69,14 +72,28 @@ class CodeIndexService:
         return CodeIndexService._instance
 
     def __init__(self) -> None:
-        self._indexer: CodeIndexer | None = None
         self._state: IndexState | None = None
+
+    def assert_initialized(self) -> None:
+        """Assert that the service is initialized with a valid indexer.
+
+        Raises:
+            RuntimeError: If the indexer service is not initialized.
+        """
+        if self._state is None:
+            raise RuntimeError("Indexer is not initialized. Call setup_repo_index first.")
+
+    @property
+    def _indexer(self) -> CodeIndexer:
+        """Get the current indexer instance."""
+        self.assert_initialized()
+        return self._state.indexer
 
     def _clear_indexer(self) -> None:
         """Clear the current indexer instance."""
-        if self._indexer is not None:
+        if self._state is not None:
             logger.info("Clearing current indexer instance.")
-            self._indexer = None
+            self._state = None
         else:
             logger.warning("No indexer instance to clear.")
 
@@ -128,13 +145,16 @@ class CodeIndexService:
                 - 'sqlite': Use SQLite format for the index data.
 
         """
-        if self._indexer is not None:
+        if self._state is not None:
             logger.warning("Indexer is already initialized, reinitializing...")
         l = language_processor_factory(language)
         assert l is not None, f"No language processor found for '{language}'"
-        self._indexer = CodeIndexer(processor=l, index=CrossRefIndex())
 
-        self._state = IndexState(repo_path=repo_path, strategy=strategy)
+        self._state = IndexState(
+            indexer=CodeIndexer(processor=l, index=CrossRefIndex()),
+            repo_path=repo_path,
+            strategy=strategy,
+        )
 
         # try to load existing index data
         cache_path, persist_strategy = self._get_cache_config(repo_path, strategy)
@@ -180,9 +200,7 @@ class CodeIndexService:
             A response object containing the results of the query. There can be multiple results, each containing the
             location of the symbol, its name, and other relevant information.
         """
-        if self._indexer is None:
-            raise RuntimeError("Indexer is not initialized. Call setup_repo_index first.")
-
+        self.assert_initialized()
         logger.info(f"Querying index with: {query}")
 
         index = self._indexer.index
@@ -194,9 +212,7 @@ class CodeIndexService:
         Returns:
             A response object containing a sorted list of all symbol names.
         """
-        if self._indexer is None:
-            raise RuntimeError("Indexer is not initialized. Call setup_repo_index first.")
-
+        self.assert_initialized()
         logger.info("Retrieving all symbols from the index.")
 
         # The index stores FunctionLike objects. We need to get their names.
@@ -216,10 +232,7 @@ class CodeIndexService:
         Returns:
             A success message indicating that the index data has been persisted.
         """
-        if self._indexer is None:
-            raise RuntimeError("Indexer is not initialized. Call setup_repo_index first.")
-        if self._state is None:
-            raise RuntimeError("Index state is not set. Call setup_repo_index first.")
+        self.assert_initialized()
 
         cache_path, persist_strategy = self._get_cache_config(
             self._state.repo_path, self._state.strategy
