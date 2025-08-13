@@ -180,8 +180,9 @@ int multiply(int a, int b);
                 {"repo_path": str(test_repo_python), "language": "python", "strategy": "json"},
             )
 
-            # Tool should complete without error (returns None for void functions)
-            assert result.data is None
+            # Tool should complete with a success msg
+            assert isinstance(result.data, str)
+            assert result.data.lower().startswith("success")
 
             # Verify cache file was created
             cache_file = test_repo_python / ".code_index.cache" / "index.json"
@@ -197,7 +198,7 @@ int multiply(int a, int b);
             )
 
             # Tool should complete without error
-            assert result.data is None
+            assert result.data.lower().startswith("success")
 
             # Verify cache file was created
             cache_file = test_repo_c / ".code_index.cache" / "index.sqlite"

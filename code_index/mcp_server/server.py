@@ -153,7 +153,7 @@ def setup_repo_index(
     repo_path: Path,
     language: Literal["python", "c", "cpp"],
     strategy: Literal["json", "sqlite", "auto"] = "auto",
-) -> None:
+) -> str:
     """Set up the indexer for a repository.
 
     This initializes the indexer with the specified language processor. Then it indexes the repository using the
