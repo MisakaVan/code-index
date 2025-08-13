@@ -4,6 +4,8 @@ This module provides a service to help LLMs (Large Language Models) traverse a c
 by symbol/definition, using a todolist structure to manage tasks.
 """
 
+from __future__ import annotations
+
 from code_index.models import Definition, FunctionLike, LLMNote, PureDefinition, SymbolDefinition
 from code_index.utils.logger import logger
 
@@ -19,6 +21,19 @@ class RepoAnalyseService:
 
     - iterate all definitions and let llm generate a description for each
     """
+
+    _instance: RepoAnalyseService | None = None
+
+    @classmethod
+    def get_instance(cls) -> RepoAnalyseService:
+        """Get the singleton instance of RepoAnalyseService.
+
+        Returns:
+            The singleton instance of RepoAnalyseService.
+        """
+        if cls._instance is None:
+            cls._instance = RepoAnalyseService()
+        return cls._instance
 
     def __init__(self):
         self._description_todo: TodoList[SymbolDefinition, LLMNote] = TodoList(
