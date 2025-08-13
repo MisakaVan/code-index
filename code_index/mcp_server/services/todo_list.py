@@ -52,7 +52,7 @@ class TaskData(Generic[IdType, SubmitType]):
 
 
 class TodoList(dict[IdType, TaskData[IdType, SubmitType]], Generic[IdType, SubmitType]):
-    """In‑memory todo list mapping task ids to TaskData.
+    """In‑memory todolist mapping task ids to TaskData.
 
     This is a lightweight coordination structure for agents. Tasks can be
     registered (added), iterated over for processing, and later *submitted*
@@ -91,7 +91,7 @@ class TodoList(dict[IdType, TaskData[IdType, SubmitType]], Generic[IdType, Submi
     # Creation & basic inspection
     # ---------------------------------------------------------------------
     def __init__(self) -> None:  # noqa: D401 - simple initializer
-        """Initialize an empty todo list."""
+        """Initialize an empty todolist."""
         super().__init__()
         # Track ids of tasks not yet submitted for O(1) size & sampling.
         self._pending_ids: set[IdType] = set()
