@@ -93,6 +93,8 @@ class TodoList(dict[IdType, TaskData[IdType, SubmitType]], Generic[IdType, Submi
     def __init__(self) -> None:  # noqa: D401 - simple initializer
         """Initialize an empty todo list."""
         super().__init__()
+        # Track ids of tasks not yet submitted for O(1) size & sampling.
+        self._pending_ids: set[IdType] = set()
 
     # ------------------------------------------------------------------
     # Task management API
@@ -119,6 +121,7 @@ class TodoList(dict[IdType, TaskData[IdType, SubmitType]], Generic[IdType, Submi
         if task_id in self:
             raise KeyError(f"Task id already exists: {task_id!r}")
         self[task_id] = TaskData(id=task_id, payload=payload, callback=callback, extra=dict(extra))
+        self._pending_ids.add(task_id)
 
     def submit(self, task_id: IdType, value: SubmitType) -> None:
         """Submit a completed task with its result value.
@@ -150,6 +153,8 @@ class TodoList(dict[IdType, TaskData[IdType, SubmitType]], Generic[IdType, Submi
         # Mark submitted
         data.result = value
         data.submitted = True
+        # remove from pending set
+        self._pending_ids.discard(task_id)
 
     def yield_pending(self) -> Iterator[tuple[IdType, TaskData[IdType, SubmitType]]]:
         """Iterate over tasks that have not yet been submitted.
@@ -157,9 +162,12 @@ class TodoList(dict[IdType, TaskData[IdType, SubmitType]], Generic[IdType, Submi
         Yields:
             Tuples of (task_id, TaskData) for each pending (unsubmitted) task.
         """
-        for tid, data in self.items():
-            if not data.submitted:
+        for tid in list(self._pending_ids):  # list() to avoid modification issues
+            data = self[tid]
+            if not data.submitted:  # sanity check
                 yield tid, data
+            else:
+                self._pending_ids.discard(tid)
 
     def is_pending(self, task_id: IdType) -> bool:
         """Return whether a task is still pending (not yet submitted).
@@ -175,7 +183,7 @@ class TodoList(dict[IdType, TaskData[IdType, SubmitType]], Generic[IdType, Submi
         """
         if task_id not in self:
             raise KeyError(f"Task id not found: {task_id!r}")
-        return not self[task_id].submitted
+        return task_id in self._pending_ids and not self[task_id].submitted
 
     def pending_count(self) -> int:
         """Return the number of pending (unsubmitted) tasks.
@@ -183,7 +191,35 @@ class TodoList(dict[IdType, TaskData[IdType, SubmitType]], Generic[IdType, Submi
         Returns:
             Number of tasks not yet submitted.
         """
-        return sum(1 for _id, data in self.yield_pending())
+        # kept for backward compatibility; delegates to pending_size (O(1))
+        return self.pending_size()
+
+    def pending_size(self) -> int:
+        """O(1) number of unsubmitted tasks.
+
+        Returns:
+            Count of tasks that have not been submitted.
+        """
+        return len(self._pending_ids)
+
+    def get_any_pending(self) -> tuple[IdType, TaskData[IdType, SubmitType]] | None:
+        """Return an arbitrary pending task without removing it.
+
+        Returns:
+            (task_id, TaskData) if any task pending, else None.
+        """
+        if not self._pending_ids:
+            return None
+        tid = next(iter(self._pending_ids))
+        # Clean up if somehow already marked submitted (stale)
+        data = self.get(tid)
+        if data is None:
+            self._pending_ids.discard(tid)
+            return self.get_any_pending()
+        if data.submitted:
+            self._pending_ids.discard(tid)
+            return self.get_any_pending()
+        return tid, data
 
     def clear_submitted(self) -> int:
         """Remove submitted tasks from the list.
@@ -194,6 +230,7 @@ class TodoList(dict[IdType, TaskData[IdType, SubmitType]], Generic[IdType, Submi
         to_remove = [tid for tid, data in self.items() if data.submitted]
         for tid in to_remove:
             del self[tid]
+            self._pending_ids.discard(tid)
         return len(to_remove)
 
     # ------------------------------------------------------------------

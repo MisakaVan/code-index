@@ -156,5 +156,63 @@ def test_multiple_callbacks_and_mixed_operations():
     assert sink == ["2-t2:v2", "t1:v1"]
 
 
+def test_get_any_pending_and_pending_size_basic():
+    todos: TodoList[str, int] = TodoList()
+    assert todos.get_any_pending() is None
+    assert todos.pending_size() == 0
+    for i in range(5):
+        todos.add_task(f"t{i}")
+    assert todos.pending_size() == 5
+    any_task = todos.get_any_pending()
+    assert any_task is not None
+    tid, data = any_task
+    assert tid in {f"t{i}" for i in range(5)}
+    assert data.id == tid
+
+
+def test_get_any_pending_skips_submitted():
+    todos: TodoList[int, int] = TodoList()
+    for i in range(3):
+        todos.add_task(i)
+    todos.submit(1, 10)
+    for _ in range(5):
+        tid_data = todos.get_any_pending()
+        assert tid_data is not None
+        tid, _ = tid_data
+        assert tid in {0, 2}
+
+
+def test_pending_size_matches_pending_count():
+    todos: TodoList[str, str] = TodoList()
+    for name in ["a", "b", "c"]:
+        todos.add_task(name)
+    assert todos.pending_size() == 3
+    assert todos.pending_count() == 3
+    todos.submit("b", "x")
+    assert todos.pending_size() == 2
+    assert todos.pending_count() == 2
+
+
+def test_get_any_pending_after_clear_submitted():
+    todos: TodoList[str, str] = TodoList()
+    todos.add_task("a")
+    todos.add_task("b")
+    todos.submit("a", "done")
+    todos.clear_submitted()
+    tid, _ = todos.get_any_pending()  # type: ignore
+    assert tid == "b"
+    todos.submit("b", "done")
+    assert todos.get_any_pending() is None
+
+
+def test_get_any_pending_recovers_from_stale_state():
+    todos: TodoList[str, int] = TodoList()
+    todos.add_task("x")
+    stale_id = next(iter(todos._pending_ids))  # type: ignore[attr-defined]
+    del todos[stale_id]
+    assert todos.get_any_pending() is None
+    assert todos.pending_size() == 0
+
+
 if __name__ == "__main__":  # pragma: no cover
     pytest.main([__file__, "-v"])  # manual debug
