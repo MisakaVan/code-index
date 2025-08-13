@@ -96,7 +96,7 @@ class CodeIndexService:
         repo_path: Path,
         language: Literal["python", "c", "cpp"],
         strategy: Literal["json", "sqlite", "auto"] = "auto",
-    ) -> None:
+    ) -> str:
         """Set up the indexer for a repository.
 
         This initializes the indexer with the specified language processor. Then it indexes the repository using the
@@ -146,8 +146,9 @@ class CodeIndexService:
                 logger.error(f"Failed to persist index data: {e}")
                 raise RuntimeError(f"Failed to persist index data to {cache_path}: {e}")
 
-        # index the repository
-        logger.info(f"Indexing repository at {repo_path} with language '{language}'")
+        msg = f"Success: indexed repository at {repo_path} with language '{language}'"
+        logger.info(msg)
+        return msg
 
     def query_symbol(self, query: CodeQuery) -> CodeQueryResponse:
         """Query the index for symbols matching the given query.
