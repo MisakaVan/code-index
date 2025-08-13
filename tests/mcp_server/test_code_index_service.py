@@ -18,7 +18,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from code_index.index.code_query import QueryByName, QueryByNameRegex
+from code_index.mcp_server.models import AllSymbolsResponse
 from code_index.mcp_server.services import CodeIndexService
+from code_index.models import Function, Method
 
 
 class TestCodeIndexService:
@@ -380,6 +382,49 @@ int main() {
             mock_logger.warning.assert_called_with(
                 "Indexer is already initialized, reinitializing..."
             )
+
+    def test_get_all_symbols(self, service, sample_python_code, tmp_path):
+        """Test getting all symbols from the index."""
+        # Setup repository
+        repo_path = tmp_path / "python_repo"
+        repo_path.mkdir()
+        test_file = repo_path / "test.py"
+        test_file.write_text(sample_python_code)
+
+        service.setup_repo_index(repo_path, "python", "json")
+
+        # Get all symbols
+        response = service.get_all_symbols()
+        symbols = response.symbols
+
+        assert isinstance(response, AllSymbolsResponse)
+        # __init__, add, append, calculate_sum, hello_world
+        assert len(symbols) == 5
+
+        symbol_names = [s.name for s in symbols]
+        expected_names = ["hello_world", "calculate_sum", "add", "__init__", "append"]
+
+        # Check if the names are correct by comparing sorted lists
+        assert sorted(symbol_names) == sorted(expected_names)
+
+        # Check the type of the symbols
+        assert all(isinstance(s, (Function, Method)) for s in symbols)
+
+        # A more detailed check
+        symbol_map = {s.name: s for s in symbols}
+        assert isinstance(symbol_map["hello_world"], Function)
+        assert isinstance(symbol_map["calculate_sum"], Function)
+        assert isinstance(symbol_map["add"], Method)
+        assert isinstance(symbol_map["__init__"], Method)
+        assert isinstance(symbol_map["append"], Method)
+        assert symbol_map["add"].class_name == "Calculator"
+        assert symbol_map["__init__"].class_name == "Calculator"
+        assert symbol_map["append"].class_name is None
+
+    def test_get_all_symbols_no_indexer(self, service):
+        """Test getting all symbols raises error if indexer is not initialized."""
+        with pytest.raises(RuntimeError, match="Indexer is not initialized"):
+            service.get_all_symbols()
 
 
 if __name__ == "__main__":

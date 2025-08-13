@@ -43,6 +43,7 @@ from typing import Literal
 from fastmcp import Context, FastMCP
 
 from code_index.index.code_query import CodeQuery, CodeQueryResponse
+from code_index.mcp_server.models import AllSymbolsResponse
 from code_index.mcp_server.services import CodeIndexService, SourceCodeFetchService
 
 mcp = FastMCP("CodeIndexService")
@@ -194,6 +195,15 @@ def query_symbol(query: CodeQuery) -> CodeQueryResponse:
     return CodeIndexService.get_instance().query_symbol(query)
 
 
+def get_all_symbols() -> AllSymbolsResponse:
+    """Get a sorted list of all unique symbols in the index.
+
+    Returns:
+        A response object containing a sorted list of all symbol names.
+    """
+    return CodeIndexService.get_instance().get_all_symbols()
+
+
 # This is a workaround for sphinx autodoc to recognize the docstrings of the undecorated functions above
 # Now register the functions as FastMCP tools and resources
 
@@ -220,6 +230,8 @@ mcp.tool(
 mcp.tool(name="setup_repo_index")(setup_repo_index)
 
 mcp.tool("query_symbol")(query_symbol)
+
+mcp.tool("get_all_symbols", annotations={"readOnlyHint": True})(get_all_symbols)
 
 
 def main():

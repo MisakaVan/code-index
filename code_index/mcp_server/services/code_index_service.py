@@ -40,6 +40,7 @@ from code_index.index.impl.cross_ref_index import CrossRefIndex
 from code_index.index.persist import SingleJsonFilePersistStrategy, SqlitePersistStrategy
 from code_index.indexer import CodeIndexer
 from code_index.language_processor import language_processor_factory
+from code_index.mcp_server.models import AllSymbolsResponse
 from code_index.utils.logger import logger
 
 
@@ -171,3 +172,22 @@ class CodeIndexService:
 
         index = self._indexer.index
         return CodeQueryResponse(results=index.handle_query(query))
+
+    def get_all_symbols(self) -> AllSymbolsResponse:
+        """Get a sorted list of all unique symbols in the index.
+
+        Returns:
+            A response object containing a sorted list of all symbol names.
+        """
+        if self._indexer is None:
+            raise RuntimeError("Indexer is not initialized. Call setup_repo_index first.")
+
+        logger.info("Retrieving all symbols from the index.")
+
+        # The index stores FunctionLike objects. We need to get their names.
+        all_symbols = [func_like for func_like in self._indexer.index]
+
+        # Get unique symbols and sort them
+        unique_sorted_symbols = sorted(list(set(all_symbols)), key=str)
+
+        return AllSymbolsResponse(symbols=unique_sorted_symbols)
