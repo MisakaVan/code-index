@@ -175,14 +175,14 @@ int main() {
         service.setup_repo_index(repo_path, "python", "json")
 
         # Verify indexer is initialized
-        assert service._indexer is not None
+        assert service.indexer is not None
 
         # Verify cache file is created
         cache_path = repo_path / ".code_index.cache" / "index.json"
         assert cache_path.exists()
 
         # Verify functions are indexed
-        all_functions = service._indexer.get_all_functions()
+        all_functions = service.indexer.get_all_functions()
         function_names = [func.name for func in all_functions]
         assert "hello_world" in function_names
         assert "calculate_sum" in function_names
@@ -199,14 +199,14 @@ int main() {
         service.setup_repo_index(repo_path, "c", "sqlite")
 
         # Verify indexer is initialized
-        assert service._indexer is not None
+        assert service.indexer is not None
 
         # Verify cache file is created
         cache_path = repo_path / ".code_index.cache" / "index.sqlite"
         assert cache_path.exists()
 
         # Verify functions are indexed
-        all_functions = service._indexer.get_all_functions()
+        all_functions = service.indexer.get_all_functions()
         function_names = [func.name for func in all_functions]
         assert "print_number" in function_names
         assert "add_numbers" in function_names

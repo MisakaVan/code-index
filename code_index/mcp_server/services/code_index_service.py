@@ -84,10 +84,20 @@ class CodeIndexService:
             raise RuntimeError("Indexer is not initialized. Call setup_repo_index first.")
 
     @property
-    def _indexer(self) -> CodeIndexer:
+    def indexer(self) -> CodeIndexer:
         """Get the current indexer instance."""
         self.assert_initialized()
         return self._state.indexer
+
+    @property
+    def index(self) -> CrossRefIndex:
+        """Get the current index instance."""
+        self.assert_initialized()
+        assert isinstance(self._state.indexer.index, CrossRefIndex), (
+            "Expected indexer to have a CrossRefIndex, but got "
+            f"{type(self._state.indexer.index).__name__}"
+        )
+        return self._state.indexer.index
 
     def _clear_indexer(self) -> None:
         """Clear the current indexer instance."""
@@ -161,14 +171,14 @@ class CodeIndexService:
         if cache_path.exists():
             logger.info(f"Loading existing index data from {cache_path}")
             try:
-                self._indexer.load_index(cache_path, persist_strategy)
+                self.indexer.load_index(cache_path, persist_strategy)
             except Exception as e:
                 logger.error(f"Failed to load index data: {e}")
                 raise RuntimeError(f"Failed to load index data from {cache_path}: {e}")
         else:
             logger.info(f"No existing index data found at {cache_path}, starting fresh.")
             try:
-                self._indexer.index_project(project_path=repo_path)
+                self.indexer.index_project(project_path=repo_path)
             except Exception as e:
                 logger.error(f"Failed to index project: {e}")
                 raise RuntimeError(f"Failed to index project at {repo_path}: {e}")
@@ -176,7 +186,7 @@ class CodeIndexService:
             # dump the index data to cache
             try:
                 cache_path.parent.mkdir(parents=True, exist_ok=True)
-                self._indexer.dump_index(cache_path, persist_strategy)
+                self.indexer.dump_index(cache_path, persist_strategy)
                 logger.info(f"Index data persisted to {cache_path}")
             except Exception as e:
                 logger.error(f"Failed to persist index data: {e}")
@@ -203,7 +213,7 @@ class CodeIndexService:
         self.assert_initialized()
         logger.info(f"Querying index with: {query}")
 
-        index = self._indexer.index
+        index = self.indexer.index
         return CodeQueryResponse(results=index.handle_query(query))
 
     def get_all_symbols(self) -> AllSymbolsResponse:
@@ -216,7 +226,7 @@ class CodeIndexService:
         logger.info("Retrieving all symbols from the index.")
 
         # The index stores FunctionLike objects. We need to get their names.
-        all_symbols = [func_like for func_like in self._indexer.index]
+        all_symbols = [func_like for func_like in self.indexer.index]
 
         # Get unique symbols and sort them
         unique_sorted_symbols = sorted(list(set(all_symbols)), key=str)
@@ -239,7 +249,7 @@ class CodeIndexService:
         )
 
         try:
-            self._indexer.dump_index(cache_path, persist_strategy)
+            self.indexer.dump_index(cache_path, persist_strategy)
             logger.info(f"Index data persisted to {cache_path}")
             return f"Index data successfully persisted to {cache_path}"
         except Exception as e:
