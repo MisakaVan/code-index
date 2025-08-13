@@ -395,6 +395,18 @@ class Definition(BaseModel):
             self.calls.append(callee)
         return self
 
+    def set_note(self, note: LLMNote) -> "Definition":
+        """Add or update the LLM-generated note for this definition.
+
+        Args:
+            note (LLMNote): The LLM-generated note to add or update.
+
+        Returns:
+            Definition: The updated Definition instance with the new note.
+        """
+        self.llm_note = note
+        return self
+
     def merge(self, other: "Definition") -> None:
         """Merge information about the same PureDefinition.
 

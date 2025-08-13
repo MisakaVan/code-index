@@ -21,7 +21,9 @@ from __future__ import annotations
 
 from collections.abc import Callable, Hashable, Iterator
 from dataclasses import dataclass, field
-from typing import Any, Generic, Optional, TypeVar
+from typing import Any, Generic, Optional, Self, TypeVar
+
+from code_index.utils.logger import logger
 
 IdType = TypeVar("IdType", bound=Hashable)
 SubmitType = TypeVar("SubmitType")
@@ -90,11 +92,25 @@ class TodoList(dict[IdType, TaskData[IdType, SubmitType]], Generic[IdType, Submi
     # ---------------------------------------------------------------------
     # Creation & basic inspection
     # ---------------------------------------------------------------------
-    def __init__(self) -> None:  # noqa: D401 - simple initializer
+    def __init__(self, allow_resubmit: bool = True) -> None:  # noqa: D401 - simple initializer
         """Initialize an empty todolist."""
         super().__init__()
         # Track ids of tasks not yet submitted for O(1) size & sampling.
         self._pending_ids: set[IdType] = set()
+        self._name: str = "TodoList"
+
+        self.allow_resubmit = allow_resubmit
+
+    def set_name(self, name: str) -> Self:
+        """Set a name for this todolist (for display purposes)."""
+        self._name = name
+        return self
+
+    def __str__(self) -> str:
+        """Return a string representation of the todolist."""
+        total = len(self)
+        pending = self.pending_size()
+        return f"{self._name}(total={total}, pending={pending})"
 
     # ------------------------------------------------------------------
     # Task management API
@@ -144,7 +160,10 @@ class TodoList(dict[IdType, TaskData[IdType, SubmitType]], Generic[IdType, Submi
             raise KeyError(f"Task id not found: {task_id!r}")
         data = self[task_id]
         if data.submitted:
-            raise ValueError(f"Task already submitted: {task_id!r}")
+            if self.allow_resubmit:
+                raise ValueError(f"Task already submitted: {task_id!r}")
+            else:
+                logger.info(f"Re-submitting task {task_id!r} with value {value!r}")
 
         # Run callback first; only mutate state on success
         if data.callback is not None:
