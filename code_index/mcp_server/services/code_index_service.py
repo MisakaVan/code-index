@@ -31,6 +31,7 @@ Note:
     and ensure efficient resource usage.
 """
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -42,6 +43,17 @@ from code_index.indexer import CodeIndexer
 from code_index.language_processor import language_processor_factory
 from code_index.mcp_server.models import AllSymbolsResponse
 from code_index.utils.logger import logger
+
+
+@dataclass(slots=True)
+class IndexState:
+    """Memory of the current state of the indexer service."""
+
+    repo_path: Path
+    """Path to the repository being indexed."""
+
+    strategy: Literal["json", "sqlite", "auto"]
+    """Persistence strategy used for the index data."""
 
 
 class CodeIndexService:
@@ -58,6 +70,7 @@ class CodeIndexService:
 
     def __init__(self) -> None:
         self._indexer: CodeIndexer | None = None
+        self._state: IndexState | None = None
 
     def _clear_indexer(self) -> None:
         """Clear the current indexer instance."""
@@ -120,6 +133,8 @@ class CodeIndexService:
         l = language_processor_factory(language)
         assert l is not None, f"No language processor found for '{language}'"
         self._indexer = CodeIndexer(processor=l, index=CrossRefIndex())
+
+        self._state = IndexState(repo_path=repo_path, strategy=strategy)
 
         # try to load existing index data
         cache_path, persist_strategy = self._get_cache_config(repo_path, strategy)
@@ -191,3 +206,29 @@ class CodeIndexService:
         unique_sorted_symbols = sorted(list(set(all_symbols)), key=str)
 
         return AllSymbolsResponse(symbols=unique_sorted_symbols)
+
+    def persist(self) -> str:
+        """Persist the current index data to the configured cache file.
+
+        This method saves the current state of the indexer to the cache file specified in the setup.
+        It uses the persistence strategy defined during the setup.
+
+        Returns:
+            A success message indicating that the index data has been persisted.
+        """
+        if self._indexer is None:
+            raise RuntimeError("Indexer is not initialized. Call setup_repo_index first.")
+        if self._state is None:
+            raise RuntimeError("Index state is not set. Call setup_repo_index first.")
+
+        cache_path, persist_strategy = self._get_cache_config(
+            self._state.repo_path, self._state.strategy
+        )
+
+        try:
+            self._indexer.dump_index(cache_path, persist_strategy)
+            logger.info(f"Index data persisted to {cache_path}")
+            return f"Index data successfully persisted to {cache_path}"
+        except Exception as e:
+            logger.error(f"Failed to persist index data: {e}")
+            raise RuntimeError(f"Failed to persist index data to {cache_path}: {e}")
