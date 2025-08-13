@@ -15,4 +15,5 @@ Classes:
 """
 
 from .code_index_service import CodeIndexService
+from .llm_traverse_codebase import RepoAnalyseService
 from .source_code_fetch_service import SourceCodeFetchService

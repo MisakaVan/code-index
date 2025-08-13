@@ -430,7 +430,9 @@ class Definition(BaseModel):
         for callee in other.calls:
             self.add_callee(callee)
 
-        if self.llm_note is None:
+        # override llm_note with new one if it exists
+        # to support updating the note
+        if other.llm_note is not None:
             self.llm_note = other.llm_note
 
 

@@ -31,7 +31,7 @@ class RepoAnalyseService:
         This will find those definitions that have no description yet, and create tasks
         for them in the todolist.
         """
-        service = CodeIndexService()
+        service = CodeIndexService.get_instance()
         try:
             service.assert_initialized()
         except RuntimeError as e:
@@ -53,6 +53,8 @@ class RepoAnalyseService:
                     symbol=symbol,
                     definition=definition.to_pure(),
                 )
+                if task_id in self._description_todo:
+                    continue
                 self._description_todo.add_task(
                     task_id=task_id,
                     payload=None,
