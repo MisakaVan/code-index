@@ -44,7 +44,12 @@ from fastmcp import Context, FastMCP
 
 from code_index.index.code_query import CodeQuery, CodeQueryResponse
 from code_index.mcp_server.models import AllSymbolsResponse
-from code_index.mcp_server.services import CodeIndexService, SourceCodeFetchService
+from code_index.mcp_server.services import (
+    CodeIndexService,
+    RepoAnalyseService,
+    SourceCodeFetchService,
+)
+from code_index.models import Definition, LLMNote, SymbolDefinition
 
 mcp = FastMCP("CodeIndexService")
 """FastMCP server instance for CodeIndexService.
@@ -204,6 +209,66 @@ def get_all_symbols() -> AllSymbolsResponse:
     return CodeIndexService.get_instance().get_all_symbols()
 
 
+# todo: add tools to help agent go through the repo and examine definitions
+def setup_describe_definitions_todolist() -> str:
+    """Setup the todolist of the definitions to examine.
+
+    To do this, make sure the repo index has already be set up.
+
+    Returns:
+        str: the success message.
+    """
+    RepoAnalyseService.get_instance().ready_describe_definitions()
+    return "Definition todo list is ready."
+
+
+def get_one_describe_definition_task() -> SymbolDefinition | None:
+    """Get an arbitrary definition task from the todo list.
+
+    Returns:
+        If there is any available/not done definition task, return it. It contains
+        the location of the definition and the corresponding symbol. If all tasks
+        are done, return nothing.
+    """
+    return RepoAnalyseService.get_instance().get_any_undescribed_definition_from_todolist()
+
+
+def get_full_definition(symbol_definition: SymbolDefinition) -> Definition | None:
+    """Get the full definition info for a specific symbol definition.
+
+    Args:
+        symbol_definition: The symbol definition to retrieve.
+
+    Returns:
+        The full Definition if it exists, otherwise None.
+    """
+    return RepoAnalyseService.get_instance().get_full_definition(
+        symbol=symbol_definition.symbol, definition=symbol_definition.definition
+    )
+
+
+def submit_definition_task(symbol_definition: SymbolDefinition, note: LLMNote) -> str:
+    """Submit a definition task for review.
+
+    Args:
+        symbol_definition: The symbol definition to submit.
+        note: The LLM note containing the description and potential vulnerabilities.
+
+    Returns:
+        A success message indicating the task has been submitted.
+    """
+    return RepoAnalyseService.get_instance().submit_definition_task(symbol_definition, note)
+
+
+def describe_tasks_stats() -> str:
+    """Get statistics about the description tasks.
+
+    Returns:
+        A string summarizing the current state of the description tasks.
+    """
+    return RepoAnalyseService.get_instance().get_description_progress()
+
+
 # This is a workaround for sphinx autodoc to recognize the docstrings of the undecorated functions above
 # Now register the functions as FastMCP tools and resources
 
@@ -232,6 +297,48 @@ mcp.tool(name="setup_repo_index")(setup_repo_index)
 mcp.tool("query_symbol")(query_symbol)
 
 mcp.tool("get_all_symbols", annotations={"readOnlyHint": True})(get_all_symbols)
+
+mcp.tool("setup_describe_definitions")(setup_describe_definitions_todolist)
+
+mcp.tool("get_one_describe_definition_task")(get_one_describe_definition_task)
+
+mcp.tool("get_full_definition")(get_full_definition)
+
+mcp.tool("submit_definition_task")(submit_definition_task)
+
+mcp.tool("get_stats_of_describe_definition_todolist")(describe_tasks_stats)
+
+
+@mcp.prompt()
+def instruction_how_to_describe_definitions() -> str:
+    """Provide instructions on how to describe definitions."""
+    return (
+        "You are asked to inspect each definition block of the symbols "
+        "of the codebase and provide a description for each one. The description "
+        "includes the purpose of the symbol, vulnerabilities, and any other relevant "
+        "information that can help discover underlying vulnerabilities.\n"
+        "To assist you in this task, you can use the provided tools to setup "
+        "the definition todo list, and get one definition task at a time for inspection. "
+        "when you get a definition task, you can use the tools to fetch the relevant code "
+        "and provide a detailed description. Submit your description using the provided tools. "
+        "If submission fails, it may be due to a wrong symbol/definition location, which is used "
+        "as a reference for the task. you may need to adjust the location before resubmitting."
+    )
+
+
+@mcp.prompt()
+def instruction_how_to_describe_given_definition(symbol_definition: SymbolDefinition) -> str:
+    """Provide instructions on how to describe a given definition."""
+    return (
+        "You are asked to inspect the definition block of the symbol "
+        f"{symbol_definition.name} and provide a description for it. The description "
+        "includes the purpose of the symbol, vulnerabilities, and any other relevant "
+        "information that can help discover underlying vulnerabilities.\n"
+        "To assist you in this task, you can use the provided tools to fetch the relevant code "
+        "and provide a detailed description. Submit your description using the provided tools. "
+        "If submission fails, it may be due to a wrong symbol/definition location, which is used "
+        "as a reference for the task. you may need to adjust the location before resubmitting."
+    )
 
 
 def main():

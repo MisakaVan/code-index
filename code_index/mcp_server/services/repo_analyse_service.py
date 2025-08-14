@@ -105,6 +105,25 @@ class RepoAnalyseService:
                 return defn.llm_note
         return None
 
+    def get_full_definition(
+        self, symbol: FunctionLike, definition: PureDefinition
+    ) -> Definition | None:
+        """Get the full definition info for a specific symbol and definition.
+
+        Args:
+            symbol: The function-like symbol.
+            definition: The pure definition of the symbol.
+
+        Returns:
+            The full Definition if it exists, otherwise None.
+        """
+        index = CodeIndexService.get_instance().index
+        definitions = index.get_definitions(symbol)
+        for defn in definitions:
+            if defn.to_pure() == definition:
+                return defn
+        return None
+
     def get_any_undescribed_definition_from_todolist(self) -> SymbolDefinition | None:
         """Get any definition that has not been described yet from the todolist.
 
@@ -131,4 +150,7 @@ class RepoAnalyseService:
         logger.info(
             f"Submitted note for {symbol_definition.symbol.name} at {symbol_definition.definition.location}"
         )
+        # notify the index to persist
+        msg = CodeIndexService.get_instance().persist()
+        logger.info(f"Index persistence result: {msg}")
         return f"Note submitted for {symbol_definition.symbol.name} at {symbol_definition.definition.location}"
