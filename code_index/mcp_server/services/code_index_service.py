@@ -74,14 +74,19 @@ class CodeIndexService:
     def __init__(self) -> None:
         self._state: IndexState | None = None
 
-    def assert_initialized(self) -> None:
+    def assert_initialized(self, msg: str | None = None) -> None:
         """Assert that the service is initialized with a valid indexer.
+
+        Args:
+            msg: Optional message to include in the assertion error.
 
         Raises:
             RuntimeError: If the indexer service is not initialized.
         """
         if self._state is None:
-            raise RuntimeError("Indexer is not initialized. Call setup_repo_index first.")
+            raise RuntimeError(
+                "Indexer is not initialized. Call setup_repo_index first. {}".format(msg or "")
+            )
 
     @property
     def indexer(self) -> CodeIndexer:
