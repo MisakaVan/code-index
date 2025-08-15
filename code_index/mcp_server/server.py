@@ -268,6 +268,18 @@ def describe_tasks_stats() -> str:
     return RepoAnalyseService.get_instance().get_description_progress()
 
 
+def get_pending_describe_tasks(n: int) -> list[SymbolDefinition]:
+    """Get a list of pending description tasks from the todolist.
+
+    Args:
+        n: Maximum number of pending tasks to return.
+
+    Returns:
+        List of SymbolDefinition objects that are pending description, limited to n items.
+    """
+    return RepoAnalyseService.get_instance().get_pending_describe_tasks(n)
+
+
 # This is a workaround for sphinx autodoc to recognize the docstrings of the undecorated functions above
 # Now register the functions as FastMCP tools and resources
 
@@ -306,6 +318,8 @@ mcp.tool("get_full_definition")(get_full_definition)
 mcp.tool("submit_definition_task")(submit_definition_task)
 
 mcp.tool("get_stats_of_describe_definition_todolist")(describe_tasks_stats)
+
+mcp.tool("get_pending_describe_tasks")(get_pending_describe_tasks)
 
 
 @mcp.prompt()
