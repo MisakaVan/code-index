@@ -9,7 +9,7 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
-from code_index.models import FunctionLike, FunctionLikeInfo
+from code_index.models import FunctionLike, FunctionLikeInfo, PureDefinition
 
 
 class QueryByKey(BaseModel):
@@ -82,7 +82,26 @@ class QueryByNameRegex(BaseModel):
     model_config = {"frozen": True}
 
 
-CodeQuery = QueryByKey | QueryByName | QueryByNameRegex
+class QueryFullDefinition(BaseModel):
+    """Given a symbol and a location, return the full definition of that symbol.
+
+    This is useful for navigating to the complete definition of a symbol from
+    a specific location in the codebase.
+
+    The result of this query (the FunctionLikeInfo) will only contain the corresponding
+    Definition that matches the provided PureDefinition. If there is no match, the result
+    will be empty.
+    """
+
+    symbol: FunctionLike
+    """The function or method symbol to look up."""
+    pure_definition: PureDefinition
+    """The specific location in the codebase to find the full definition from."""
+
+    model_config = {"frozen": True}
+
+
+CodeQuery = QueryByKey | QueryByName | QueryByNameRegex | QueryFullDefinition
 """Represents a query for code symbols in the index."""
 
 

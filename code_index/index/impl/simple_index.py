@@ -21,6 +21,7 @@ from ..code_query import (
     QueryByKey,
     QueryByName,
     QueryByNameRegex,
+    QueryFullDefinition,
 )
 
 
@@ -194,5 +195,27 @@ class SimpleIndex(BaseIndex):
                     assert info is not None, f"Info for {func_like} should not be None"
                     ret.append(CodeQuerySingleResponse(func_like=func_like, info=info))
                 return ret
+            case QueryFullDefinition(symbol=symbol, pure_definition=pure_definition):
+                # Get info for the specific symbol
+                info = self.get_info(symbol)
+                if info is None:
+                    return []
+
+                # Find the definition that matches the pure_definition
+                matching_definitions = [
+                    definition
+                    for definition in info.definitions
+                    if definition.to_pure() == pure_definition
+                ]
+
+                if not matching_definitions:
+                    return []
+
+                # Return only the matching definition(s) in a new FunctionLikeInfo
+                filtered_info = FunctionLikeInfo(
+                    definitions=matching_definitions,
+                    references=info.references,  # Include all references for context
+                )
+                return [CodeQuerySingleResponse(func_like=symbol, info=filtered_info)]
 
         raise ValueError(f"Unsupported query type: {type(query)}")

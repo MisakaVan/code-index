@@ -9,6 +9,7 @@ from code_index.index.code_query import (
     QueryByKey,
     QueryByName,
     QueryByNameRegex,
+    QueryFullDefinition,
 )
 from code_index.index.impl.cross_ref_index import (
     CrossRefIndex,
@@ -707,3 +708,139 @@ class TestCrossRefIndex:
         repr_str = repr(index)
         assert "items=1" in repr_str
         assert "total_definitions=1" in repr_str
+
+    def test_query_full_definition_existing_function(self, sample_function, sample_location):
+        """Test QueryFullDefinition for existing function definition."""
+        index = CrossRefIndex()
+        definition = Definition(location=sample_location)
+        index.add_definition(sample_function, definition)
+
+        pure_def = definition.to_pure()
+        query = QueryFullDefinition(symbol=sample_function, pure_definition=pure_def)
+        results = index.handle_query(query)
+
+        assert len(results) == 1
+        response = results[0]
+        assert response.func_like == sample_function
+        assert len(response.info.definitions) == 1
+        assert response.info.definitions[0] == definition
+        # Should have no references in this simple case
+        assert len(response.info.references) == 0
+
+    def test_query_full_definition_with_references(
+        self, sample_function, sample_location, sample_location2
+    ):
+        """Test QueryFullDefinition preserves all references for context."""
+        index = CrossRefIndex()
+
+        # Add definition and references
+        definition = Definition(location=sample_location)
+        reference = Reference(location=sample_location2)
+
+        index.add_definition(sample_function, definition)
+        index.add_reference(sample_function, reference)
+
+        pure_def = definition.to_pure()
+        query = QueryFullDefinition(symbol=sample_function, pure_definition=pure_def)
+        results = index.handle_query(query)
+
+        assert len(results) == 1
+        response = results[0]
+        assert response.func_like == sample_function
+        assert len(response.info.definitions) == 1
+        assert response.info.definitions[0] == definition
+        # Should include all references for context
+        assert len(response.info.references) == 1
+        assert response.info.references[0] == reference
+
+    def test_query_full_definition_non_existing_symbol(self, sample_location):
+        """Test QueryFullDefinition for non-existing symbol."""
+        index = CrossRefIndex()
+        non_existing_func = Function(name="non_existing")
+        pure_def = PureDefinition(location=sample_location)
+
+        query = QueryFullDefinition(symbol=non_existing_func, pure_definition=pure_def)
+        results = index.handle_query(query)
+
+        assert len(results) == 0
+
+    def test_query_full_definition_non_existing_definition(
+        self, sample_function, sample_location, sample_location2
+    ):
+        """Test QueryFullDefinition for existing symbol but non-existing definition."""
+        index = CrossRefIndex()
+        definition = Definition(location=sample_location)
+        index.add_definition(sample_function, definition)
+
+        # Create a PureDefinition that doesn't exist in the index
+        non_existing_pure_def = PureDefinition(location=sample_location2)
+
+        query = QueryFullDefinition(symbol=sample_function, pure_definition=non_existing_pure_def)
+        results = index.handle_query(query)
+
+        assert len(results) == 0
+
+    def test_query_full_definition_multiple_definitions(
+        self, sample_function, sample_location, sample_location2
+    ):
+        """Test QueryFullDefinition when function has multiple definitions."""
+        index = CrossRefIndex()
+
+        # Add multiple definitions for the same function
+        definition1 = Definition(location=sample_location)
+        definition2 = Definition(location=sample_location2)
+
+        index.add_definition(sample_function, definition1)
+        index.add_definition(sample_function, definition2)
+
+        # Query for the first definition
+        pure_def1 = definition1.to_pure()
+        query1 = QueryFullDefinition(symbol=sample_function, pure_definition=pure_def1)
+        results1 = index.handle_query(query1)
+
+        assert len(results1) == 1
+        response1 = results1[0]
+        assert response1.func_like == sample_function
+        assert len(response1.info.definitions) == 1
+        assert response1.info.definitions[0] == definition1
+
+        # Query for the second definition
+        pure_def2 = definition2.to_pure()
+        query2 = QueryFullDefinition(symbol=sample_function, pure_definition=pure_def2)
+        results2 = index.handle_query(query2)
+
+        assert len(results2) == 1
+        response2 = results2[0]
+        assert response2.func_like == sample_function
+        assert len(response2.info.definitions) == 1
+        assert response2.info.definitions[0] == definition2
+
+    def test_query_full_definition_with_cross_references(self, sample_location, sample_location2):
+        """Test QueryFullDefinition in a cross-referenced scenario."""
+        index = CrossRefIndex()
+
+        caller_func = Function(name="caller")
+        called_func = Function(name="called")
+
+        # Create a definition that calls another function
+        symbol_ref = SymbolReference(
+            symbol=called_func, reference=PureReference(location=sample_location2)
+        )
+        caller_definition = Definition(location=sample_location, calls=[symbol_ref])
+
+        # Add the definition
+        index.add_definition(caller_func, caller_definition)
+
+        # Query for the caller's definition
+        pure_def = caller_definition.to_pure()
+        query = QueryFullDefinition(symbol=caller_func, pure_definition=pure_def)
+        results = index.handle_query(query)
+
+        assert len(results) == 1
+        response = results[0]
+        assert response.func_like == caller_func
+        assert len(response.info.definitions) == 1
+        assert response.info.definitions[0] == caller_definition
+        # Should have the calls intact
+        assert len(response.info.definitions[0].calls) == 1
+        assert response.info.definitions[0].calls[0].symbol == called_func
