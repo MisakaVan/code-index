@@ -53,6 +53,39 @@ llm = ChatDeepSeek(
 memory_saver = MemorySaver()
 
 
+def get_user_input() -> str:
+    """
+    Read a multi-line user message.
+    A single blank line is kept as an intentional blank line.
+    Two consecutive blank lines (double Enter) terminate input (the second is not included).
+    Returns a single string (may contain '\n').
+    """
+    lines = []
+    empty_streak = 0
+    first = True
+    try:
+        while True:
+            prompt = "\n💬 You: " if first else "... "
+            first = False
+            line = input(prompt)
+            if line == "":
+                empty_streak += 1
+                if empty_streak == 2:
+                    break  # second empty line ends input
+                # keep first empty line as content
+                lines.append("")
+            else:
+                empty_streak = 0
+                lines.append(line)
+    except EOFError:
+        # propagate so outer loop can handle as exit
+        raise
+    except KeyboardInterrupt:
+        # Return empty so outer loop can decide
+        return ""
+    return "\n".join(lines)
+
+
 async def chat_with_agent(code_index_session):
     """Main chat loop for interacting with the code index agent."""
     # Generate a unique thread ID for this conversation session
@@ -60,23 +93,23 @@ async def chat_with_agent(code_index_session):
     config = {"configurable": {"thread_id": thread_id}}
 
     tools = await load_mcp_tools(code_index_session)
-    agent = create_react_agent(model=llm, tools=tools, checkpointer=memory_saver)
+    agent = create_react_agent(model=llm, tools=tools, checkpointer=memory_saver).with_config(
+        recursion_limit=1000,
+    )
 
     print("🤖 CodeIndex Agent Ready!")
     print("=" * 50)
 
     while True:
         try:
-            # Get user input
-            user_input = input("\n💬 You: ").strip()
+            user_input = get_user_input()
 
-            # Check for exit commands
-            if user_input.lower() in ["quit", "exit", "bye", "q"]:
+            # exit commands (checked on stripped single-line equivalent)
+            if user_input.strip().lower() in ["quit", "exit", "bye", "q"]:
                 print("\n👋 Goodbye!")
                 break
 
-            # Skip empty input
-            if not user_input:
+            if not user_input.strip():
                 continue
 
             # Stream the response from the agent
