@@ -88,7 +88,7 @@ class CodeIndexService:
                     if path.exists():
                         return path, strategy_instance
                 # If no cache files exist, default to SQLite
-                return strategy_config_mapping["sqlite"]
+                return strategy_config_mapping["json"]
             case _:
                 raise ValueError(f"Unsupported cache strategy: {strategy}")
 
@@ -110,7 +110,7 @@ class CodeIndexService:
                 which format the index data is stored to or loaded from cache.
 
                 - 'auto': Try to select the corresponding strategy according to the format of the cached index data. If
-                    no cached data exists, it will default to 'sqlite'.
+                    no cached data exists, it will default to 'json'.
                 - 'json': Use JSON format for the index data.
                 - 'sqlite': Use SQLite format for the index data.
 

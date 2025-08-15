@@ -96,10 +96,10 @@ int main() {
 
         cache_path, strategy = CodeIndexService._get_cache_config(repo_path, "auto")
 
-        # Should default to SQLite when no cache exists
-        expected_path = repo_path / ".code_index.cache" / "index.sqlite"
+        # Should default to json when no cache exists
+        expected_path = repo_path / ".code_index.cache" / "index.json"
         assert cache_path == expected_path
-        assert strategy.__class__.__name__ == "SqlitePersistStrategy"
+        assert strategy.__class__.__name__ == "SingleJsonFilePersistStrategy"
 
     def test_get_cache_config_json_strategy(self, tmp_path):
         """Test cache config with explicit JSON strategy."""
