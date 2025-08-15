@@ -19,6 +19,7 @@ Callback semantics:
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from collections.abc import Callable, Hashable, Iterator
 from dataclasses import dataclass, field
 from typing import Any, Generic, Optional, Self, TypeVar
@@ -53,7 +54,7 @@ class TaskData(Generic[IdType, SubmitType]):
     extra: dict[str, Any] = field(default_factory=dict)
 
 
-class TodoList(dict[IdType, TaskData[IdType, SubmitType]], Generic[IdType, SubmitType]):
+class TodoList(OrderedDict[IdType, TaskData[IdType, SubmitType]], Generic[IdType, SubmitType]):
     """In‑memory todolist mapping task ids to TaskData.
 
     This is a lightweight coordination structure for agents. Tasks can be
@@ -98,6 +99,8 @@ class TodoList(dict[IdType, TaskData[IdType, SubmitType]], Generic[IdType, Submi
         # Track ids of tasks not yet submitted for O(1) size & sampling.
         self._pending_ids: set[IdType] = set()
         self._name: str = "TodoList"
+        # Track recently submitted tasks in order
+        self._recently_submitted: list[IdType] = []
 
         self.allow_resubmit = allow_resubmit
 
@@ -174,6 +177,8 @@ class TodoList(dict[IdType, TaskData[IdType, SubmitType]], Generic[IdType, Submi
         data.submitted = True
         # remove from pending set
         self._pending_ids.discard(task_id)
+        # add to recently submitted list
+        self._recently_submitted.append(task_id)
 
     def yield_pending(self) -> Iterator[tuple[IdType, TaskData[IdType, SubmitType]]]:
         """Iterate over tasks that have not yet been submitted.
@@ -240,6 +245,24 @@ class TodoList(dict[IdType, TaskData[IdType, SubmitType]], Generic[IdType, Submi
             return self.get_any_pending()
         return tid, data
 
+    def get_pending_tasks(self, limit: int | None = None, offset: int = 0) -> list[IdType]:
+        """Get pending task IDs with limit and offset.
+
+        Args:
+            limit: Maximum number of task IDs to return. If None, return all.
+            offset: Number of tasks to skip from the beginning.
+
+        Returns:
+            List of task IDs that are pending, in insertion order.
+        """
+        # Get pending tasks in insertion order using OrderedDict
+        pending_tasks = [task_id for task_id in self.keys() if task_id in self._pending_ids]
+
+        # Apply offset and limit
+        start = offset
+        end = start + limit if limit is not None else None
+        return pending_tasks[start:end]
+
     def clear_submitted(self) -> int:
         """Remove submitted tasks from the list.
 
@@ -250,7 +273,30 @@ class TodoList(dict[IdType, TaskData[IdType, SubmitType]], Generic[IdType, Submi
         for tid in to_remove:
             del self[tid]
             self._pending_ids.discard(tid)
+            # Also remove from recently submitted if present
+            if tid in self._recently_submitted:
+                self._recently_submitted.remove(tid)
         return len(to_remove)
+
+    @property
+    def recently_submitted(self) -> list[IdType]:
+        """Get a read-only view of recently submitted task IDs.
+
+        Returns:
+            List of task IDs that were recently submitted, in submission order.
+        """
+        return self._recently_submitted.copy()
+
+    def get_recently_submitted_tasks(self, n: int = 5) -> list[IdType]:
+        """Get the most recently submitted task IDs.
+
+        Args:
+            n: Maximum number of recently submitted task IDs to return.
+
+        Returns:
+            List of the most recently submitted task IDs, limited to n items.
+        """
+        return self._recently_submitted[-n:] if self._recently_submitted else []
 
     # ------------------------------------------------------------------
     # Optional convenience helpers

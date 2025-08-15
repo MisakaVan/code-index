@@ -214,5 +214,173 @@ def test_get_any_pending_recovers_from_stale_state():
     assert todos.pending_size() == 0
 
 
+def test_ordereddict_behavior():
+    """Test that TodoList maintains insertion order like OrderedDict."""
+    todos: TodoList[str, str] = TodoList()
+    for i in range(5):
+        todos.add_task(f"task_{i}")
+
+    # Keys should be in insertion order
+    keys_list = list(todos.keys())
+    assert keys_list == [f"task_{i}" for i in range(5)]
+
+
+def test_get_pending_tasks_basic():
+    """Test get_pending_tasks method with basic functionality."""
+    todos: TodoList[str, str] = TodoList()
+    # Add tasks in order
+    for i in range(5):
+        todos.add_task(f"task_{i}")
+
+    # All pending tasks should be returned in insertion order
+    pending = todos.get_pending_tasks()
+    assert pending == [f"task_{i}" for i in range(5)]
+
+    # Submit some tasks
+    todos.submit("task_1", "done")
+    todos.submit("task_3", "done")
+
+    # Only pending tasks should be returned
+    pending_after = todos.get_pending_tasks()
+    assert pending_after == ["task_0", "task_2", "task_4"]
+
+
+def test_get_pending_tasks_with_limit_and_offset():
+    """Test get_pending_tasks with limit and offset parameters."""
+    todos: TodoList[str, str] = TodoList()
+    for i in range(10):
+        todos.add_task(f"task_{i}")
+
+    # Test with limit only
+    limited = todos.get_pending_tasks(limit=3)
+    assert limited == ["task_0", "task_1", "task_2"]
+
+    # Test with offset only
+    offset_only = todos.get_pending_tasks(offset=5)
+    assert offset_only == ["task_5", "task_6", "task_7", "task_8", "task_9"]
+
+    # Test with both limit and offset
+    limited_offset = todos.get_pending_tasks(limit=3, offset=2)
+    assert limited_offset == ["task_2", "task_3", "task_4"]
+
+    # Test edge cases
+    empty_result = todos.get_pending_tasks(limit=5, offset=20)
+    assert empty_result == []
+
+    # Submit some tasks and test again
+    todos.submit("task_1", "done")
+    todos.submit("task_3", "done")
+
+    # Should skip submitted tasks
+    pending_with_offset = todos.get_pending_tasks(limit=3, offset=1)
+    assert pending_with_offset == ["task_2", "task_4", "task_5"]
+
+
+def test_recently_submitted_property():
+    """Test recently_submitted read-only property."""
+    todos: TodoList[str, str] = TodoList()
+
+    # Initially empty
+    assert todos.recently_submitted == []
+
+    # Add and submit some tasks
+    todos.add_task("task_1")
+    todos.add_task("task_2")
+    todos.add_task("task_3")
+
+    todos.submit("task_1", "result_1")
+    assert todos.recently_submitted == ["task_1"]
+
+    todos.submit("task_3", "result_3")
+    assert todos.recently_submitted == ["task_1", "task_3"]
+
+    # Property should return a copy (read-only)
+    submitted_copy = todos.recently_submitted
+    submitted_copy.append("should_not_affect_original")
+    assert todos.recently_submitted == ["task_1", "task_3"]
+
+
+def test_get_recently_submitted_tasks():
+    """Test get_recently_submitted_tasks method."""
+    todos: TodoList[str, str] = TodoList()
+
+    # Empty case
+    assert todos.get_recently_submitted_tasks() == []
+    assert todos.get_recently_submitted_tasks(n=10) == []
+
+    # Add and submit tasks
+    for i in range(10):
+        todos.add_task(f"task_{i}")
+
+    # Submit tasks in a specific order
+    submit_order = [2, 5, 1, 7, 9, 0, 4]
+    for task_idx in submit_order:
+        todos.submit(f"task_{task_idx}", f"result_{task_idx}")
+
+    # Test default n=5 (should return last 5 submitted)
+    recent_5 = todos.get_recently_submitted_tasks()
+    expected_last_5 = [f"task_{i}" for i in submit_order[-5:]]  # Last 5 from submit_order
+    assert recent_5 == expected_last_5
+
+    # Test with specific n=3 (should return last 3 submitted)
+    recent_3 = todos.get_recently_submitted_tasks(n=3)
+    expected_last_3 = [f"task_{i}" for i in submit_order[-3:]]  # Last 3 from submit_order
+    assert recent_3 == expected_last_3
+
+    # Test with n larger than available
+    recent_10 = todos.get_recently_submitted_tasks(n=10)
+    expected_all = [f"task_{i}" for i in submit_order]
+    assert recent_10 == expected_all
+
+    # Test with n=1
+    recent_1 = todos.get_recently_submitted_tasks(n=1)
+    assert recent_1 == [f"task_{submit_order[-1]}"]  # Last submitted task
+
+
+def test_clear_submitted_updates_recently_submitted():
+    """Test that clear_submitted also cleans up recently_submitted list."""
+    todos: TodoList[str, str] = TodoList()
+
+    # Add and submit some tasks
+    for i in range(5):
+        todos.add_task(f"task_{i}")
+
+    todos.submit("task_1", "done")
+    todos.submit("task_3", "done")
+
+    assert todos.recently_submitted == ["task_1", "task_3"]
+
+    # Clear submitted tasks
+    removed = todos.clear_submitted()
+    assert removed == 2
+
+    # Recently submitted should be cleaned up
+    assert todos.recently_submitted == []
+
+    # Remaining tasks should still be there
+    assert list(todos.keys()) == ["task_0", "task_2", "task_4"]
+
+
+def test_recently_submitted_with_failed_callback():
+    """Test that recently_submitted is not updated when callback fails."""
+    todos: TodoList[str, str] = TodoList()
+
+    def failing_callback(task_id: str, value: str):
+        raise RuntimeError("callback failed")
+
+    todos.add_task("task_1")
+    todos.add_task("task_2", callback=failing_callback)
+
+    # Normal submission should work
+    todos.submit("task_1", "done")
+    assert todos.recently_submitted == ["task_1"]
+
+    # Failed callback should not update recently_submitted
+    with pytest.raises(RuntimeError):
+        todos.submit("task_2", "done")
+
+    assert todos.recently_submitted == ["task_1"]  # Should not include task_2
+
+
 if __name__ == "__main__":  # pragma: no cover
     pytest.main([__file__, "-v"])  # manual debug
