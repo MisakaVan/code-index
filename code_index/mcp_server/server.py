@@ -209,7 +209,6 @@ def get_all_symbols() -> AllSymbolsResponse:
     return CodeIndexService.get_instance().get_all_symbols()
 
 
-# todo: add tools to help agent go through the repo and examine definitions
 def setup_describe_definitions_todolist() -> str:
     """Setup the todolist of the definitions to examine.
 
