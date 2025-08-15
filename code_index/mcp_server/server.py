@@ -200,6 +200,7 @@ async def query_symbol(query: CodeQuery, ctx: Context) -> CodeQueryResponse:
         A response object containing the results of the query. There can be multiple results, each containing the
         location of the symbol, its name, and other relevant information.
     """
+    CodeIndexService.get_instance().log_calling(query_symbol.__name__, query)
     result: CodeQueryResponse = CodeIndexService.get_instance().query_symbol(query)
 
     # use SourceCodeFetchService to prefetch the source code for each definition
@@ -235,6 +236,7 @@ def get_all_symbols() -> AllSymbolsResponse:
     Returns:
         A response object containing a sorted list of all symbol names.
     """
+    CodeIndexService.get_instance().log_calling(get_all_symbols.__name__)
     return CodeIndexService.get_instance().get_all_symbols()
 
 
@@ -246,6 +248,7 @@ def setup_describe_definitions_todolist() -> str:
     Returns:
         str: the success message.
     """
+    CodeIndexService.get_instance().log_calling(setup_describe_definitions_todolist.__name__)
     RepoAnalyseService.get_instance().ready_describe_definitions()
     return "Definition todo list is ready."
 
@@ -258,6 +261,7 @@ def get_one_describe_definition_task() -> SymbolDefinition | None:
         the location of the definition and the corresponding symbol. If all tasks
         are done, return nothing.
     """
+    CodeIndexService.get_instance().log_calling(get_one_describe_definition_task.__name__)
     return RepoAnalyseService.get_instance().get_any_pending_describe_task()
 
 
@@ -270,6 +274,7 @@ def get_full_definition(symbol_definition: SymbolDefinition) -> Definition | Non
     Returns:
         The full Definition if it exists, otherwise None.
     """
+    CodeIndexService.get_instance().log_calling(get_full_definition.__name__, symbol_definition)
     return RepoAnalyseService.get_instance().get_full_definition(
         symbol=symbol_definition.symbol, definition=symbol_definition.definition
     )
@@ -285,6 +290,9 @@ def submit_definition_task(symbol_definition: SymbolDefinition, note: LLMNote) -
     Returns:
         A success message indicating the task has been submitted.
     """
+    CodeIndexService.get_instance().log_calling(
+        submit_definition_task.__name__, symbol_definition, note
+    )
     return RepoAnalyseService.get_instance().submit_note(symbol_definition, note)
 
 
@@ -294,6 +302,7 @@ def describe_tasks_stats() -> str:
     Returns:
         A string summarizing the current state of the description tasks.
     """
+    CodeIndexService.get_instance().log_calling(describe_tasks_stats.__name__)
     return RepoAnalyseService.get_instance().get_description_progress()
 
 
@@ -306,6 +315,7 @@ def get_pending_describe_tasks(n: int) -> list[SymbolDefinition]:
     Returns:
         List of SymbolDefinition objects that are pending description, limited to n items.
     """
+    CodeIndexService.get_instance().log_calling(get_pending_describe_tasks.__name__, n)
     return RepoAnalyseService.get_instance().get_pending_describe_tasks(n)
 
 

@@ -137,6 +137,24 @@ class CodeIndexService:
             case _:
                 raise ValueError(f"Unsupported cache strategy: {strategy}")
 
+    def log_calling(self, func_name: str, *args, **kwargs) -> None:
+        """Capture the calling of a function for logging purposes.
+
+        The log will be saved in a file under the `.code_index.cache` directory
+
+        Args:
+            func_name: The name of the function being called.
+
+        Returns:
+        """
+        self.assert_initialized(msg="Cannot log function calls before initializing the indexer.")
+        cache_path, _ = self._get_cache_config(self._state.repo_path, self._state.strategy)
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        log_file = cache_path.parent / "function_calls.log"
+        log_file.touch(exist_ok=True)
+        with log_file.open("a") as f:
+            f.write(f"Called {func_name} with args: {args}, kwargs: {kwargs}\n")
+
     def setup_repo_index(
         self,
         repo_path: Path,
