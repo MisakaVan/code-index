@@ -219,23 +219,32 @@ class SqlitePersistStrategy(PersistStrategy):
         """Returns a string representation of the persistence strategy."""
         return f"{self.__class__.__name__}()"
 
-    def get_engine(self, path: Path | None = None):
+    def get_engine(self, path: Path | None = None, make_empty_db: bool = False):
         """Gets the SQLite database engine.
 
         Args:
             path: Database file path. If None, uses in-memory database.
+            make_empty_db: If True, removes existing database file if it exists.
 
         Returns:
             SQLAlchemy engine for the database.
         """
         if path is None:
             return create_engine("sqlite:///:memory:")
-        else:
-            if path.exists() and path.is_dir():
-                path = path / "index.sqlite"
-            # 创建父目录而不是文件路径本身
-            path.parent.mkdir(parents=True, exist_ok=True)
-            return create_engine(f"sqlite:///{str(path.resolve())}")
+
+        if path.exists() and path.is_dir():
+            path = path / "index.sqlite"
+        # 创建父目录而不是文件路径本身
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        # if the path is an existing file, remove it (rename it to avoid conflicts)
+        if make_empty_db and path.exists() and path.is_file():
+            # add a .bak suffix. e.g. index.sqlite -> index.sqlite.bak
+            backup_path = path.with_name(f"{path.name}.bak")
+            path.rename(backup_path)
+            logger.warning(f"Existing file {path} renamed to {backup_path}")
+
+        return create_engine(f"sqlite:///{str(path.resolve())}")
 
     @staticmethod
     def _func_like_as_criteria(func_like: FunctionLike) -> dict:
