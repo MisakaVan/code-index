@@ -117,8 +117,6 @@ class CodeQuerySingleResponse(BaseModel):
     info: FunctionLikeInfo
     """The complete information about the function or method, including definitions and references."""
 
-    model_config = {"frozen": True}
-
 
 class CodeQueryResponse(BaseModel):
     """Represents the response for a code query.
@@ -128,5 +126,3 @@ class CodeQueryResponse(BaseModel):
 
     results: list[CodeQuerySingleResponse] = Field(default_factory=list)
     """List of matching function or method information."""
-
-    model_config = {"frozen": True}

@@ -37,6 +37,7 @@ Note:
     AI models and tools.
 """
 
+import asyncio
 from pathlib import Path
 from typing import Literal
 
@@ -183,7 +184,7 @@ def setup_repo_index(
     )
 
 
-def query_symbol(query: CodeQuery) -> CodeQueryResponse:
+async def query_symbol(query: CodeQuery, ctx: Context) -> CodeQueryResponse:
     """Query the index for symbols matching the given query.
 
     `symbol` here refers to a `Function-like` entity, which can be anything with its definition or call site
@@ -192,12 +193,36 @@ def query_symbol(query: CodeQuery) -> CodeQueryResponse:
 
     Args:
         query: The query object containing search parameters.
+        ctx: FastMCP context
 
     Returns:
         A response object containing the results of the query. There can be multiple results, each containing the
         location of the symbol, its name, and other relevant information.
     """
-    return CodeIndexService.get_instance().query_symbol(query)
+    result: CodeQueryResponse = CodeIndexService.get_instance().query_symbol(query)
+
+    # use SourceCodeFetchService to prefetch the source code for each definition
+    # use asyncio to fetch them concurrently
+    definitions: list[Definition] = [
+        defs for single_response in result.results for defs in single_response.info.definitions
+    ]
+    fetcher = SourceCodeFetchService.get_instance()
+
+    async def fetch_definition_source_code(defn: Definition):
+        """Add source code in-place"""
+        loc = defn.location
+        try:
+            src = await fetcher.fetch_by_byte_range(
+                file_path=loc.file_path, start_byte=loc.start_byte, end_byte=loc.end_byte, ctx=ctx
+            )
+            defn.source_code = src
+        except Exception as e:
+            # this may be due to testing on non-existing files
+            await ctx.info(f"Failed to fetch source code for definition {defn} due to {e}")
+
+    tasks = [asyncio.create_task(fetch_definition_source_code(defn)) for defn in definitions]
+    await asyncio.gather(*tasks)
+    return result
 
 
 def get_all_symbols() -> AllSymbolsResponse:
