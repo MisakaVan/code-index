@@ -399,7 +399,7 @@ class SqlitePersistStrategy(PersistStrategy):
         :param data: 要保存的索引数据字典
         :param path: 保存数据库文件的路径
         """
-        engine = self.get_engine(path)
+        engine = self.get_engine(path, make_empty_db=True)
         logger.debug("Created engine at {}", path)
         Base.metadata.create_all(engine)
         session_maker = sessionmaker(bind=engine)
