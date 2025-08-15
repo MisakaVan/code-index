@@ -256,7 +256,7 @@ def submit_definition_task(symbol_definition: SymbolDefinition, note: LLMNote) -
     Returns:
         A success message indicating the task has been submitted.
     """
-    return RepoAnalyseService.get_instance().submit_definition_task(symbol_definition, note)
+    return RepoAnalyseService.get_instance().submit_note(symbol_definition, note)
 
 
 def describe_tasks_stats() -> str:
