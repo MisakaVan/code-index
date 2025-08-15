@@ -80,8 +80,39 @@ class RepoAnalyseService:
                 )
 
     def get_description_progress(self) -> str:
-        """Get a string representing the progress of description tasks."""
-        return f"Progress: {str(self._description_todo)}"
+        """Get a detailed string representing the progress of description tasks.
+
+        Returns:
+            A detailed progress string including total/pending counts,
+            sample unfinished tasks, and recently submitted tasks.
+        """
+        base_progress = f"Progress: {str(self._description_todo)}"
+
+        # Get up to 5 unfinished tasks
+        unfinished_tasks = self.get_pending_describe_tasks(5)
+        unfinished_info = []
+        for task in unfinished_tasks:
+            unfinished_info.append(f"{task.symbol.name} at {task.definition.location.file_path}")
+
+        # Get up to 5 recently submitted tasks
+        recently_submitted = self._description_todo.get_recently_submitted_tasks(5)
+        submitted_info = []
+        for task in recently_submitted:
+            submitted_info.append(f"{task.symbol.name} at {task.definition.location.file_path}")
+
+        # Build detailed progress string
+        details = []
+        if unfinished_info:
+            details.append(f"Unfinished ({len(unfinished_info)}): {', '.join(unfinished_info)}")
+        if submitted_info:
+            details.append(
+                f"Recently submitted ({len(submitted_info)}): {', '.join(submitted_info)}"
+            )
+
+        if details:
+            return f"{base_progress}\n" + "\n".join(details)
+        else:
+            return base_progress
 
     def get_llm_note(self, symbol: FunctionLike, definition: PureDefinition) -> LLMNote | None:
         """Get the LLM note for a specific symbol and definition.
@@ -124,7 +155,7 @@ class RepoAnalyseService:
                 return defn
         return None
 
-    def get_any_undescribed_definition_from_todolist(self) -> SymbolDefinition | None:
+    def get_any_pending_describe_task(self) -> SymbolDefinition | None:
         """Get any definition that has not been described yet from the todolist.
 
         Returns:
@@ -136,6 +167,18 @@ class RepoAnalyseService:
             case SymbolDefinition() as symbol_definition, _:
                 return symbol_definition
         return None
+
+    def get_pending_describe_tasks(self, n: int) -> list[SymbolDefinition]:
+        """Get a list of pending description tasks from the todolist.
+
+        Args:
+            n: Maximum number of pending tasks to return.
+
+        Returns:
+            List of SymbolDefinition objects that are pending description, limited to n items.
+        """
+        pending_task_ids = self._description_todo.get_pending_tasks(limit=n)
+        return pending_task_ids
 
     def submit_note(self, symbol_definition: SymbolDefinition, note: LLMNote) -> str:
         """Submit a note for a specific symbol definition.

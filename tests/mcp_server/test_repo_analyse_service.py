@@ -129,7 +129,7 @@ int main() {
         assert pending_count > 0
 
         # Verify we can get a pending task
-        pending_task = repo_analyse_service.get_any_undescribed_definition_from_todolist()
+        pending_task = repo_analyse_service.get_any_pending_describe_task()
         assert pending_task is not None
         assert hasattr(pending_task, "symbol")
         assert hasattr(pending_task, "definition")
@@ -155,7 +155,7 @@ int main() {
         assert initial_pending > 0
 
         # Get a task to work on
-        symbol_definition = repo_analyse_service.get_any_undescribed_definition_from_todolist()
+        symbol_definition = repo_analyse_service.get_any_pending_describe_task()
         assert symbol_definition is not None
 
         # Create and submit a note
@@ -197,7 +197,7 @@ int main() {
         repo_analyse_service.ready_describe_definitions()
 
         # Get a task and submit a note
-        symbol_definition = repo_analyse_service.get_any_undescribed_definition_from_todolist()
+        symbol_definition = repo_analyse_service.get_any_pending_describe_task()
         assert symbol_definition is not None
 
         first_note = LLMNote(description="First description")
@@ -237,7 +237,7 @@ int main() {
         repo_analyse_service.ready_describe_definitions()
 
         # Get a task and submit a note
-        symbol_definition = repo_analyse_service.get_any_undescribed_definition_from_todolist()
+        symbol_definition = repo_analyse_service.get_any_pending_describe_task()
         assert symbol_definition is not None
 
         first_note = LLMNote(description="First description")
@@ -272,7 +272,7 @@ int main() {
         initial_pending = repo_analyse_service._description_todo.pending_size()
 
         # Submit a note for one definition
-        symbol_definition = repo_analyse_service.get_any_undescribed_definition_from_todolist()
+        symbol_definition = repo_analyse_service.get_any_pending_describe_task()
         test_note = LLMNote(description="Test description")
         repo_analyse_service.submit_note(symbol_definition, test_note)
 
@@ -308,7 +308,7 @@ int main() {
         assert "pending=" in progress_with_tasks
 
         # Submit one task and check progress again
-        symbol_definition = repo_analyse_service.get_any_undescribed_definition_from_todolist()
+        symbol_definition = repo_analyse_service.get_any_pending_describe_task()
         if symbol_definition is not None:
             test_note = LLMNote(description="Test description")
             repo_analyse_service.submit_note(symbol_definition, test_note)
@@ -335,7 +335,7 @@ int main() {
         repo_analyse_service.ready_describe_definitions()
 
         # Get a task but don't submit a note
-        symbol_definition = repo_analyse_service.get_any_undescribed_definition_from_todolist()
+        symbol_definition = repo_analyse_service.get_any_pending_describe_task()
         assert symbol_definition is not None
 
         # Try to get note for definition without a note
@@ -366,7 +366,7 @@ int main() {
         # Submit notes for all pending tasks
         submitted_count = 0
         while True:
-            symbol_definition = repo_analyse_service.get_any_undescribed_definition_from_todolist()
+            symbol_definition = repo_analyse_service.get_any_pending_describe_task()
             if symbol_definition is None:
                 break
 
@@ -403,7 +403,7 @@ int main() {
         repo_analyse_service.ready_describe_definitions()
 
         # Get a valid task
-        symbol_definition = repo_analyse_service.get_any_undescribed_definition_from_todolist()
+        symbol_definition = repo_analyse_service.get_any_pending_describe_task()
         assert symbol_definition is not None
 
         # Submit note for the valid task
@@ -432,7 +432,7 @@ int main() {
 
         # Submit notes for all tasks
         while True:
-            symbol_definition = repo_analyse_service.get_any_undescribed_definition_from_todolist()
+            symbol_definition = repo_analyse_service.get_any_pending_describe_task()
             if symbol_definition is None:
                 break
 
@@ -440,7 +440,7 @@ int main() {
             repo_analyse_service.submit_note(symbol_definition, test_note)
 
         # Verify no more undescribed definitions
-        final_result = repo_analyse_service.get_any_undescribed_definition_from_todolist()
+        final_result = repo_analyse_service.get_any_pending_describe_task()
         assert final_result is None
 
     def test_ready_describe_definitions_called_multiple_times(
@@ -467,6 +467,188 @@ int main() {
         # Should have roughly double the tasks (some may be duplicates that cause KeyError)
         # The exact behavior depends on how duplicate task IDs are handled
         assert second_count >= first_count
+
+    def test_get_pending_describe_tasks(
+        self, code_index_service, repo_analyse_service, sample_python_code, tmp_path
+    ):
+        """Test get_pending_describe_tasks method."""
+        # Setup repository
+        repo_path = tmp_path / "python_repo"
+        repo_path.mkdir()
+        test_file = repo_path / "test.py"
+        test_file.write_text(sample_python_code)
+
+        # Index the repository
+        code_index_service.setup_repo_index(repo_path, "python", "json")
+
+        # Prepare description tasks
+        repo_analyse_service.ready_describe_definitions()
+
+        # Test getting pending tasks with limit
+        pending_tasks_3 = repo_analyse_service.get_pending_describe_tasks(3)
+        assert isinstance(pending_tasks_3, list)
+        assert len(pending_tasks_3) <= 3
+
+        # All items should be SymbolDefinition objects
+        for task in pending_tasks_3:
+            assert hasattr(task, "symbol")
+            assert hasattr(task, "definition")
+
+        # Test getting all pending tasks
+        all_pending = repo_analyse_service.get_pending_describe_tasks(100)  # Large number
+        total_pending = repo_analyse_service._description_todo.pending_size()
+        assert len(all_pending) == total_pending
+
+        # Submit one task and verify the list shrinks
+        if pending_tasks_3:
+            first_task = pending_tasks_3[0]
+            test_note = LLMNote(description="Test description")
+            repo_analyse_service.submit_note(first_task, test_note)
+
+            # Get pending tasks again - should be one fewer
+            new_pending = repo_analyse_service.get_pending_describe_tasks(100)
+            assert len(new_pending) == total_pending - 1
+
+    def test_get_description_progress_detailed(
+        self, code_index_service, repo_analyse_service, sample_python_code, tmp_path
+    ):
+        """Test the enhanced get_description_progress method with detailed information."""
+        # Setup repository
+        repo_path = tmp_path / "python_repo"
+        repo_path.mkdir()
+        test_file = repo_path / "test.py"
+        test_file.write_text(sample_python_code)
+
+        # Index the repository
+        code_index_service.setup_repo_index(repo_path, "python", "json")
+
+        # Initially no tasks
+        initial_progress = repo_analyse_service.get_description_progress()
+        assert "Progress: DescribeDefinitions(total=0, pending=0)" == initial_progress
+
+        # Prepare description tasks
+        repo_analyse_service.ready_describe_definitions()
+        progress_with_tasks = repo_analyse_service.get_description_progress()
+
+        # Should contain basic progress info
+        assert "Progress: DescribeDefinitions(total=" in progress_with_tasks
+        assert "pending=" in progress_with_tasks
+
+        # Should contain unfinished tasks info
+        assert "Unfinished" in progress_with_tasks
+
+        # Submit some tasks to test recently submitted section
+        pending_tasks = repo_analyse_service.get_pending_describe_tasks(3)
+        for i, task in enumerate(pending_tasks[:2]):  # Submit first 2 tasks
+            test_note = LLMNote(description=f"Test description {i}")
+            repo_analyse_service.submit_note(task, test_note)
+
+        # Get progress again - should show recently submitted
+        progress_with_submitted = repo_analyse_service.get_description_progress()
+        assert "Recently submitted" in progress_with_submitted
+
+        # Should still show unfinished tasks if any remain
+        if repo_analyse_service._description_todo.pending_size() > 0:
+            assert "Unfinished" in progress_with_submitted
+
+    def test_get_description_progress_with_file_paths(
+        self, code_index_service, repo_analyse_service, sample_python_code, tmp_path
+    ):
+        """Test that get_description_progress includes file paths in task descriptions."""
+        # Setup repository
+        repo_path = tmp_path / "python_repo"
+        repo_path.mkdir()
+        test_file = repo_path / "test.py"
+        test_file.write_text(sample_python_code)
+
+        # Index the repository
+        code_index_service.setup_repo_index(repo_path, "python", "json")
+
+        # Prepare description tasks
+        repo_analyse_service.ready_describe_definitions()
+
+        # Get progress
+        progress = repo_analyse_service.get_description_progress()
+
+        # Should contain file path information
+        assert "test.py" in progress
+
+        # Submit a task and check recently submitted includes file path
+        pending_task = repo_analyse_service.get_any_pending_describe_task()
+        if pending_task:
+            test_note = LLMNote(description="Test description")
+            repo_analyse_service.submit_note(pending_task, test_note)
+
+            progress_after_submit = repo_analyse_service.get_description_progress()
+            assert "test.py" in progress_after_submit
+
+    def test_get_pending_describe_tasks_empty_list(
+        self, code_index_service, repo_analyse_service, sample_python_code, tmp_path
+    ):
+        """Test get_pending_describe_tasks returns empty list when no pending tasks."""
+        # Setup repository
+        repo_path = tmp_path / "python_repo"
+        repo_path.mkdir()
+        test_file = repo_path / "test.py"
+        test_file.write_text(sample_python_code)
+
+        # Index the repository
+        code_index_service.setup_repo_index(repo_path, "python", "json")
+
+        # Initially no tasks
+        empty_list = repo_analyse_service.get_pending_describe_tasks(5)
+        assert empty_list == []
+
+        # Prepare and complete all tasks
+        repo_analyse_service.ready_describe_definitions()
+
+        # Submit all tasks
+        while True:
+            task = repo_analyse_service.get_any_pending_describe_task()
+            if task is None:
+                break
+            test_note = LLMNote(description=f"Description for {task.symbol.name}")
+            repo_analyse_service.submit_note(task, test_note)
+
+        # Should return empty list
+        final_list = repo_analyse_service.get_pending_describe_tasks(10)
+        assert final_list == []
+
+    def test_get_pending_describe_tasks_ordering(
+        self, code_index_service, repo_analyse_service, sample_python_code, tmp_path
+    ):
+        """Test that get_pending_describe_tasks maintains ordering from TodoList."""
+        # Setup repository
+        repo_path = tmp_path / "python_repo"
+        repo_path.mkdir()
+        test_file = repo_path / "test.py"
+        test_file.write_text(sample_python_code)
+
+        # Index the repository
+        code_index_service.setup_repo_index(repo_path, "python", "json")
+
+        # Prepare description tasks
+        repo_analyse_service.ready_describe_definitions()
+
+        # Get tasks multiple times - should be consistent ordering
+        first_call = repo_analyse_service.get_pending_describe_tasks(5)
+        second_call = repo_analyse_service.get_pending_describe_tasks(5)
+
+        # Should return same order (since we haven't modified anything)
+        assert first_call == second_call
+
+        # Submit first task and verify remaining tasks shift
+        if first_call:
+            first_task = first_call[0]
+            test_note = LLMNote(description="Test description")
+            repo_analyse_service.submit_note(first_task, test_note)
+
+            # Get remaining tasks
+            remaining_tasks = repo_analyse_service.get_pending_describe_tasks(5)
+
+            # Should match the tail of the original list (minus the submitted first task)
+            expected_remaining = [task for task in first_call[1:] if task != first_task]
+            assert remaining_tasks[: len(expected_remaining)] == expected_remaining
 
 
 if __name__ == "__main__":

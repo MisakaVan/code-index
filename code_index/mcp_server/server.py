@@ -229,7 +229,7 @@ def get_one_describe_definition_task() -> SymbolDefinition | None:
         the location of the definition and the corresponding symbol. If all tasks
         are done, return nothing.
     """
-    return RepoAnalyseService.get_instance().get_any_undescribed_definition_from_todolist()
+    return RepoAnalyseService.get_instance().get_any_pending_describe_task()
 
 
 def get_full_definition(symbol_definition: SymbolDefinition) -> Definition | None:
