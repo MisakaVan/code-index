@@ -51,6 +51,7 @@ from code_index.mcp_server.services import (
     SourceCodeFetchService,
 )
 from code_index.models import Definition, LLMNote, SymbolDefinition
+from code_index.utils.logger import logger
 
 mcp = FastMCP("CodeIndexService")
 """FastMCP server instance for CodeIndexService.
@@ -207,17 +208,20 @@ async def query_symbol(query: CodeQuery, ctx: Context) -> CodeQueryResponse:
         defs for single_response in result.results for defs in single_response.info.definitions
     ]
     fetcher = SourceCodeFetchService.get_instance()
+    repo_path = CodeIndexService.get_instance()._state.repo_path
 
     async def fetch_definition_source_code(defn: Definition):
         """Add source code in-place"""
         loc = defn.location
+        pth = resolve_file_path(repo_path, loc.file_path)
         try:
             src = await fetcher.fetch_by_byte_range(
-                file_path=loc.file_path, start_byte=loc.start_byte, end_byte=loc.end_byte, ctx=ctx
+                file_path=pth, start_byte=loc.start_byte, end_byte=loc.end_byte, ctx=ctx
             )
             defn.source_code = src
         except Exception as e:
             # this may be due to testing on non-existing files
+            logger.info(f"Failed to fetch source code for definition {defn} due to {e}")
             await ctx.info(f"Failed to fetch source code for definition {defn} due to {e}")
 
     tasks = [asyncio.create_task(fetch_definition_source_code(defn)) for defn in definitions]
