@@ -140,13 +140,27 @@ class RepoAnalyseService:
     def submit_note(self, symbol_definition: SymbolDefinition, note: LLMNote) -> str:
         """Submit a note for a specific symbol definition.
 
-        This will update the index with the provided note.
+        This will update the index with the provided note. If the symbol definition is in
+        the todolist, it will be marked as completed. If not, still try to update the index.
 
         Args:
             symbol_definition: The symbol definition to update.
             note: The LLM note to submit.
         """
-        self._description_todo.submit(symbol_definition, note)
+        if symbol_definition in self._description_todo:
+            logger.info(
+                f"Symbol definition {symbol_definition.symbol.name} at {symbol_definition.definition.location} in todolist, marking as completed."
+            )
+            self._description_todo.submit(symbol_definition, note)
+        else:
+            logger.info(
+                f"Symbol definition {symbol_definition.symbol.name} at {symbol_definition.definition.location} not in todolist, updating index directly."
+            )
+            index = CodeIndexService.get_instance().index
+            _dummy_def_holding_llm_note = Definition.from_pure(
+                symbol_definition.definition
+            ).set_note(note)
+            index.add_definition(symbol_definition.symbol, _dummy_def_holding_llm_note)
         logger.info(
             f"Submitted note for {symbol_definition.symbol.name} at {symbol_definition.definition.location}"
         )
