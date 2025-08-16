@@ -31,6 +31,7 @@ Note:
     and ensure efficient resource usage.
 """
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -40,7 +41,22 @@ from code_index.index.impl.cross_ref_index import CrossRefIndex
 from code_index.index.persist import SingleJsonFilePersistStrategy, SqlitePersistStrategy
 from code_index.indexer import CodeIndexer
 from code_index.language_processor import language_processor_factory
+from code_index.mcp_server.models import AllSymbolsResponse
 from code_index.utils.logger import logger
+
+
+@dataclass(slots=True)
+class IndexState:
+    """Memory of the current state of the indexer service."""
+
+    indexer: CodeIndexer
+    """The current indexer instance being used."""
+
+    repo_path: Path
+    """Path to the repository being indexed."""
+
+    strategy: Literal["json", "sqlite", "auto"]
+    """Persistence strategy used for the index data."""
 
 
 class CodeIndexService:
@@ -56,13 +72,43 @@ class CodeIndexService:
         return CodeIndexService._instance
 
     def __init__(self) -> None:
-        self._indexer: CodeIndexer | None = None
+        self._state: IndexState | None = None
+
+    def assert_initialized(self, msg: str | None = None) -> None:
+        """Assert that the service is initialized with a valid indexer.
+
+        Args:
+            msg: Optional message to include in the assertion error.
+
+        Raises:
+            RuntimeError: If the indexer service is not initialized.
+        """
+        if self._state is None:
+            raise RuntimeError(
+                "Indexer is not initialized. Call setup_repo_index first. {}".format(msg or "")
+            )
+
+    @property
+    def indexer(self) -> CodeIndexer:
+        """Get the current indexer instance."""
+        self.assert_initialized()
+        return self._state.indexer
+
+    @property
+    def index(self) -> CrossRefIndex:
+        """Get the current index instance."""
+        self.assert_initialized()
+        assert isinstance(self._state.indexer.index, CrossRefIndex), (
+            "Expected indexer to have a CrossRefIndex, but got "
+            f"{type(self._state.indexer.index).__name__}"
+        )
+        return self._state.indexer.index
 
     def _clear_indexer(self) -> None:
         """Clear the current indexer instance."""
-        if self._indexer is not None:
+        if self._state is not None:
             logger.info("Clearing current indexer instance.")
-            self._indexer = None
+            self._state = None
         else:
             logger.warning("No indexer instance to clear.")
 
@@ -87,16 +133,34 @@ class CodeIndexService:
                     if path.exists():
                         return path, strategy_instance
                 # If no cache files exist, default to SQLite
-                return strategy_config_mapping["sqlite"]
+                return strategy_config_mapping["json"]
             case _:
                 raise ValueError(f"Unsupported cache strategy: {strategy}")
+
+    def log_calling(self, func_name: str, *args, **kwargs) -> None:
+        """Capture the calling of a function for logging purposes.
+
+        The log will be saved in a file under the `.code_index.cache` directory
+
+        Args:
+            func_name: The name of the function being called.
+
+        Returns:
+        """
+        self.assert_initialized(msg="Cannot log function calls before initializing the indexer.")
+        cache_path, _ = self._get_cache_config(self._state.repo_path, self._state.strategy)
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        log_file = cache_path.parent / "function_calls.log"
+        log_file.touch(exist_ok=True)
+        with log_file.open("a") as f:
+            f.write(f"Called {func_name} with args: {args}, kwargs: {kwargs}\n")
 
     def setup_repo_index(
         self,
         repo_path: Path,
         language: Literal["python", "c", "cpp"],
         strategy: Literal["json", "sqlite", "auto"] = "auto",
-    ) -> None:
+    ) -> str:
         """Set up the indexer for a repository.
 
         This initializes the indexer with the specified language processor. Then it indexes the repository using the
@@ -109,30 +173,35 @@ class CodeIndexService:
                 which format the index data is stored to or loaded from cache.
 
                 - 'auto': Try to select the corresponding strategy according to the format of the cached index data. If
-                    no cached data exists, it will default to 'sqlite'.
+                    no cached data exists, it will default to 'json'.
                 - 'json': Use JSON format for the index data.
                 - 'sqlite': Use SQLite format for the index data.
 
         """
-        if self._indexer is not None:
+        if self._state is not None:
             logger.warning("Indexer is already initialized, reinitializing...")
         l = language_processor_factory(language)
         assert l is not None, f"No language processor found for '{language}'"
-        self._indexer = CodeIndexer(processor=l, index=CrossRefIndex())
+
+        self._state = IndexState(
+            indexer=CodeIndexer(processor=l, index=CrossRefIndex()),
+            repo_path=repo_path,
+            strategy=strategy,
+        )
 
         # try to load existing index data
         cache_path, persist_strategy = self._get_cache_config(repo_path, strategy)
         if cache_path.exists():
             logger.info(f"Loading existing index data from {cache_path}")
             try:
-                self._indexer.load_index(cache_path, persist_strategy)
+                self.indexer.load_index(cache_path, persist_strategy)
             except Exception as e:
                 logger.error(f"Failed to load index data: {e}")
                 raise RuntimeError(f"Failed to load index data from {cache_path}: {e}")
         else:
             logger.info(f"No existing index data found at {cache_path}, starting fresh.")
             try:
-                self._indexer.index_project(project_path=repo_path)
+                self.indexer.index_project(project_path=repo_path)
             except Exception as e:
                 logger.error(f"Failed to index project: {e}")
                 raise RuntimeError(f"Failed to index project at {repo_path}: {e}")
@@ -140,14 +209,15 @@ class CodeIndexService:
             # dump the index data to cache
             try:
                 cache_path.parent.mkdir(parents=True, exist_ok=True)
-                self._indexer.dump_index(cache_path, persist_strategy)
+                self.indexer.dump_index(cache_path, persist_strategy)
                 logger.info(f"Index data persisted to {cache_path}")
             except Exception as e:
                 logger.error(f"Failed to persist index data: {e}")
                 raise RuntimeError(f"Failed to persist index data to {cache_path}: {e}")
 
-        # index the repository
-        logger.info(f"Indexing repository at {repo_path} with language '{language}'")
+        msg = f"Success: indexed repository at {repo_path} with language '{language}'"
+        logger.info(msg)
+        return msg
 
     def query_symbol(self, query: CodeQuery) -> CodeQueryResponse:
         """Query the index for symbols matching the given query.
@@ -163,10 +233,48 @@ class CodeIndexService:
             A response object containing the results of the query. There can be multiple results, each containing the
             location of the symbol, its name, and other relevant information.
         """
-        if self._indexer is None:
-            raise RuntimeError("Indexer is not initialized. Call setup_repo_index first.")
-
+        self.assert_initialized()
         logger.info(f"Querying index with: {query}")
 
-        index = self._indexer.index
+        index = self.indexer.index
         return CodeQueryResponse(results=index.handle_query(query))
+
+    def get_all_symbols(self) -> AllSymbolsResponse:
+        """Get a sorted list of all unique symbols in the index.
+
+        Returns:
+            A response object containing a sorted list of all symbol names.
+        """
+        self.assert_initialized()
+        logger.info("Retrieving all symbols from the index.")
+
+        # The index stores FunctionLike objects. We need to get their names.
+        all_symbols = [func_like for func_like in self.indexer.index]
+
+        # Get unique symbols and sort them
+        unique_sorted_symbols = sorted(list(set(all_symbols)), key=str)
+
+        return AllSymbolsResponse(symbols=unique_sorted_symbols)
+
+    def persist(self) -> str:
+        """Persist the current index data to the configured cache file.
+
+        This method saves the current state of the indexer to the cache file specified in the setup.
+        It uses the persistence strategy defined during the setup.
+
+        Returns:
+            A success message indicating that the index data has been persisted.
+        """
+        self.assert_initialized()
+
+        cache_path, persist_strategy = self._get_cache_config(
+            self._state.repo_path, self._state.strategy
+        )
+
+        try:
+            self.indexer.dump_index(cache_path, persist_strategy)
+            logger.info(f"Index data persisted to {cache_path}")
+            return f"Index data successfully persisted to {cache_path}"
+        except Exception as e:
+            logger.error(f"Failed to persist index data: {e}")
+            raise RuntimeError(f"Failed to persist index data to {cache_path}: {e}")

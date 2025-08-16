@@ -11,6 +11,7 @@ from code_index.index.code_query import (
     QueryByKey,
     QueryByName,
     QueryByNameRegex,
+    QueryFullDefinition,
 )
 from code_index.index.impl.simple_index import SimpleIndex
 from code_index.models import (
@@ -19,6 +20,7 @@ from code_index.models import (
     Function,
     FunctionLikeInfo,
     Method,
+    PureDefinition,
     Reference,
 )
 
@@ -506,3 +508,136 @@ class TestSimpleIndexQuery:
         assert "test_func" in names
         assert "another_func" in names
         assert "test_method" in names
+
+    # QueryFullDefinition tests
+    def test_query_full_definition_existing_function(self):
+        """Test QueryFullDefinition for existing function definition."""
+        pure_def = self.def1.to_pure()
+        query = QueryFullDefinition(symbol=self.func1, pure_definition=pure_def)
+        results = list(self.index.handle_query(query))
+
+        assert len(results) == 1
+        response = results[0]
+        assert response.func_like == self.func1
+        assert len(response.info.definitions) == 1
+        assert response.info.definitions[0] == self.def1
+        # Should include all references for context
+        assert len(response.info.references) == 1
+        assert response.info.references[0] == self.ref1
+
+    def test_query_full_definition_existing_method(self):
+        """Test QueryFullDefinition for existing method definition."""
+        pure_def = self.def3.to_pure()
+        query = QueryFullDefinition(symbol=self.method1, pure_definition=pure_def)
+        results = list(self.index.handle_query(query))
+
+        assert len(results) == 1
+        response = results[0]
+        assert response.func_like == self.method1
+        assert len(response.info.definitions) == 1
+        assert response.info.definitions[0] == self.def3
+        # Should have no references for this method
+        assert len(response.info.references) == 0
+
+    def test_query_full_definition_non_existing_symbol(self):
+        """Test QueryFullDefinition for non-existing symbol."""
+        non_existing_func = Function(name="non_existing")
+        pure_def = self.def1.to_pure()
+        query = QueryFullDefinition(symbol=non_existing_func, pure_definition=pure_def)
+        results = list(self.index.handle_query(query))
+
+        assert len(results) == 0
+
+    def test_query_full_definition_non_existing_definition(self):
+        """Test QueryFullDefinition for existing symbol but non-existing definition."""
+        # Create a PureDefinition that doesn't exist in the index
+        non_existing_loc = CodeLocation(
+            file_path=Path("non_existing.py"),
+            start_lineno=999,
+            start_col=0,
+            end_lineno=999,
+            end_col=10,
+            start_byte=9990,
+            end_byte=10000,
+        )
+        non_existing_pure_def = PureDefinition(location=non_existing_loc)
+
+        query = QueryFullDefinition(symbol=self.func1, pure_definition=non_existing_pure_def)
+        results = list(self.index.handle_query(query))
+
+        assert len(results) == 0
+
+    def test_query_full_definition_multiple_definitions(self):
+        """Test QueryFullDefinition when function has multiple definitions."""
+        # Add another definition for func1
+        additional_def = Definition(location=self.loc2)
+        self.index.add_definition(self.func1, additional_def)
+
+        # Query for the first definition
+        pure_def1 = self.def1.to_pure()
+        query1 = QueryFullDefinition(symbol=self.func1, pure_definition=pure_def1)
+        results1 = list(self.index.handle_query(query1))
+
+        assert len(results1) == 1
+        response1 = results1[0]
+        assert response1.func_like == self.func1
+        assert len(response1.info.definitions) == 1
+        assert response1.info.definitions[0] == self.def1
+        # Should still include all references
+        assert len(response1.info.references) == 1
+
+        # Query for the second definition
+        pure_def2 = additional_def.to_pure()
+        query2 = QueryFullDefinition(symbol=self.func1, pure_definition=pure_def2)
+        results2 = list(self.index.handle_query(query2))
+
+        assert len(results2) == 1
+        response2 = results2[0]
+        assert response2.func_like == self.func1
+        assert len(response2.info.definitions) == 1
+        assert response2.info.definitions[0] == additional_def
+        # Should still include all references
+        assert len(response2.info.references) == 1
+
+    def test_query_full_definition_same_location_different_symbols(self):
+        """Test QueryFullDefinition when different symbols have definitions at same location."""
+        # Both func1 and method2 have definitions at loc1
+        pure_def = self.def1.to_pure()
+
+        # Query for func1
+        query1 = QueryFullDefinition(symbol=self.func1, pure_definition=pure_def)
+        results1 = list(self.index.handle_query(query1))
+
+        assert len(results1) == 1
+        assert results1[0].func_like == self.func1
+        assert len(results1[0].info.definitions) == 1
+        assert results1[0].info.definitions[0] == self.def1
+
+        # Query for method2 (same location)
+        query2 = QueryFullDefinition(symbol=self.method2, pure_definition=pure_def)
+        results2 = list(self.index.handle_query(query2))
+
+        assert len(results2) == 1
+        assert results2[0].func_like == self.method2
+        assert len(results2[0].info.definitions) == 1
+        assert results2[0].info.definitions[0] == self.def1
+
+    def test_query_full_definition_preserves_references(self):
+        """Test that QueryFullDefinition preserves all references for context."""
+        # Add multiple references to func1
+        additional_ref = Reference(location=self.loc3)
+        self.index.add_reference(self.func1, additional_ref)
+
+        pure_def = self.def1.to_pure()
+        query = QueryFullDefinition(symbol=self.func1, pure_definition=pure_def)
+        results = list(self.index.handle_query(query))
+
+        assert len(results) == 1
+        response = results[0]
+        assert response.func_like == self.func1
+        assert len(response.info.definitions) == 1
+        assert response.info.definitions[0] == self.def1
+        # Should include all references (both original and additional)
+        assert len(response.info.references) == 2
+        assert self.ref1 in response.info.references
+        assert additional_ref in response.info.references

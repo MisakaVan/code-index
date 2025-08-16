@@ -13,6 +13,7 @@ from ...index.code_query import (
     QueryByKey,
     QueryByName,
     QueryByNameRegex,
+    QueryFullDefinition,
 )
 from ...models import (
     Definition,
@@ -427,5 +428,25 @@ class CrossRefIndex(BaseIndex):
                     info = self.data[func_like].to_function_like_info()
                     ret.append(CodeQuerySingleResponse(func_like=func_like, info=info))
                 return ret
+
+            case QueryFullDefinition(symbol=symbol, pure_definition=pure_definition):
+                # Get info for the specific symbol
+                if symbol not in self.data:
+                    return []
+
+                # Check if the specific definition exists in the definitions dictionary
+                if pure_definition in self.data[symbol].definitions:
+                    matching_definition = self.data[symbol].definitions[pure_definition]
+
+                    # Return only the matching definition in a new FunctionLikeInfo
+                    filtered_info = FunctionLikeInfo(
+                        definitions=[matching_definition],
+                        references=list(
+                            self.data[symbol].references.values()
+                        ),  # Include all references for context
+                    )
+                    return [CodeQuerySingleResponse(func_like=symbol, info=filtered_info)]
+
+                return []
 
         raise ValueError(f"Unsupported query type: {type(query)}")

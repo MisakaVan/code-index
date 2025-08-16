@@ -37,13 +37,21 @@ Note:
     AI models and tools.
 """
 
+import asyncio
 from pathlib import Path
 from typing import Literal
 
 from fastmcp import Context, FastMCP
 
 from code_index.index.code_query import CodeQuery, CodeQueryResponse
-from code_index.mcp_server.services import CodeIndexService, SourceCodeFetchService
+from code_index.mcp_server.models import AllSymbolsResponse
+from code_index.mcp_server.services import (
+    CodeIndexService,
+    RepoAnalyseService,
+    SourceCodeFetchService,
+)
+from code_index.models import Definition, LLMNote, SymbolDefinition
+from code_index.utils.logger import logger
 
 mcp = FastMCP("CodeIndexService")
 """FastMCP server instance for CodeIndexService.
@@ -152,7 +160,7 @@ def setup_repo_index(
     repo_path: Path,
     language: Literal["python", "c", "cpp"],
     strategy: Literal["json", "sqlite", "auto"] = "auto",
-) -> None:
+) -> str:
     """Set up the indexer for a repository.
 
     This initializes the indexer with the specified language processor. Then it indexes the repository using the
@@ -177,7 +185,7 @@ def setup_repo_index(
     )
 
 
-def query_symbol(query: CodeQuery) -> CodeQueryResponse:
+async def query_symbol(query: CodeQuery, ctx: Context) -> CodeQueryResponse:
     """Query the index for symbols matching the given query.
 
     `symbol` here refers to a `Function-like` entity, which can be anything with its definition or call site
@@ -186,12 +194,129 @@ def query_symbol(query: CodeQuery) -> CodeQueryResponse:
 
     Args:
         query: The query object containing search parameters.
+        ctx: FastMCP context
 
     Returns:
         A response object containing the results of the query. There can be multiple results, each containing the
         location of the symbol, its name, and other relevant information.
     """
-    return CodeIndexService.get_instance().query_symbol(query)
+    CodeIndexService.get_instance().log_calling(query_symbol.__name__, query)
+    result: CodeQueryResponse = CodeIndexService.get_instance().query_symbol(query)
+
+    # use SourceCodeFetchService to prefetch the source code for each definition
+    # use asyncio to fetch them concurrently
+    definitions: list[Definition] = [
+        defs for single_response in result.results for defs in single_response.info.definitions
+    ]
+    fetcher = SourceCodeFetchService.get_instance()
+    repo_path = CodeIndexService.get_instance()._state.repo_path
+
+    async def fetch_definition_source_code(defn: Definition):
+        """Add source code in-place"""
+        loc = defn.location
+        pth = resolve_file_path(repo_path, loc.file_path)
+        try:
+            src = await fetcher.fetch_by_byte_range(
+                file_path=pth, start_byte=loc.start_byte, end_byte=loc.end_byte, ctx=ctx
+            )
+            defn.source_code = src
+        except Exception as e:
+            # this may be due to testing on non-existing files
+            logger.info(f"Failed to fetch source code for definition {defn} due to {e}")
+            await ctx.info(f"Failed to fetch source code for definition {defn} due to {e}")
+
+    tasks = [asyncio.create_task(fetch_definition_source_code(defn)) for defn in definitions]
+    await asyncio.gather(*tasks)
+    return result
+
+
+def get_all_symbols() -> AllSymbolsResponse:
+    """Get a sorted list of all unique symbols in the index.
+
+    Returns:
+        A response object containing a sorted list of all symbol names.
+    """
+    CodeIndexService.get_instance().log_calling(get_all_symbols.__name__)
+    return CodeIndexService.get_instance().get_all_symbols()
+
+
+def setup_describe_definitions_todolist() -> str:
+    """Setup the todolist of the definitions to examine.
+
+    To do this, make sure the repo index has already be set up.
+
+    Returns:
+        str: the success message.
+    """
+    CodeIndexService.get_instance().log_calling(setup_describe_definitions_todolist.__name__)
+    RepoAnalyseService.get_instance().ready_describe_definitions()
+    return "Definition todo list is ready."
+
+
+def get_one_describe_definition_task() -> SymbolDefinition | None:
+    """Get an arbitrary definition task from the todo list.
+
+    Returns:
+        If there is any available/not done definition task, return it. It contains
+        the location of the definition and the corresponding symbol. If all tasks
+        are done, return nothing.
+    """
+    CodeIndexService.get_instance().log_calling(get_one_describe_definition_task.__name__)
+    return RepoAnalyseService.get_instance().get_any_pending_describe_task()
+
+
+def get_full_definition(symbol_definition: SymbolDefinition) -> Definition | None:
+    """Get the full definition info for a specific symbol definition.
+
+    Args:
+        symbol_definition: The symbol definition to retrieve.
+
+    Returns:
+        The full Definition if it exists, otherwise None.
+    """
+    CodeIndexService.get_instance().log_calling(get_full_definition.__name__, symbol_definition)
+    return RepoAnalyseService.get_instance().get_full_definition(
+        symbol=symbol_definition.symbol, definition=symbol_definition.definition
+    )
+
+
+def submit_definition_task(symbol_definition: SymbolDefinition, note: LLMNote) -> str:
+    """Submit a definition task for review.
+
+    Args:
+        symbol_definition: The symbol definition to submit.
+        note: The LLM note containing the description and potential vulnerabilities.
+
+    Returns:
+        A success message indicating the task has been submitted.
+    """
+    CodeIndexService.get_instance().log_calling(
+        submit_definition_task.__name__, symbol_definition, note
+    )
+    return RepoAnalyseService.get_instance().submit_note(symbol_definition, note)
+
+
+def describe_tasks_stats() -> str:
+    """Get statistics about the description tasks.
+
+    Returns:
+        A string summarizing the current state of the description tasks.
+    """
+    CodeIndexService.get_instance().log_calling(describe_tasks_stats.__name__)
+    return RepoAnalyseService.get_instance().get_description_progress()
+
+
+def get_pending_describe_tasks(n: int) -> list[SymbolDefinition]:
+    """Get a list of pending description tasks from the todolist.
+
+    Args:
+        n: Maximum number of pending tasks to return.
+
+    Returns:
+        List of SymbolDefinition objects that are pending description, limited to n items.
+    """
+    CodeIndexService.get_instance().log_calling(get_pending_describe_tasks.__name__, n)
+    return RepoAnalyseService.get_instance().get_pending_describe_tasks(n)
 
 
 # This is a workaround for sphinx autodoc to recognize the docstrings of the undecorated functions above
@@ -220,6 +345,52 @@ mcp.tool(
 mcp.tool(name="setup_repo_index")(setup_repo_index)
 
 mcp.tool("query_symbol")(query_symbol)
+
+mcp.tool("get_all_symbols", annotations={"readOnlyHint": True})(get_all_symbols)
+
+mcp.tool("setup_describe_definitions")(setup_describe_definitions_todolist)
+
+mcp.tool("get_one_describe_definition_task")(get_one_describe_definition_task)
+
+mcp.tool("get_full_definition")(get_full_definition)
+
+mcp.tool("submit_definition_task")(submit_definition_task)
+
+mcp.tool("get_stats_of_describe_definition_todolist")(describe_tasks_stats)
+
+mcp.tool("get_pending_describe_tasks")(get_pending_describe_tasks)
+
+
+@mcp.prompt()
+def instruction_how_to_describe_definitions() -> str:
+    """Provide instructions on how to describe definitions."""
+    return (
+        "You are asked to inspect each definition block of the symbols "
+        "of the codebase and provide a description for each one. The description "
+        "includes the purpose of the symbol, vulnerabilities, and any other relevant "
+        "information that can help discover underlying vulnerabilities.\n"
+        "To assist you in this task, you can use the provided tools to setup "
+        "the definition todo list, and get one definition task at a time for inspection. "
+        "when you get a definition task, you can use the tools to fetch the relevant code "
+        "and provide a detailed description. Submit your description using the provided tools. "
+        "If submission fails, it may be due to a wrong symbol/definition location, which is used "
+        "as a reference for the task. you may need to adjust the location before resubmitting."
+    )
+
+
+@mcp.prompt()
+def instruction_how_to_describe_given_definition(symbol_definition: SymbolDefinition) -> str:
+    """Provide instructions on how to describe a given definition."""
+    return (
+        "You are asked to inspect the definition block of the symbol "
+        f"{symbol_definition.name} and provide a description for it. The description "
+        "includes the purpose of the symbol, vulnerabilities, and any other relevant "
+        "information that can help discover underlying vulnerabilities.\n"
+        "To assist you in this task, you can use the provided tools to fetch the relevant code "
+        "and provide a detailed description. Submit your description using the provided tools. "
+        "If submission fails, it may be due to a wrong symbol/definition location, which is used "
+        "as a reference for the task. you may need to adjust the location before resubmitting."
+    )
 
 
 def main():
