@@ -54,7 +54,7 @@ class SimpleAnalyzer(BaseAnalyzer):
 
         # 2) Create edges by expanding calls
         edges: list[CallEdge] = []
-        unresolved = []
+        unresolved: list[dict[str, object]] = []
 
         def add_edge(src_pd: PureDefinition, dst_pd: PureDefinition, kind: EdgeKind):
             # Ensure nodes exist
@@ -157,10 +157,10 @@ class SimpleAnalyzer(BaseAnalyzer):
 
         unresolved_models = [
             UnresolvedCall(
-                caller_def=it["caller_def"],
-                via_symbol=it["via_symbol"],
-                callsites=it["callsites"],
-                reason=it["reason"],
+                caller_def=it["caller_def"],  # type: ignore[arg-type]
+                via_symbol=it["via_symbol"],  # type: ignore[arg-type]
+                callsites=it["callsites"],  # type: ignore[arg-type]
+                reason=it["reason"],  # type: ignore[arg-type]
             )
             for it in unresolved
         ]
@@ -313,7 +313,7 @@ class SimpleAnalyzer(BaseAnalyzer):
         for e in edges:
             adj[e.src].append(e.dst)
             radj[e.dst].append(e.src)
-        q = deque()
+        q: deque[tuple[int, int]] = deque()
         seen = set()
         for ep in entrypoints:
             if ep in index_of:
