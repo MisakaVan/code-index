@@ -198,10 +198,21 @@ def test_scc_and_find_paths_node_scc_hybrid():
     assert len(res_scc.paths) >= 1
     assert res_scc.paths[0].scc_ids[0] == sid
 
-    # HYBRID returns SCC segments only
+    # HYBRID returns SCC segments with intra-SCC paths
     res_hybrid = analyzer.find_paths(
         graph, io[defs["A"]], io[defs["C"]], k=1, return_mode=PathReturnMode.HYBRID
     )
     assert res_hybrid.mode == PathReturnMode.HYBRID
     assert len(res_hybrid.paths) >= 1
     assert res_hybrid.paths[0].segments[0].scc_id == sid
+
+    # Verify that the segment contains the nodes within the SCC
+    segment = res_hybrid.paths[0].segments[0]
+    assert segment.nodes is not None
+    assert len(segment.nodes) >= 3  # Should contain A, B, C
+
+    # Check that the definitions match (extract the definition from SymbolDefinition)
+    segment_defs = [sd.definition for sd in segment.nodes]
+    assert defs["A"] in segment_defs
+    assert defs["B"] in segment_defs
+    assert defs["C"] in segment_defs

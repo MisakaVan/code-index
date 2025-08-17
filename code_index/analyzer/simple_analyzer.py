@@ -271,7 +271,7 @@ class SimpleAnalyzer(BaseAnalyzer):
                 ],
             )
 
-        # HYBRID: represent each path as SCC segments without intra-SCC expansion for simplicity
+        # HYBRID: represent each path as SCC segments with intra-SCC expansion
         if not graph.sccs:
             _, sccs = self._tarjan_scc(graph.nodes, graph.edges)
         else:
@@ -281,16 +281,42 @@ class SimpleAnalyzer(BaseAnalyzer):
         hybrid_paths: list[HybridPath] = []
         for p in paths:
             segments: list[HybridSegment] = []
+            current_scc_nodes: list[int] = []
             last_sid: int | None = None
+
             for node in p:
                 sid = node_to_scc.get(node)
                 if sid is None:
                     continue
+
                 if last_sid != sid:
-                    # For simplicity, we're not expanding nodes within SCC segments
-                    # But if we wanted to, we would create SymbolDefinition objects here too
-                    segments.append(HybridSegment(scc_id=sid, nodes=None))
+                    # If we have accumulated nodes from the previous SCC, create a segment
+                    if current_scc_nodes and last_sid is not None:
+                        from ..models import SymbolDefinition  # local import
+
+                        scc_symbol_defs = [
+                            SymbolDefinition(symbol=graph.owners[i], definition=graph.nodes[i])
+                            for i in current_scc_nodes
+                        ]
+                        segments.append(HybridSegment(scc_id=last_sid, nodes=scc_symbol_defs))
+
+                    # Start a new SCC segment
+                    current_scc_nodes = [node]
                     last_sid = sid
+                else:
+                    # Same SCC, add to current segment
+                    current_scc_nodes.append(node)
+
+            # Handle the last SCC segment
+            if current_scc_nodes and last_sid is not None:
+                from ..models import SymbolDefinition  # local import
+
+                scc_symbol_defs = [
+                    SymbolDefinition(symbol=graph.owners[i], definition=graph.nodes[i])
+                    for i in current_scc_nodes
+                ]
+                segments.append(HybridSegment(scc_id=last_sid, nodes=scc_symbol_defs))
+
             hybrid_paths.append(HybridPath(segments=segments))
 
         return FindPathsResult(mode=PathReturnMode.HYBRID, paths=hybrid_paths)
