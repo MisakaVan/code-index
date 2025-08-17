@@ -7,6 +7,7 @@ from ..models import (
     FunctionLike,
     FunctionLikeInfo,
     IndexData,
+    PureDefinition,
     Reference,
 )
 from .code_query import CodeQuery, CodeQuerySingleResponse
@@ -215,6 +216,28 @@ class BaseIndex(ABC):
             An iterable of PureReference objects.
         """
         pass
+
+    def find_full_definition(
+        self, pure_definition: PureDefinition
+    ) -> tuple[FunctionLike, Definition] | None:
+        """Find the full Definition given a PureDefinition.
+
+        This attempts to resolve which symbol (function/method) owns the given
+        PureDefinition and returns the corresponding full Definition along with
+        its owning symbol if found.
+
+        Notes:
+            - A PureDefinition may belong to exactly one symbol or to none.
+            - Implementations SHOULD return ``None`` when no owning symbol is found.
+
+        Args:
+            pure_definition: The fingerprint of a definition (location only).
+
+        Returns:
+            A tuple of (symbol, definition) if resolved, otherwise ``None``.
+        """
+
+    pass
 
     @abstractmethod
     def as_data(self) -> IndexData:

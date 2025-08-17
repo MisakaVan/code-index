@@ -11,6 +11,7 @@ from ...models import (
     IndexData,
     IndexDataEntry,
     Method,
+    PureDefinition,
     Reference,
 )
 from ..base import BaseIndex
@@ -219,3 +220,21 @@ class SimpleIndex(BaseIndex):
                 return [CodeQuerySingleResponse(func_like=symbol, info=filtered_info)]
 
         raise ValueError(f"Unsupported query type: {type(query)}")
+
+    @override
+    def find_full_definition(
+        self, pure_definition: PureDefinition
+    ) -> tuple[FunctionLike, Definition] | None:
+        """Linear scan over all symbols/definitions to locate a full definition.
+
+        Args:
+            pure_definition: The fingerprint of a definition to locate.
+
+        Returns:
+            (symbol, definition) if found; otherwise None.
+        """
+        for func_like, info in self.data.items():
+            for definition in info.definitions:
+                if definition.to_pure() == pure_definition:
+                    return func_like, definition
+        return None
