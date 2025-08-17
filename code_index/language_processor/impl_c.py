@@ -194,7 +194,7 @@ class CProcessor(BaseLanguageProcessor):
         """Extract the preceding comment/documentation for a C function definition.
 
         Looks for comment nodes that appear immediately before the function definition.
-        Handles both single-line (//) and multi-line (/* */) comment styles.
+        Handles both single-line (``//``) and multi-line (``/* */``) comment styles.
 
         Args:
             node: A function_definition syntax tree node.
