@@ -14,7 +14,7 @@ __all__ = [
     "CodeLocation",
     "Function",
     "Method",
-    "FunctionLike",
+    "Symbol",
     "SymbolReference",
     "PureReference",
     "Definition",
@@ -119,7 +119,7 @@ class Method(BaseSymbol):
     model_config = {"frozen": True}
 
 
-FunctionLike = Annotated[
+Symbol = Annotated[
     Function | Method,
     Field(discriminator="type", description="Discriminated union for function-like entities."),
 ]
@@ -134,8 +134,8 @@ Example usage:
 
     from pydantic import TypeAdapter
 
-    # For standalone validation of FunctionLike objects
-    funclike_adapter = TypeAdapter(FunctionLike)
+    # For standalone validation of Symbol objects
+    funclike_adapter = TypeAdapter(Symbol)
 
     # Validate from dict
     func_data = {"type": "function", "name": "my_func"}
@@ -190,7 +190,7 @@ class SymbolReference(BaseModel):
     providing full context about where and what is being referenced.
     """
 
-    symbol: FunctionLike
+    symbol: Symbol
     """The function or method being referenced."""
     reference: PureReference
     """The reference information including location."""
@@ -205,7 +205,7 @@ class SymbolDefinition(BaseModel):
     providing full context about where and what is being defined.
     """
 
-    symbol: FunctionLike
+    symbol: Symbol
     """The function or method being defined."""
     definition: PureDefinition
     """The definition information including location."""
@@ -464,7 +464,7 @@ class IndexDataEntry(BaseModel):
     information including definitions and references.
     """
 
-    symbol: FunctionLike
+    symbol: Symbol
     """The function or method symbol."""
     info: FunctionLikeInfo
     """Complete information about the symbol."""

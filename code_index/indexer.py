@@ -9,10 +9,10 @@ from .language_processor import LanguageProcessor, QueryContext
 from .models import (
     Definition,
     Function,
-    FunctionLike,
     FunctionLikeInfo,
     Method,
     Reference,
+    Symbol,
 )
 from .utils.logger import logger
 
@@ -387,14 +387,14 @@ class CodeIndexer:
         """
         self._index = self.index.__class__.load_from(input_path, persist_strategy)
 
-    def get_function_info(self, func_like: FunctionLike) -> Optional[FunctionLikeInfo]:
+    def get_function_info(self, func_like: Symbol) -> Optional[FunctionLikeInfo]:
         """Retrieves comprehensive information about a specific function or method.
 
         Gets detailed information about a function or method, including its
         definitions, references, and other metadata stored in the index.
 
         Args:
-            func_like: A FunctionLike object (Function or Method) representing
+            func_like: A Symbol object (Function or Method) representing
                 the symbol to retrieve information for.
 
         Returns:
@@ -413,15 +413,15 @@ class CodeIndexer:
         """
         return self._index.get_info(func_like)
 
-    def get_all_functions(self) -> list[FunctionLike]:
+    def get_all_functions(self) -> list[Symbol]:
         """Retrieves all functions and methods stored in the index.
 
-        Returns a list of all FunctionLike objects (Functions and Methods) that
+        Returns a list of all Symbol objects (Functions and Methods) that
         have been indexed. This provides a complete overview of all symbols
         tracked by the indexer.
 
         Returns:
-            A list of FunctionLike objects representing all indexed functions
+            A list of Symbol objects representing all indexed functions
             and methods. Returns an empty list if no symbols have been indexed.
 
         Example:

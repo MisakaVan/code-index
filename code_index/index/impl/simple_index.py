@@ -6,13 +6,13 @@ from typing import Iterable, Iterator, override
 from ...models import (
     Definition,
     Function,
-    FunctionLike,
     FunctionLikeInfo,
     IndexData,
     IndexDataEntry,
     Method,
     PureDefinition,
     Reference,
+    Symbol,
 )
 from ..base import BaseIndex
 from ..code_query import (
@@ -48,29 +48,29 @@ class SimpleIndex(BaseIndex):
         return f"SimpleIndex(data={pformat(self.data, compact=True)})"
 
     @override
-    def add_definition(self, func_like: FunctionLike, definition: Definition):
+    def add_definition(self, func_like: Symbol, definition: Definition):
         self.data[func_like].definitions.append(definition)
 
     @override
-    def add_reference(self, func_like: FunctionLike, reference: Reference):
+    def add_reference(self, func_like: Symbol, reference: Reference):
         self.data[func_like].references.append(reference)
 
     @override
-    def get_info(self, func_like: FunctionLike) -> FunctionLikeInfo | None:
+    def get_info(self, func_like: Symbol) -> FunctionLikeInfo | None:
         # avoid inserting new key if the key is not present
         if func_like in self.data:
             return self.data[func_like]
         return None
 
     @override
-    def get_definitions(self, func_like: FunctionLike) -> Iterable[Definition]:
+    def get_definitions(self, func_like: Symbol) -> Iterable[Definition]:
         info = self.get_info(func_like)
         if info:
             return info.definitions
         return []
 
     @override
-    def get_references(self, func_like: FunctionLike) -> Iterable[Reference]:
+    def get_references(self, func_like: Symbol) -> Iterable[Reference]:
         info = self.get_info(func_like)
         if info:
             return info.references
@@ -81,36 +81,36 @@ class SimpleIndex(BaseIndex):
         return len(self.data)
 
     @override
-    def __getitem__(self, func_like: FunctionLike) -> FunctionLikeInfo:
+    def __getitem__(self, func_like: Symbol) -> FunctionLikeInfo:
         result = self.get_info(func_like)
         if result is None:
             raise KeyError(f"{func_like} not found in index.")
         return result
 
     @override
-    def __setitem__(self, func_like: FunctionLike, info: FunctionLikeInfo):
+    def __setitem__(self, func_like: Symbol, info: FunctionLikeInfo):
         if not isinstance(info, FunctionLikeInfo):
             raise TypeError("Value must be an instance of FunctionLikeInfo.")
         self.data[func_like] = info
 
     @override
-    def __delitem__(self, func_like: FunctionLike):
+    def __delitem__(self, func_like: Symbol):
         self.data.__delitem__(func_like)
 
     @override
-    def __contains__(self, func_like: FunctionLike) -> bool:
+    def __contains__(self, func_like: Symbol) -> bool:
         return func_like in self.data
 
     @override
-    def __iter__(self) -> Iterator[FunctionLike]:
+    def __iter__(self) -> Iterator[Symbol]:
         return iter(self.data.keys())
 
     @override
-    def items(self) -> Iterable[tuple[FunctionLike, FunctionLikeInfo]]:
+    def items(self) -> Iterable[tuple[Symbol, FunctionLikeInfo]]:
         return self.data.items()
 
     @override
-    def update(self, mapping: dict[FunctionLike, FunctionLikeInfo]):
+    def update(self, mapping: dict[Symbol, FunctionLikeInfo]):
         for func_like, info in mapping.items():
             self[func_like] = info  # may raise KeyError if type is incorrect
 
@@ -131,7 +131,7 @@ class SimpleIndex(BaseIndex):
             self[symbol] = info
 
     @staticmethod
-    def _type_filterer(func_like: FunctionLike, filter_option: FilterOption) -> bool:
+    def _type_filterer(func_like: Symbol, filter_option: FilterOption) -> bool:
         """Filters function-like objects based on type criteria.
 
         Args:
@@ -224,7 +224,7 @@ class SimpleIndex(BaseIndex):
     @override
     def find_full_definition(
         self, pure_definition: PureDefinition
-    ) -> tuple[FunctionLike, Definition] | None:
+    ) -> tuple[Symbol, Definition] | None:
         """Linear scan over all symbols/definitions to locate a full definition.
 
         Args:

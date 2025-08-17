@@ -26,13 +26,13 @@ from ...models import (
     CodeLocation,
     Definition,
     Function,
-    FunctionLike,
     FunctionLikeInfo,
     IndexDataEntry,
     Method,
     PureDefinition,
     PureReference,
     Reference,
+    Symbol,
     SymbolDefinition,
     SymbolReference,
 )
@@ -247,14 +247,14 @@ class SqlitePersistStrategy(PersistStrategy):
         return create_engine(f"sqlite:///{str(path.resolve())}")
 
     @staticmethod
-    def _func_like_as_criteria(func_like: FunctionLike) -> dict:
+    def _func_like_as_criteria(func_like: Symbol) -> dict:
         match func_like:
             case Function(name=name):
                 return {"name": name, "class_name": None, "symbol_type": SymbolType.FUNCTION}
             case Method(name=name, class_name=class_name):
                 return {"name": name, "class_name": class_name, "symbol_type": SymbolType.METHOD}
         raise ValueError(
-            f"Unsupported FunctionLike type: {type(func_like)}. Expected Function or Method."
+            f"Unsupported Symbol type: {type(func_like)}. Expected Function or Method."
         )
 
     @staticmethod
@@ -292,7 +292,7 @@ class SqlitePersistStrategy(PersistStrategy):
 
         # handle what this definition calls
         for func_ref in definition_dc.calls:
-            called_symbol_dc: FunctionLike = func_ref.symbol
+            called_symbol_dc: Symbol = func_ref.symbol
             called_reference_dc: PureReference = func_ref.reference
 
             # make called symbol
@@ -338,7 +338,7 @@ class SqlitePersistStrategy(PersistStrategy):
         )
 
         for func_def in reference_dc.called_by:
-            caller_symbol_dc: FunctionLike = func_def.symbol
+            caller_symbol_dc: Symbol = func_def.symbol
             caller_definition_dc: PureDefinition = func_def.definition
 
             # make caller symbol
@@ -366,7 +366,7 @@ class SqlitePersistStrategy(PersistStrategy):
                 reference_db.callers.append(caller_definition_db)
 
     def _handle_entry(self, session: Session, entry: IndexDataEntry):
-        symbol_dc: FunctionLike = entry.symbol
+        symbol_dc: Symbol = entry.symbol
         info_dc: FunctionLikeInfo = entry.info
 
         # make symbol
@@ -414,9 +414,9 @@ class SqlitePersistStrategy(PersistStrategy):
             session.close()
 
     @staticmethod
-    def _make_function_like(symbol_db: OrmSymbol) -> FunctionLike:
+    def _make_function_like(symbol_db: OrmSymbol) -> Symbol:
         """
-        根据 OrmSymbol 创建 FunctionLike 对象。
+        根据 OrmSymbol 创建 Symbol 对象。
         """
         if symbol_db.symbol_type == SymbolType.FUNCTION:
             return Function(name=symbol_db.name)

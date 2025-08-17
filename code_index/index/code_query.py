@@ -9,7 +9,7 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
-from code_index.models import FunctionLike, FunctionLikeInfo, PureDefinition
+from code_index.models import FunctionLikeInfo, PureDefinition, Symbol
 
 
 class QueryByKey(BaseModel):
@@ -25,7 +25,7 @@ class QueryByKey(BaseModel):
 
     """
 
-    func_like: FunctionLike
+    func_like: Symbol
     """The function or method to search for exactly."""
 
     model_config = {"frozen": True}
@@ -93,7 +93,7 @@ class QueryFullDefinition(BaseModel):
     will be empty.
     """
 
-    symbol: FunctionLike
+    symbol: Symbol
     """The function or method symbol to look up."""
     pure_definition: PureDefinition
     """The specific location in the codebase to find the full definition from."""
@@ -112,7 +112,7 @@ class CodeQuerySingleResponse(BaseModel):
     definitions and references from the index.
     """
 
-    func_like: FunctionLike
+    func_like: Symbol
     """The function or method that matched the query."""
     info: FunctionLikeInfo
     """The complete information about the function or method, including definitions and references."""

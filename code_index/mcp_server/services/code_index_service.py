@@ -248,7 +248,7 @@ class CodeIndexService:
         self.assert_initialized()
         logger.info("Retrieving all symbols from the index.")
 
-        # The index stores FunctionLike objects. We need to get their names.
+        # The index stores Symbol objects. We need to get their names.
         all_symbols = [func_like for func_like in self.indexer.index]
 
         # Get unique symbols and sort them

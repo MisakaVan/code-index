@@ -4,11 +4,11 @@ from typing import Iterable, Iterator
 
 from ..models import (
     Definition,
-    FunctionLike,
     FunctionLikeInfo,
     IndexData,
     PureDefinition,
     Reference,
+    Symbol,
 )
 from .code_query import CodeQuery, CodeQuerySingleResponse
 
@@ -80,7 +80,7 @@ class BaseIndex(ABC):
         pass
 
     @abstractmethod
-    def add_definition(self, func_like: FunctionLike, definition: Definition):
+    def add_definition(self, func_like: Symbol, definition: Definition):
         """Adds a function or method definition to the index.
 
         Args:
@@ -90,7 +90,7 @@ class BaseIndex(ABC):
         pass
 
     @abstractmethod
-    def add_reference(self, func_like: FunctionLike, reference: Reference):
+    def add_reference(self, func_like: Symbol, reference: Reference):
         """Adds a function or method reference to the index.
 
         Args:
@@ -109,7 +109,7 @@ class BaseIndex(ABC):
         pass
 
     @abstractmethod
-    def __getitem__(self, func_like: FunctionLike) -> FunctionLikeInfo:
+    def __getitem__(self, func_like: Symbol) -> FunctionLikeInfo:
         """Gets function information from the index.
 
         Args:
@@ -124,7 +124,7 @@ class BaseIndex(ABC):
         pass
 
     @abstractmethod
-    def __setitem__(self, func_like: FunctionLike, info: FunctionLikeInfo):
+    def __setitem__(self, func_like: Symbol, info: FunctionLikeInfo):
         """Sets function information in the index.
 
         Args:
@@ -134,7 +134,7 @@ class BaseIndex(ABC):
         pass
 
     @abstractmethod
-    def __delitem__(self, func_like: FunctionLike):
+    def __delitem__(self, func_like: Symbol):
         """Deletes function information from the index.
 
         Args:
@@ -143,7 +143,7 @@ class BaseIndex(ABC):
         pass
 
     @abstractmethod
-    def __contains__(self, func_like: FunctionLike) -> bool:
+    def __contains__(self, func_like: Symbol) -> bool:
         """Checks if function exists in the index.
 
         Args:
@@ -155,16 +155,16 @@ class BaseIndex(ABC):
         pass
 
     @abstractmethod
-    def __iter__(self) -> Iterator[FunctionLike]:
+    def __iter__(self) -> Iterator[Symbol]:
         """Iterates over all functions in the index.
 
         Returns:
-            An iterator of FunctionLike objects.
+            An iterator of Symbol objects.
         """
         pass
 
     @abstractmethod
-    def update(self, mapping: dict[FunctionLike, FunctionLikeInfo]):
+    def update(self, mapping: dict[Symbol, FunctionLikeInfo]):
         """Updates the index with multiple function entries.
 
         Args:
@@ -173,16 +173,16 @@ class BaseIndex(ABC):
         pass
 
     @abstractmethod
-    def items(self) -> Iterable[tuple[FunctionLike, FunctionLikeInfo]]:
+    def items(self) -> Iterable[tuple[Symbol, FunctionLikeInfo]]:
         """Gets all items in the index as key-value pairs.
 
         Returns:
-            An iterable of (FunctionLike, FunctionLikeInfo) tuples.
+            An iterable of (Symbol, FunctionLikeInfo) tuples.
         """
         pass
 
     @abstractmethod
-    def get_info(self, func_like: FunctionLike) -> FunctionLikeInfo | None:
+    def get_info(self, func_like: Symbol) -> FunctionLikeInfo | None:
         """Gets function information from the index.
 
         Args:
@@ -194,7 +194,7 @@ class BaseIndex(ABC):
         pass
 
     @abstractmethod
-    def get_definitions(self, func_like: FunctionLike) -> Iterable[Definition]:
+    def get_definitions(self, func_like: Symbol) -> Iterable[Definition]:
         """Gets all definitions for a function from the index.
 
         Args:
@@ -206,7 +206,7 @@ class BaseIndex(ABC):
         pass
 
     @abstractmethod
-    def get_references(self, func_like: FunctionLike) -> Iterable[Reference]:
+    def get_references(self, func_like: Symbol) -> Iterable[Reference]:
         """Gets all references for a function from the index.
 
         Args:
@@ -219,7 +219,7 @@ class BaseIndex(ABC):
 
     def find_full_definition(
         self, pure_definition: PureDefinition
-    ) -> tuple[FunctionLike, Definition] | None:
+    ) -> tuple[Symbol, Definition] | None:
         """Find the full Definition given a PureDefinition.
 
         This attempts to resolve which symbol (function/method) owns the given

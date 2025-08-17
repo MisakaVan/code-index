@@ -19,8 +19,8 @@ from ..models import (
     CodeLocation,
     Definition,
     Function,
-    FunctionLike,
     Reference,
+    Symbol,
     SymbolReference,
 )
 from .base import BaseLanguageProcessor, QueryContext
@@ -55,7 +55,7 @@ class CProcessor(BaseLanguageProcessor):
         self,
         node: Node,
         ctx: QueryContext,
-    ) -> tuple[FunctionLike, Definition] | None:
+    ) -> tuple[Symbol, Definition] | None:
         """Process a C function definition node.
 
         Handles function_definition nodes with various declaration patterns:
@@ -153,7 +153,7 @@ class CProcessor(BaseLanguageProcessor):
         self,
         node: Node,
         ctx: QueryContext,
-    ) -> tuple[FunctionLike, Reference] | None:
+    ) -> tuple[Symbol, Reference] | None:
         """Process a C function call expression.
 
         Handles call_expression nodes to extract the called function name.

@@ -18,7 +18,7 @@ from typing import Iterable, Protocol
 
 from tree_sitter import Language, Node, Parser, Query, QueryCursor
 
-from ..models import Definition, FunctionLike, Reference
+from ..models import Definition, Reference, Symbol
 from ..utils.logger import logger
 
 
@@ -104,7 +104,7 @@ class LanguageProcessor(Protocol):
         self,
         node: Node,
         ctx: QueryContext,
-    ) -> tuple[FunctionLike, Definition] | None:
+    ) -> tuple[Symbol, Definition] | None:
         """Process a function/method definition node.
 
         Args:
@@ -121,7 +121,7 @@ class LanguageProcessor(Protocol):
         self,
         node: Node,
         ctx: QueryContext,
-    ) -> tuple[FunctionLike, Reference] | None:
+    ) -> tuple[Symbol, Reference] | None:
         """Process a function/method reference node.
 
         Args:
@@ -231,7 +231,7 @@ class BaseLanguageProcessor(LanguageProcessor):
         self,
         node: Node,
         ctx: QueryContext,
-    ) -> tuple[FunctionLike, Definition] | None:
+    ) -> tuple[Symbol, Definition] | None:
         """Handle a definition node - must be implemented by subclasses.
 
         Args:
@@ -252,7 +252,7 @@ class BaseLanguageProcessor(LanguageProcessor):
         self,
         node,
         ctx: QueryContext,
-    ) -> tuple[FunctionLike, Reference] | None:
+    ) -> tuple[Symbol, Reference] | None:
         """Handle a reference node - must be implemented by subclasses.
 
         Args:

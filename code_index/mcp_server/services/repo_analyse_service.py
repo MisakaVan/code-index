@@ -6,7 +6,7 @@ by symbol/definition, using a todolist structure to manage tasks.
 
 from __future__ import annotations
 
-from code_index.models import Definition, FunctionLike, LLMNote, PureDefinition, SymbolDefinition
+from code_index.models import Definition, LLMNote, PureDefinition, Symbol, SymbolDefinition
 from code_index.utils.logger import logger
 
 from .code_index_service import CodeIndexService
@@ -55,7 +55,7 @@ class RepoAnalyseService:
         index = service.index
 
         def cb_insert_note_into_index(_task_id: SymbolDefinition, _note: LLMNote):
-            _symbol: FunctionLike = _task_id.symbol
+            _symbol: Symbol = _task_id.symbol
             _definition: PureDefinition = _task_id.definition
             _dummy_def_holding_llm_note = Definition.from_pure(_definition).set_note(_note)
             index.add_definition(_symbol, _dummy_def_holding_llm_note)
@@ -114,7 +114,7 @@ class RepoAnalyseService:
         else:
             return base_progress
 
-    def get_llm_note(self, symbol: FunctionLike, definition: PureDefinition) -> LLMNote | None:
+    def get_llm_note(self, symbol: Symbol, definition: PureDefinition) -> LLMNote | None:
         """Get the LLM note for a specific symbol and definition.
 
 
@@ -136,9 +136,7 @@ class RepoAnalyseService:
                 return defn.llm_note
         return None
 
-    def get_full_definition(
-        self, symbol: FunctionLike, definition: PureDefinition
-    ) -> Definition | None:
+    def get_full_definition(self, symbol: Symbol, definition: PureDefinition) -> Definition | None:
         """Get the full definition info for a specific symbol and definition.
 
         Args:
