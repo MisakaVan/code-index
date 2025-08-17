@@ -444,7 +444,7 @@ obj.test_method()
         assert "test_function" in indexed_items
         assert "test_method" in indexed_items
 
-        # 验证每个项目都是 (FunctionLike, FunctionLikeInfo) 对
+        # 验证每个项目都是 (Symbol, FunctionLikeInfo) 对
         for func_like, func_info in items:
             assert hasattr(func_like, "name")
             assert hasattr(func_info, "definitions")

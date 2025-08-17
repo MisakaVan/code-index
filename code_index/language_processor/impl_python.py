@@ -21,9 +21,9 @@ from ..models import (
     CodeLocation,
     Definition,
     Function,
-    FunctionLike,
     Method,
     Reference,
+    Symbol,
     SymbolReference,
 )
 from ..utils.logger import logger
@@ -64,7 +64,7 @@ class PythonProcessor(BaseLanguageProcessor):
         self,
         node: Node,
         ctx: QueryContext,
-    ) -> tuple[FunctionLike, Definition] | None:
+    ) -> tuple[Symbol, Definition] | None:
         """Process a Python function or method definition.
 
         Handles function_definition nodes and determines whether they represent
@@ -188,7 +188,7 @@ class PythonProcessor(BaseLanguageProcessor):
         self,
         node,
         ctx: QueryContext,
-    ) -> tuple[FunctionLike, Reference] | None:
+    ) -> tuple[Symbol, Reference] | None:
         """Process a Python function or method call.
 
         Handles call nodes and determines whether they represent function calls

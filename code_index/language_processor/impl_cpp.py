@@ -17,8 +17,8 @@ from ..models import (
     CodeLocation,
     Definition,
     Function,
-    FunctionLike,
     Reference,
+    Symbol,
     SymbolReference,
 )
 from .base import BaseLanguageProcessor, QueryContext
@@ -119,7 +119,7 @@ class CppProcessor(BaseLanguageProcessor):
         self,
         node: Node,
         ctx: QueryContext,
-    ) -> tuple[FunctionLike, Definition] | None:
+    ) -> tuple[Symbol, Definition] | None:
         """Process a definition node based on its type.
 
         Args:
@@ -182,7 +182,7 @@ class CppProcessor(BaseLanguageProcessor):
         self,
         node: Node,
         ctx: QueryContext,
-    ) -> tuple[FunctionLike, Reference] | None:
+    ) -> tuple[Symbol, Reference] | None:
         """Process a function or method call reference.
 
         Analyzes call_expression nodes to identify the called function or method.
@@ -228,7 +228,7 @@ class CppProcessor(BaseLanguageProcessor):
         """Extract the preceding comment/documentation for a C++ function definition.
 
         Looks for comment nodes that appear immediately before the function definition.
-        Handles both single-line (//) and multi-line (/* */) comment styles.
+        Handles both single-line (``//``) and multi-line (``/* */``) comment styles.
 
         Args:
             node: A function_definition syntax tree node.

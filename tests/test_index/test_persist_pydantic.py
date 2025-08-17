@@ -182,7 +182,7 @@ class TestSingleJsonFilePersistStrategyPydantic:
             assert method_no_class_entry.symbol.class_name is None
 
     def test_discriminated_union_serialization(self, sample_index_data):
-        """Test that discriminated unions (FunctionLike) serialize correctly."""
+        """Test that discriminated unions (Symbol) serialize correctly."""
         strategy = SingleJsonFilePersistStrategy()
 
         with tempfile.TemporaryDirectory() as temp_dir:

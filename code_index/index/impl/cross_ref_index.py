@@ -18,7 +18,6 @@ from ...index.code_query import (
 from ...models import (
     Definition,
     Function,
-    FunctionLike,
     FunctionLikeInfo,
     IndexData,
     IndexDataEntry,
@@ -26,6 +25,7 @@ from ...models import (
     PureDefinition,
     PureReference,
     Reference,
+    Symbol,
     SymbolDefinition,
     SymbolReference,
 )
@@ -167,24 +167,21 @@ class CrossRefIndex(BaseIndex):
                 f"Info(count_def={len(self.definitions):>3}, count_ref={len(self.references):>3})"
             )
 
-    Index: TypeAlias = dict[FunctionLike, Info]
+    Index: TypeAlias = dict[Symbol, Info]
 
     def __init__(self) -> None:
         """Initializes an empty CrossRefIndex."""
         super().__init__()
         self.data: CrossRefIndex.Index = defaultdict(lambda: CrossRefIndex.Info())
-        """Internal dictionary storing function/method information.
-
-        The keys are FunctionLike objects (Function, Method).
-        The values are Info objects containing definitions and references.
-
-        Each Info object contains:
-            - definitions: A dictionary mapping PureDefinition to Definition.
-            - references: A dictionary mapping PureReference to Reference.
-
-            These dictionaries enable fast lookups and efficient storage of
-            definitions and references at given locations in the codebase.
-        """
+        # Mapping for fast reverse lookup: PureDefinition -> owning symbol
+        self._pure_def_to_symbol: dict[PureDefinition, Symbol] = {}
+        # The keys are Symbol objects (Function, Method).
+        # The values are Info objects containing definitions and references.
+        # Each Info object contains:
+        #   - definitions: A dictionary mapping PureDefinition to Definition.
+        #   - references: A dictionary mapping PureReference to Reference.
+        # These dictionaries enable fast lookups and efficient storage of
+        # definitions and references at given locations in the codebase.
 
     def __str__(self) -> str:
         return super().__str__()
@@ -193,7 +190,7 @@ class CrossRefIndex(BaseIndex):
         """Returns a detailed string representation of the index."""
         return f"CrossRefIndex(items={len(self.data)}, total_definitions={sum(len(info.definitions) for info in self.data.values())}, total_references={sum(len(info.references) for info in self.data.values())})"
 
-    def add_definition(self, func_like: FunctionLike, definition: Definition):
+    def add_definition(self, func_like: Symbol, definition: Definition):
         """Adds a function or method definition to the index with cross-referencing.
 
         This method not only stores the definition but also establishes bidirectional
@@ -226,6 +223,8 @@ class CrossRefIndex(BaseIndex):
         """
         # First, add the definition using merge_or_insert to conform to the invariant
         self.data[func_like].definitions.merge_or_insert(definition)
+        # Maintain reverse mapping
+        self._pure_def_to_symbol[definition.to_pure()] = func_like
 
         # Now do cross-referencing: for each call this definition makes,
         # ensure this definition is in the called_by list of that reference
@@ -241,7 +240,7 @@ class CrossRefIndex(BaseIndex):
             # at the callee's ref loc
             self.data[callee_func_like].references.merge_or_insert(cross_ref_reference)
 
-    def add_reference(self, func_like: FunctionLike, reference: Reference):
+    def add_reference(self, func_like: Symbol, reference: Reference):
         """Adds a function or method reference to the index with cross-referencing.
 
         This method not only stores the reference but also establishes bidirectional
@@ -292,51 +291,66 @@ class CrossRefIndex(BaseIndex):
             # this should make the index aware that this function at this ref loc is called by the caller
             # at the caller's def loc
             self.data[caller_func_like].definitions.merge_or_insert(cross_ref_definition)
+            # Maintain reverse mapping for the caller's definition as it's inserted/merged here
+            self._pure_def_to_symbol[caller.definition] = caller_func_like
 
     def __len__(self) -> int:
         return len(self.data)
 
-    def __getitem__(self, func_like: FunctionLike) -> FunctionLikeInfo:
+    def __getitem__(self, func_like: Symbol) -> FunctionLikeInfo:
         if func_like not in self.data:
             raise KeyError(f"{func_like} not found in index.")
         return self.data[func_like].to_function_like_info()
 
-    def __setitem__(self, func_like: FunctionLike, info: FunctionLikeInfo):
+    def __setitem__(self, func_like: Symbol, info: FunctionLikeInfo):
+        # Delete existing entries (and purge mapping) before replacing
+        if func_like in self.data:
+            self.__delitem__(func_like)
         self.data[func_like] = CrossRefIndex.Info.from_function_like_info(info)
+        # Register mapping for all definitions of this symbol
+        for pure_def, definition in self.data[func_like].definitions.items():
+            self._pure_def_to_symbol[pure_def] = func_like
 
-    def __delitem__(self, func_like: FunctionLike):
+    def __delitem__(self, func_like: Symbol):
+        # Remove reverse mapping entries for this symbol's definitions
+        info = self.data.get(func_like)
+        if info is not None:
+            for pure_def in list(info.definitions.keys()):
+                self._pure_def_to_symbol.pop(pure_def, None)
         self.data.pop(func_like)
 
-    def __contains__(self, func_like: FunctionLike) -> bool:
+    def __contains__(self, func_like: Symbol) -> bool:
         return func_like in self.data
 
-    def __iter__(self) -> Iterator[FunctionLike]:
+    def __iter__(self) -> Iterator[Symbol]:
         return iter(self.data)
 
-    def update(self, mapping: dict[FunctionLike, FunctionLikeInfo]):
-        """Updates the index with a mapping of FunctionLike to FunctionLikeInfo."""
+    def update(self, mapping: dict[Symbol, FunctionLikeInfo]):
+        """Updates the index with a mapping of Symbol to FunctionLikeInfo."""
         for func_like, info in mapping.items():
             self.data[func_like].update_from(info)
+        # After batch update, recompute the reverse mapping for consistency
+        self._recompute_pure_def_mapping()
         return self
 
-    def items(self) -> Iterable[tuple[FunctionLike, FunctionLikeInfo]]:
+    def items(self) -> Iterable[tuple[Symbol, FunctionLikeInfo]]:
         """Gets all items in the index as key-value pairs."""
         return ((func_like, info.to_function_like_info()) for func_like, info in self.data.items())
 
-    def get_info(self, func_like: FunctionLike) -> FunctionLikeInfo | None:
+    def get_info(self, func_like: Symbol) -> FunctionLikeInfo | None:
         """Gets function information from the index."""
         if func_like in self.data:
             return self.data[func_like].to_function_like_info()
         return None
 
-    def get_definitions(self, func_like: FunctionLike) -> Iterable[Definition]:
+    def get_definitions(self, func_like: Symbol) -> Iterable[Definition]:
         """Gets all definitions for a function from the index."""
         info = self.get_info(func_like)
         if info:
             return info.definitions
         return []
 
-    def get_references(self, func_like: FunctionLike) -> Iterable[Reference]:
+    def get_references(self, func_like: Symbol) -> Iterable[Reference]:
         """Gets all references for a function from the index."""
         info = self.get_info(func_like)
         if info:
@@ -360,10 +374,12 @@ class CrossRefIndex(BaseIndex):
             logger.warning(f"loading data with type {data.type} into CrossRefIndex")
         for entry in data.data:
             self[entry.symbol] = entry.info
+        # After bulk load, recompute mapping to be safe
+        self._recompute_pure_def_mapping()
         return self
 
     @staticmethod
-    def _type_filterer(func_like: FunctionLike, filter_option: FilterOption) -> bool:
+    def _type_filterer(func_like: Symbol, filter_option: FilterOption) -> bool:
         """Filters function-like objects based on type criteria.
 
         Args:
@@ -450,3 +466,29 @@ class CrossRefIndex(BaseIndex):
                 return []
 
         raise ValueError(f"Unsupported query type: {type(query)}")
+
+    def _recompute_pure_def_mapping(self) -> None:
+        """Rebuild the PureDefinition -> Symbol reverse mapping."""
+        self._pure_def_to_symbol.clear()
+        for symbol, info in self.data.items():
+            for pure_def in info.definitions.keys():
+                self._pure_def_to_symbol[pure_def] = symbol
+
+    def find_full_definition(
+        self, pure_definition: PureDefinition
+    ) -> tuple[Symbol, Definition] | None:
+        """Fast resolve full Definition via maintained reverse mapping."""
+        symbol = self._pure_def_to_symbol.get(pure_definition)
+        if symbol is None:
+            return None
+        definition = self.data[symbol].definitions.get(pure_definition)
+        if definition is None:
+            # As a safety net, rebuild mapping once and retry
+            self._recompute_pure_def_mapping()
+            symbol = self._pure_def_to_symbol.get(pure_definition)
+            if symbol is None:
+                return None
+            definition = self.data[symbol].definitions.get(pure_definition)
+            if definition is None:
+                return None
+        return symbol, definition
