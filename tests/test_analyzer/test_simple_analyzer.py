@@ -186,7 +186,9 @@ def test_scc_and_find_paths_node_scc_hybrid():
     )
     assert res_node.mode == PathReturnMode.NODE
     assert len(res_node.paths) >= 1
-    assert [defs["A"], defs["B"], defs["C"]] == res_node.paths[0].nodes[:3]
+    # Check that the definitions match (extract the definition from SymbolDefinition)
+    actual_defs = [sd.definition for sd in res_node.paths[0].nodes[:3]]
+    assert [defs["A"], defs["B"], defs["C"]] == actual_defs
 
     # SCC paths from A to C (same SCC -> single id path)
     res_scc = analyzer.find_paths(

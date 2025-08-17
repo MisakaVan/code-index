@@ -40,15 +40,17 @@ class SimpleAnalyzer(BaseAnalyzer):
 
         start_ts = perf_counter()
 
-        # 1) Collect all definition nodes
+        # 1) Collect all definition nodes and their owner symbols
         nodes: list[PureDefinition] = []
+        owners: list[Symbol] = []
         index_of: dict[PureDefinition, int] = {}
-        for _, info in index.items():
+        for symbol, info in index.items():
             for d in info.definitions:
                 pd = d.to_pure()
                 if pd not in index_of:
                     index_of[pd] = len(nodes)
                     nodes.append(pd)
+                    owners.append(symbol)
 
         # 2) Create edges by expanding calls
         edges: list[CallEdge] = []
@@ -57,11 +59,33 @@ class SimpleAnalyzer(BaseAnalyzer):
         def add_edge(src_pd: PureDefinition, dst_pd: PureDefinition, kind: EdgeKind):
             # Ensure nodes exist
             if dst_pd not in index_of:
-                index_of[dst_pd] = len(nodes)
-                nodes.append(dst_pd)
+                # Find the symbol for this definition by looking through the index
+                dst_symbol = None
+                for symbol, info in index.items():
+                    for d in info.definitions:
+                        if d.to_pure() == dst_pd:
+                            dst_symbol = symbol
+                            break
+                    if dst_symbol:
+                        break
+                if dst_symbol:
+                    index_of[dst_pd] = len(nodes)
+                    nodes.append(dst_pd)
+                    owners.append(dst_symbol)
             if src_pd not in index_of:
-                index_of[src_pd] = len(nodes)
-                nodes.append(src_pd)
+                # Find the symbol for this definition by looking through the index
+                src_symbol = None
+                for symbol, info in index.items():
+                    for d in info.definitions:
+                        if d.to_pure() == src_pd:
+                            src_symbol = symbol
+                            break
+                    if src_symbol:
+                        break
+                if src_symbol:
+                    index_of[src_pd] = len(nodes)
+                    nodes.append(src_pd)
+                    owners.append(src_symbol)
             edges.append(CallEdge(src=index_of[src_pd], dst=index_of[dst_pd], kind=kind))
 
         # Build a map for faster lookup of definitions of a symbol
@@ -113,7 +137,7 @@ class SimpleAnalyzer(BaseAnalyzer):
         # 4) Optional entrypoint pruning
         if opts.entrypoints:
             keep_mask = self._reachable_mask(nodes, edges, opts.entrypoints, include_reverse=False)
-            nodes, index_of, edges = self._prune_to_mask(nodes, edges, keep_mask)
+            nodes, owners, index_of, edges = self._prune_to_mask(nodes, owners, edges, keep_mask)
 
         # 5) Compute SCCs (optional)
         sccs, scc_edges = ([], [])
@@ -143,6 +167,7 @@ class SimpleAnalyzer(BaseAnalyzer):
 
         return CallGraph(
             nodes=nodes,
+            owners=owners,
             edges=edges,
             sccs=sccs,
             scc_edges=scc_edges,
@@ -169,7 +194,9 @@ class SimpleAnalyzer(BaseAnalyzer):
             include_reverse=include_reverse,
             depth=depth,
         )
-        nodes, index_of, edges = self._prune_to_mask(graph.nodes, graph.edges, keep_mask)
+        nodes, owners, index_of, edges = self._prune_to_mask(
+            graph.nodes, graph.owners, graph.edges, keep_mask
+        )
 
         # recompute SCCs for the subgraph
         scc_id, sccs = self._tarjan_scc(nodes, edges)
@@ -180,6 +207,7 @@ class SimpleAnalyzer(BaseAnalyzer):
         )
         return CallGraph(
             nodes=nodes,
+            owners=owners,
             edges=edges,
             sccs=sccs,
             scc_edges=scc_edges,
@@ -228,9 +256,19 @@ class SimpleAnalyzer(BaseAnalyzer):
         paths = self._dfs_k_paths(adj, src_idx, dst_idx, k=k, max_depth=max_depth)
 
         if return_mode == PathReturnMode.NODE:
+            from ..models import SymbolDefinition  # local import
+
             return FindPathsResult(
                 mode=PathReturnMode.NODE,
-                paths=[NodePath(nodes=[graph.nodes[i] for i in p]) for p in paths],
+                paths=[
+                    NodePath(
+                        nodes=[
+                            SymbolDefinition(symbol=graph.owners[i], definition=graph.nodes[i])
+                            for i in p
+                        ]
+                    )
+                    for p in paths
+                ],
             )
 
         # HYBRID: represent each path as SCC segments without intra-SCC expansion for simplicity
@@ -249,6 +287,8 @@ class SimpleAnalyzer(BaseAnalyzer):
                 if sid is None:
                     continue
                 if last_sid != sid:
+                    # For simplicity, we're not expanding nodes within SCC segments
+                    # But if we wanted to, we would create SymbolDefinition objects here too
                     segments.append(HybridSegment(scc_id=sid, nodes=None))
                     last_sid = sid
             hybrid_paths.append(HybridPath(segments=segments))
@@ -300,14 +340,16 @@ class SimpleAnalyzer(BaseAnalyzer):
 
     @staticmethod
     def _prune_to_mask(
-        nodes: list[PureDefinition], edges: list[CallEdge], mask: list[bool]
-    ) -> tuple[list[PureDefinition], dict[PureDefinition, int], list[CallEdge]]:
+        nodes: list[PureDefinition], owners: list[Symbol], edges: list[CallEdge], mask: list[bool]
+    ) -> tuple[list[PureDefinition], list[Symbol], dict[PureDefinition, int], list[CallEdge]]:
         new_indices = {}
         new_nodes: list[PureDefinition] = []
+        new_owners: list[Symbol] = []
         for i, keep in enumerate(mask):
             if keep:
                 new_indices[i] = len(new_nodes)
                 new_nodes.append(nodes[i])
+                new_owners.append(owners[i])
         # remap edges
         new_edges: list[CallEdge] = []
         for e in edges:
@@ -315,7 +357,7 @@ class SimpleAnalyzer(BaseAnalyzer):
                 new_edges.append(
                     CallEdge(src=new_indices[e.src], dst=new_indices[e.dst], kind=e.kind)
                 )
-        return new_nodes, {pd: i for i, pd in enumerate(new_nodes)}, new_edges
+        return new_nodes, new_owners, {pd: i for i, pd in enumerate(new_nodes)}, new_edges
 
     @staticmethod
     def _tarjan_scc(nodes: list[PureDefinition], edges: list[CallEdge]):

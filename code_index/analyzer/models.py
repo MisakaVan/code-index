@@ -11,7 +11,14 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-from ..models import PureDefinition, PureReference, Symbol
+from ..models import (
+    Function,
+    Method,
+    PureDefinition,
+    PureReference,
+    Symbol,
+    SymbolDefinition,
+)
 
 __all__ = [
     # call-graph related
@@ -115,6 +122,9 @@ class CallGraph(BaseModel):
     edges: list[CallEdge] = Field(default_factory=list)
     """Directed edges between definition nodes (src -> dst)."""
 
+    owners: list[Symbol] = Field(default_factory=list)
+    """Owner symbol for each node, aligned with ``nodes`` by index."""
+
     # SCCs: each SCC is a list of node indices; scc_edges are edges between SCC ids
     sccs: list[list[int]] = Field(default_factory=list)
     """List of SCCs, each as a list of node indices."""
@@ -175,8 +185,20 @@ class IntraSCCStrategy(StrEnum):
 class NodePath(BaseModel):
     """A path represented by concrete definition nodes (by value)."""
 
-    nodes: list[PureDefinition]
-    """Sequence of definition nodes along the path."""
+    nodes: list[SymbolDefinition]
+    """Sequence of definition symbol+location along the path."""
+
+    def __str__(self) -> str:
+        parts: list[str] = []
+        for sd in self.nodes:
+            sym = sd.symbol
+            if isinstance(sym, Method):
+                parts.append(f"{(sym.class_name + '.') if sym.class_name else ''}{sym.name}")
+            elif isinstance(sym, Function):
+                parts.append(sym.name)
+            else:
+                parts.append(getattr(sym, "name", str(sym)))
+        return "->".join(parts)
 
 
 class SCCPath(BaseModel):
@@ -185,6 +207,11 @@ class SCCPath(BaseModel):
     scc_ids: list[int]
     """Sequence of SCC ids along the path within the SCC-DAG."""
 
+    def __str__(self) -> str:
+        if not self.scc_ids:
+            return "SCC[]"
+        return "->".join(f"SCC[{i}]" for i in self.scc_ids)
+
 
 class HybridSegment(BaseModel):
     """One segment of a hybrid path: an SCC and optional expanded node sequence inside it."""
@@ -192,7 +219,7 @@ class HybridSegment(BaseModel):
     scc_id: int
     """The SCC id for this segment."""
 
-    nodes: list[PureDefinition] | None = None
+    nodes: list[SymbolDefinition] | None = None
     """Optional node sequence expanded within this SCC for this segment."""
 
 
@@ -201,6 +228,27 @@ class HybridPath(BaseModel):
 
     segments: list[HybridSegment]
     """Ordered SCC segments that compose this path."""
+
+    def __str__(self) -> str:
+        parts: list[str] = []
+        for seg in self.segments:
+            head = f"SCC[{seg.scc_id}]"
+            if seg.nodes:
+                names: list[str] = []
+                for sd in seg.nodes:
+                    sym = sd.symbol
+                    if isinstance(sym, Method):
+                        names.append(
+                            f"{(sym.class_name + '.') if sym.class_name else ''}{sym.name}"
+                        )
+                    elif isinstance(sym, Function):
+                        names.append(sym.name)
+                    else:
+                        names.append(getattr(sym, "name", str(sym)))
+                parts.append(f"{head}({'->'.join(names)})")
+            else:
+                parts.append(head)
+        return "->".join(parts)
 
 
 class FindPathsResult(BaseModel):
