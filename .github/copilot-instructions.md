@@ -26,8 +26,20 @@ uv run pre-commit run --all-files
 
 This will format the code (and also runs the tests) to ensure that everything is in order before committing changes. It is recommended to run this command before you finish a job.
 
+## Static Type Checking
+
+`mypy` is not currently integrated into the development workflow, but it is recommended to use it for static type checking.
+
+To run `mypy`, following pattern is suggested:
+
+```bash
+uv run mypy --pretty --show-error-context --no-incremental path/to/source.py
+```
 
 ## What is MCP
+
+If the task you are working on does not involve fastmcp tools development, you should omit the following section and do not ask
+for querying these documentations.
 
 **1. Core Concept: What is MCP?**
 * **Summary**: The Model Context Protocol (MCP) is an emerging open standard designed to give AI models (like yourself) a unified and secure way to interact with external tools, data sources, and systems. Think of it as "USB-C for AI tools," allowing a model to call functions, query databases, and read/write files, enabling it to go beyond its static training data.
