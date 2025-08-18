@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections import defaultdict, deque
 from time import perf_counter
-from typing import Sequence
+from typing import Iterator, Sequence
 
 from ..index import BaseIndex
 from ..models import Definition, PureDefinition, Symbol
@@ -320,6 +320,135 @@ class SimpleAnalyzer(BaseAnalyzer):
             hybrid_paths.append(HybridPath(segments=segments))
 
         return FindPathsResult(mode=PathReturnMode.HYBRID, paths=hybrid_paths)
+
+    def bfs_traverse_graph(
+        self,
+        graph: CallGraph,
+        direction: Direction = Direction.FORWARD,
+        start_nodes: list[int] | None = None,
+    ) -> Iterator[PureDefinition]:
+        """BFS traversal of the call graph returning a generator of definition nodes.
+
+        This method performs a breadth-first traversal of the call graph, respecting
+        SCC boundaries and ordering. The traversal automatically determines optimal
+        starting points based on the specified direction.
+
+        Args:
+            graph: The call graph to traverse.
+            direction: Direction of traversal:
+                - FORWARD: caller->callee (starts from most caller-side SCCs)
+                - BACKWARD: callee->caller (starts from most callee-side SCCs)
+            start_nodes: Optional list of node indices to start traversal from. If None,
+                starting points are automatically determined based on direction.
+
+        Returns:
+            Iterator[PureDefinition]: Generator yielding definition nodes in BFS order.
+
+        Yields:
+            PureDefinition: Each definition node encountered during traversal.
+        """
+        if not graph.nodes:
+            return
+
+        # Build adjacency list for traversal based on direction
+        adj: dict[int, list[int]] = defaultdict(list)
+        for edge in graph.edges:
+            if direction == Direction.FORWARD:
+                adj[edge.src].append(edge.dst)
+            elif direction == Direction.BACKWARD:
+                adj[edge.dst].append(edge.src)
+            else:  # Direction.BOTH
+                adj[edge.src].append(edge.dst)
+                adj[edge.dst].append(edge.src)
+
+        # Build original adjacency list for determining starting nodes
+        original_adj: dict[int, list[int]] = defaultdict(list)
+        for edge in graph.edges:
+            original_adj[edge.src].append(edge.dst)
+
+        visited = set()
+        queue: deque[int] = deque()
+
+        # Determine starting nodes
+        if start_nodes is not None:
+            # Use provided starting nodes
+            for node_idx in start_nodes:
+                if 0 <= node_idx < len(graph.nodes) and node_idx not in visited:
+                    queue.append(node_idx)
+                    visited.add(node_idx)
+        else:
+            # Auto-determine starting nodes based on direction and SCC structure
+            starting_indices = self._determine_starting_nodes(graph, direction, original_adj)
+            for node_idx in starting_indices:
+                if node_idx not in visited:
+                    queue.append(node_idx)
+                    visited.add(node_idx)
+
+        # BFS traversal
+        while queue:
+            current_idx = queue.popleft()
+            yield graph.nodes[current_idx]
+
+            # Add neighbors to queue
+            for neighbor_idx in adj[current_idx]:
+                if neighbor_idx not in visited:
+                    visited.add(neighbor_idx)
+                    queue.append(neighbor_idx)
+
+        # Handle any remaining unvisited nodes (in case graph is disconnected)
+        for i, node in enumerate(graph.nodes):
+            if i not in visited:
+                yield node
+
+    def _determine_starting_nodes(
+        self, graph: CallGraph, direction: Direction, adj: dict[int, list[int]]
+    ) -> list[int]:
+        """Determine optimal starting nodes based on direction and SCC structure."""
+        if not graph.sccs:
+            # No SCC information, fall back to finding nodes with minimal in/out degree
+            if direction == Direction.FORWARD:
+                # Start from nodes with no incoming edges (in-degree = 0)
+                in_degree = defaultdict(int)
+                for neighbors in adj.values():
+                    for neighbor in neighbors:
+                        in_degree[neighbor] += 1
+                # Find nodes with in-degree 0
+                zero_in_degree_nodes = [i for i in range(len(graph.nodes)) if in_degree[i] == 0]
+                return zero_in_degree_nodes if zero_in_degree_nodes else [0]
+            else:  # BACKWARD or BOTH
+                # Start from nodes with no outgoing edges (out-degree = 0)
+                zero_out_degree_nodes = [
+                    i for i in range(len(graph.nodes)) if i not in adj or len(adj[i]) == 0
+                ]
+                return zero_out_degree_nodes if zero_out_degree_nodes else [len(graph.nodes) - 1]
+
+        # Use SCC structure to determine starting SCCs
+        scc_in_degree = defaultdict(int)
+        scc_out_degree = defaultdict(int)
+
+        for from_scc, to_scc in graph.scc_edges:
+            scc_out_degree[from_scc] += 1
+            scc_in_degree[to_scc] += 1
+
+        if direction == Direction.FORWARD:
+            # Start from SCCs with no incoming edges (SCC in-degree = 0)
+            zero_in_degree_sccs = [
+                scc_id for scc_id in range(len(graph.sccs)) if scc_in_degree[scc_id] == 0
+            ]
+            starting_sccs = zero_in_degree_sccs if zero_in_degree_sccs else [0]
+        else:  # BACKWARD or BOTH
+            # Start from SCCs with no outgoing edges (SCC out-degree = 0)
+            zero_out_degree_sccs = [
+                scc_id for scc_id in range(len(graph.sccs)) if scc_out_degree[scc_id] == 0
+            ]
+            starting_sccs = zero_out_degree_sccs if zero_out_degree_sccs else [len(graph.sccs) - 1]
+
+        # Convert SCC IDs to node indices
+        starting_nodes = []
+        for scc_id in starting_sccs:
+            starting_nodes.extend(graph.sccs[scc_id])
+
+        return starting_nodes
 
     # ---------- helpers ----------
     @staticmethod

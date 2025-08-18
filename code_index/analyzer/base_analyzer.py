@@ -7,11 +7,13 @@ representations that can be queried or visualized.
 """
 
 from abc import ABC, abstractmethod
-from typing import Sequence
+from typing import Iterator, Sequence
 
 from ..index import BaseIndex
+from ..models import PureDefinition
 from .models import (
     CallGraph,
+    Direction,
     FindPathsResult,
     GraphConstructOptions,
     IntraSCCStrategy,
@@ -112,5 +114,40 @@ class BaseAnalyzer(ABC):
 
         Returns:
             FindPathsResult: Paths in the requested representation mode.
+        """
+        pass
+
+    @abstractmethod
+    def bfs_traverse_graph(
+        self,
+        graph: CallGraph,
+        direction: Direction = Direction.FORWARD,
+        start_nodes: list[int] | None = None,
+    ) -> Iterator[PureDefinition]:
+        """BFS traversal of the call graph returning a generator of definition nodes.
+
+        This method performs a breadth-first traversal of the call graph, respecting
+        SCC boundaries and ordering. The traversal automatically determines optimal
+        starting points based on the specified direction.
+
+        Args:
+            graph: The call graph to traverse.
+            direction: Direction of traversal:
+                - FORWARD: caller->callee (starts from most caller-side SCCs)
+                - BACKWARD: callee->caller (starts from most callee-side SCCs)
+            start_nodes: Optional list of node indices to start traversal from. If None,
+                starting points are automatically determined based on direction.
+
+        Returns:
+            Iterator[PureDefinition]: Generator yielding definition nodes in BFS order.
+
+        Yields:
+            PureDefinition: Each definition node encountered during traversal.
+
+        Note:
+            - The traversal respects SCC structure when available, visiting all nodes
+              within an SCC before moving to the next SCC.
+            - Cycles within SCCs are handled gracefully by visiting each node only once.
+            - If SCCs are not computed, falls back to standard BFS.
         """
         pass
