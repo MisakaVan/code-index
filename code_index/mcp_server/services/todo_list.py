@@ -22,6 +22,7 @@ from __future__ import annotations
 from collections import OrderedDict
 from collections.abc import Callable, Hashable, Iterator
 from dataclasses import dataclass, field
+from threading import RLock
 from typing import Any, Generic, Optional, Self, TypeVar
 
 from code_index.utils.logger import logger
@@ -103,17 +104,23 @@ class TodoList(OrderedDict[IdType, TaskData[IdType, SubmitType]], Generic[IdType
         self._recently_submitted: list[IdType] = []
 
         self.allow_resubmit = allow_resubmit
+        
+        # Thread safety lock - use RLock to allow recursive locking within same thread
+        self._lock = RLock()
 
     def set_name(self, name: str) -> Self:
         """Set a name for this todolist (for display purposes)."""
-        self._name = name
-        return self
+        with self._lock:
+            self._name = name
+            return self
 
     def __str__(self) -> str:
         """Return a string representation of the todolist."""
-        total = len(self)
-        pending = self.pending_size()
-        return f"{self._name}(total={total}, pending={pending})"
+        with self._lock:
+            total = len(self)
+            pending = len(self._pending_ids)
+            name = self._name
+        return f"{name}(total={total}, pending={pending})"
 
     # ------------------------------------------------------------------
     # Task management API
@@ -137,10 +144,11 @@ class TodoList(OrderedDict[IdType, TaskData[IdType, SubmitType]], Generic[IdType
         Raises:
             KeyError: If the task id already exists.
         """
-        if task_id in self:
-            raise KeyError(f"Task id already exists: {task_id!r}")
-        self[task_id] = TaskData(id=task_id, payload=payload, callback=callback, extra=dict(extra))
-        self._pending_ids.add(task_id)
+        with self._lock:
+            if task_id in self:
+                raise KeyError(f"Task id already exists: {task_id!r}")
+            self[task_id] = TaskData(id=task_id, payload=payload, callback=callback, extra=dict(extra))
+            self._pending_ids.add(task_id)
 
     def submit(self, task_id: IdType, value: SubmitType) -> None:
         """Submit a completed task with its result value.
@@ -159,26 +167,27 @@ class TodoList(OrderedDict[IdType, TaskData[IdType, SubmitType]], Generic[IdType
             ValueError: If the task was already submitted.
             Exception: Any exception raised by the callback is passed through.
         """
-        if task_id not in self:
-            raise KeyError(f"Task id not found: {task_id!r}")
-        data = self[task_id]
-        if data.submitted:
-            if self.allow_resubmit:
-                raise ValueError(f"Task already submitted: {task_id!r}")
-            else:
-                logger.info(f"Re-submitting task {task_id!r} with value {value!r}")
+        with self._lock:
+            if task_id not in self:
+                raise KeyError(f"Task id not found: {task_id!r}")
+            data = self[task_id]
+            if data.submitted:
+                if not self.allow_resubmit:
+                    raise ValueError(f"Task already submitted: {task_id!r}")
+                else:
+                    logger.info(f"Re-submitting task {task_id!r} with value {value!r}")
 
-        # Run callback first; only mutate state on success
-        if data.callback is not None:
-            data.callback(task_id, value)  # may raise
+            # Run callback first; only mutate state on success
+            if data.callback is not None:
+                data.callback(task_id, value)  # may raise
 
-        # Mark submitted
-        data.result = value
-        data.submitted = True
-        # remove from pending set
-        self._pending_ids.discard(task_id)
-        # add to recently submitted list
-        self._recently_submitted.append(task_id)
+            # Mark submitted
+            data.result = value
+            data.submitted = True
+            # remove from pending set
+            self._pending_ids.discard(task_id)
+            # add to recently submitted list
+            self._recently_submitted.append(task_id)
 
     def yield_pending(self) -> Iterator[tuple[IdType, TaskData[IdType, SubmitType]]]:
         """Iterate over tasks that have not yet been submitted.
@@ -186,12 +195,19 @@ class TodoList(OrderedDict[IdType, TaskData[IdType, SubmitType]], Generic[IdType
         Yields:
             Tuples of (task_id, TaskData) for each pending (unsubmitted) task.
         """
-        for tid in list(self._pending_ids):  # list() to avoid modification issues
-            data = self[tid]
-            if not data.submitted:  # sanity check
-                yield tid, data
-            else:
-                self._pending_ids.discard(tid)
+        with self._lock:
+            # Create a snapshot of pending ids to avoid modification during iteration
+            pending_ids_snapshot = list(self._pending_ids)
+        
+        for tid in pending_ids_snapshot:
+            with self._lock:
+                if tid not in self:
+                    continue
+                data = self[tid]
+                if not data.submitted:  # sanity check
+                    yield tid, data
+                else:
+                    self._pending_ids.discard(tid)
 
     def is_pending(self, task_id: IdType) -> bool:
         """Return whether a task is still pending (not yet submitted).
@@ -205,9 +221,10 @@ class TodoList(OrderedDict[IdType, TaskData[IdType, SubmitType]], Generic[IdType
         Raises:
             KeyError: If the task id does not exist.
         """
-        if task_id not in self:
-            raise KeyError(f"Task id not found: {task_id!r}")
-        return task_id in self._pending_ids and not self[task_id].submitted
+        with self._lock:
+            if task_id not in self:
+                raise KeyError(f"Task id not found: {task_id!r}")
+            return task_id in self._pending_ids and not self[task_id].submitted
 
     def pending_count(self) -> int:
         """Return the number of pending (unsubmitted) tasks.
@@ -224,7 +241,8 @@ class TodoList(OrderedDict[IdType, TaskData[IdType, SubmitType]], Generic[IdType
         Returns:
             Count of tasks that have not been submitted.
         """
-        return len(self._pending_ids)
+        with self._lock:
+            return len(self._pending_ids)
 
     def get_any_pending(self) -> tuple[IdType, TaskData[IdType, SubmitType]] | None:
         """Return an arbitrary pending task without removing it.
@@ -232,18 +250,19 @@ class TodoList(OrderedDict[IdType, TaskData[IdType, SubmitType]], Generic[IdType
         Returns:
             (task_id, TaskData) if any task pending, else None.
         """
-        if not self._pending_ids:
-            return None
-        tid = next(iter(self._pending_ids))
-        # Clean up if somehow already marked submitted (stale)
-        data = self.get(tid)
-        if data is None:
-            self._pending_ids.discard(tid)
-            return self.get_any_pending()
-        if data.submitted:
-            self._pending_ids.discard(tid)
-            return self.get_any_pending()
-        return tid, data
+        with self._lock:
+            if not self._pending_ids:
+                return None
+            tid = next(iter(self._pending_ids))
+            # Clean up if somehow already marked submitted (stale)
+            data = self.get(tid)
+            if data is None:
+                self._pending_ids.discard(tid)
+                return self.get_any_pending()
+            if data.submitted:
+                self._pending_ids.discard(tid)
+                return self.get_any_pending()
+            return tid, data
 
     def get_pending_tasks(self, limit: int | None = None, offset: int = 0) -> list[IdType]:
         """Get pending task IDs with limit and offset.
@@ -255,13 +274,14 @@ class TodoList(OrderedDict[IdType, TaskData[IdType, SubmitType]], Generic[IdType
         Returns:
             List of task IDs that are pending, in insertion order.
         """
-        # Get pending tasks in insertion order using OrderedDict
-        pending_tasks = [task_id for task_id in self.keys() if task_id in self._pending_ids]
+        with self._lock:
+            # Get pending tasks in insertion order using OrderedDict
+            pending_tasks = [task_id for task_id in self.keys() if task_id in self._pending_ids]
 
-        # Apply offset and limit
-        start = offset
-        end = start + limit if limit is not None else None
-        return pending_tasks[start:end]
+            # Apply offset and limit
+            start = offset
+            end = start + limit if limit is not None else None
+            return pending_tasks[start:end]
 
     def clear_submitted(self) -> int:
         """Remove submitted tasks from the list.
@@ -269,14 +289,15 @@ class TodoList(OrderedDict[IdType, TaskData[IdType, SubmitType]], Generic[IdType
         Returns:
             The number of tasks removed.
         """
-        to_remove = [tid for tid, data in self.items() if data.submitted]
-        for tid in to_remove:
-            del self[tid]
-            self._pending_ids.discard(tid)
-            # Also remove from recently submitted if present
-            if tid in self._recently_submitted:
-                self._recently_submitted.remove(tid)
-        return len(to_remove)
+        with self._lock:
+            to_remove = [tid for tid, data in self.items() if data.submitted]
+            for tid in to_remove:
+                del self[tid]
+                self._pending_ids.discard(tid)
+                # Also remove from recently submitted if present
+                if tid in self._recently_submitted:
+                    self._recently_submitted.remove(tid)
+            return len(to_remove)
 
     @property
     def recently_submitted(self) -> list[IdType]:
@@ -285,7 +306,8 @@ class TodoList(OrderedDict[IdType, TaskData[IdType, SubmitType]], Generic[IdType
         Returns:
             List of task IDs that were recently submitted, in submission order.
         """
-        return self._recently_submitted.copy()
+        with self._lock:
+            return self._recently_submitted.copy()
 
     def get_recently_submitted_tasks(self, n: int = 5) -> list[IdType]:
         """Get the most recently submitted task IDs.
@@ -296,7 +318,8 @@ class TodoList(OrderedDict[IdType, TaskData[IdType, SubmitType]], Generic[IdType
         Returns:
             List of the most recently submitted task IDs, limited to n items.
         """
-        return self._recently_submitted[-n:] if self._recently_submitted else []
+        with self._lock:
+            return self._recently_submitted[-n:] if self._recently_submitted else []
 
     # ------------------------------------------------------------------
     # Optional convenience helpers
@@ -313,10 +336,11 @@ class TodoList(OrderedDict[IdType, TaskData[IdType, SubmitType]], Generic[IdType
         Raises:
             KeyError: If the task id does not exist.
         """
-        if task_id not in self:
-            raise KeyError(f"Task id not found: {task_id!r}")
-        data = self[task_id]
-        return data.result if data.submitted else None
+        with self._lock:
+            if task_id not in self:
+                raise KeyError(f"Task id not found: {task_id!r}")
+            data = self[task_id]
+            return data.result if data.submitted else None
 
 
 __all__ = [

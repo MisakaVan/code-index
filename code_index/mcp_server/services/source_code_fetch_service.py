@@ -42,6 +42,7 @@ Note:
 """
 
 from pathlib import Path
+from threading import RLock
 from typing import Optional
 
 from fastmcp import Context
@@ -58,6 +59,7 @@ class SourceCodeFetchService:
 
     _instance: Optional["SourceCodeFetchService"] = None
     _file_cache: dict[Path, bytes] = {}
+    _cache_lock = RLock()  # Class-level lock for shared cache
 
     @staticmethod
     def get_instance() -> "SourceCodeFetchService":
@@ -85,16 +87,19 @@ class SourceCodeFetchService:
             IOError: If there is an error reading the file.
 
         """
-        # Simple in-memory cache for testing
-        if file_path in self._file_cache:
-            return self._file_cache[file_path]
+        # Check cache first with lock
+        with self._cache_lock:
+            if file_path in self._file_cache:
+                return self._file_cache[file_path]
 
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
 
         try:
             content = file_path.read_bytes()
-            self._file_cache[file_path] = content
+            # Update cache with lock
+            with self._cache_lock:
+                self._file_cache[file_path] = content
             return content
         except IOError as e:
             logger.error(f"Error reading file {file_path}: {e}")

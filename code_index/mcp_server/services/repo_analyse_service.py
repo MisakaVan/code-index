@@ -6,6 +6,8 @@ by symbol/definition, using a todolist structure to manage tasks.
 
 from __future__ import annotations
 
+from threading import RLock
+
 from code_index.models import Definition, LLMNote, PureDefinition, Symbol, SymbolDefinition
 from code_index.utils.logger import logger
 
@@ -23,6 +25,7 @@ class RepoAnalyseService:
     """
 
     _instance: RepoAnalyseService | None = None
+    _instance_lock = RLock()  # Class-level lock for singleton creation
 
     @classmethod
     def get_instance(cls) -> RepoAnalyseService:
@@ -32,13 +35,18 @@ class RepoAnalyseService:
             The singleton instance of RepoAnalyseService.
         """
         if cls._instance is None:
-            cls._instance = RepoAnalyseService()
+            with cls._instance_lock:
+                # Double-check locking pattern
+                if cls._instance is None:
+                    cls._instance = RepoAnalyseService()
         return cls._instance
 
     def __init__(self):
         self._description_todo: TodoList[SymbolDefinition, LLMNote] = TodoList(
             allow_resubmit=True
         ).set_name("DescribeDefinitions")
+        # Instance lock for coordinating todolist and index operations
+        self._operation_lock = RLock()
 
     def ready_describe_definitions(self) -> None:
         """Prepare tasks for LLM to describe all definitions in the codebase.
@@ -46,38 +54,40 @@ class RepoAnalyseService:
         This will find those definitions that have no description yet, and create tasks
         for them in the todolist.
         """
-        service = CodeIndexService.get_instance()
-        try:
-            service.assert_initialized()
-        except RuntimeError as e:
-            raise RuntimeError("Please initialize the code index first.") from e
+        # Use operation lock to prevent interference with concurrent submit_note calls
+        with self._operation_lock:
+            service = CodeIndexService.get_instance()
+            try:
+                service.assert_initialized()
+            except RuntimeError as e:
+                raise RuntimeError("Please initialize the code index first.") from e
 
-        index = service.index
+            index = service.index
 
-        def cb_insert_note_into_index(_task_id: SymbolDefinition, _note: LLMNote):
-            _symbol: Symbol = _task_id.symbol
-            _definition: PureDefinition = _task_id.definition
-            _dummy_def_holding_llm_note = Definition.from_pure(_definition).set_note(_note)
-            index.add_definition(_symbol, _dummy_def_holding_llm_note)
+            def cb_insert_note_into_index(_task_id: SymbolDefinition, _note: LLMNote):
+                _symbol: Symbol = _task_id.symbol
+                _definition: PureDefinition = _task_id.definition
+                _dummy_def_holding_llm_note = Definition.from_pure(_definition).set_note(_note)
+                index.add_definition(_symbol, _dummy_def_holding_llm_note)
 
-        for symbol in index:
-            for definition in index.get_definitions(symbol):
-                if definition.llm_note is not None:
-                    continue
-                task_id = SymbolDefinition(
-                    symbol=symbol,
-                    definition=definition.to_pure(),
-                )
-                if task_id in self._description_todo:
-                    continue
-                self._description_todo.add_task(
-                    task_id=task_id,
-                    payload=None,
-                    callback=cb_insert_note_into_index,
-                )
-                logger.info(
-                    f"Added task to describe definition: {symbol.name} at {definition.location}"
-                )
+            for symbol in index:
+                for definition in index.get_definitions(symbol):
+                    if definition.llm_note is not None:
+                        continue
+                    task_id = SymbolDefinition(
+                        symbol=symbol,
+                        definition=definition.to_pure(),
+                    )
+                    if task_id in self._description_todo:
+                        continue
+                    self._description_todo.add_task(
+                        task_id=task_id,
+                        payload=None,
+                        callback=cb_insert_note_into_index,
+                    )
+                    logger.info(
+                        f"Added task to describe definition: {symbol.name} at {definition.location}"
+                    )
 
     def get_description_progress(self) -> str:
         """Get a detailed string representing the progress of description tasks.
@@ -188,24 +198,26 @@ class RepoAnalyseService:
             symbol_definition: The symbol definition to update.
             note: The LLM note to submit.
         """
-        if symbol_definition in self._description_todo:
+        # Use operation lock to ensure atomic update of todolist and index
+        with self._operation_lock:
+            if symbol_definition in self._description_todo:
+                logger.info(
+                    f"Symbol definition {symbol_definition.symbol.name} at {symbol_definition.definition.location} in todolist, marking as completed."
+                )
+                self._description_todo.submit(symbol_definition, note)
+            else:
+                logger.info(
+                    f"Symbol definition {symbol_definition.symbol.name} at {symbol_definition.definition.location} not in todolist, updating index directly."
+                )
+                index = CodeIndexService.get_instance().index
+                _dummy_def_holding_llm_note = Definition.from_pure(
+                    symbol_definition.definition
+                ).set_note(note)
+                index.add_definition(symbol_definition.symbol, _dummy_def_holding_llm_note)
             logger.info(
-                f"Symbol definition {symbol_definition.symbol.name} at {symbol_definition.definition.location} in todolist, marking as completed."
+                f"Submitted note for {symbol_definition.symbol.name} at {symbol_definition.definition.location}"
             )
-            self._description_todo.submit(symbol_definition, note)
-        else:
-            logger.info(
-                f"Symbol definition {symbol_definition.symbol.name} at {symbol_definition.definition.location} not in todolist, updating index directly."
-            )
-            index = CodeIndexService.get_instance().index
-            _dummy_def_holding_llm_note = Definition.from_pure(
-                symbol_definition.definition
-            ).set_note(note)
-            index.add_definition(symbol_definition.symbol, _dummy_def_holding_llm_note)
-        logger.info(
-            f"Submitted note for {symbol_definition.symbol.name} at {symbol_definition.definition.location}"
-        )
-        # notify the index to persist
-        msg = CodeIndexService.get_instance().persist()
-        logger.info(f"Index persistence result: {msg}")
-        return f"Note submitted for {symbol_definition.symbol.name} at {symbol_definition.definition.location}"
+            # notify the index to persist
+            msg = CodeIndexService.get_instance().persist()
+            logger.info(f"Index persistence result: {msg}")
+            return f"Note submitted for {symbol_definition.symbol.name} at {symbol_definition.definition.location}"

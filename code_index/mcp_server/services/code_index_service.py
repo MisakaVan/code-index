@@ -33,6 +33,7 @@ Note:
 
 from dataclasses import dataclass
 from pathlib import Path
+from threading import RLock
 from typing import Literal, Optional
 
 from code_index.index.base import PersistStrategy
@@ -63,16 +64,22 @@ class CodeIndexService:
     """MCP service backend for code-index."""
 
     _instance: Optional["CodeIndexService"] = None
+    _instance_lock = RLock()  # Class-level lock for singleton creation
 
     @staticmethod
     def get_instance() -> "CodeIndexService":
         """Get the singleton instance of CodeIndexService."""
         if CodeIndexService._instance is None:
-            CodeIndexService._instance = CodeIndexService()
+            with CodeIndexService._instance_lock:
+                # Double-check locking pattern
+                if CodeIndexService._instance is None:
+                    CodeIndexService._instance = CodeIndexService()
         return CodeIndexService._instance
 
     def __init__(self) -> None:
         self._state: IndexState | None = None
+        # Instance lock for protecting state operations
+        self._state_lock = RLock()
 
     def assert_initialized(self, msg: str | None = None) -> None:
         """Assert that the service is initialized with a valid indexer.
@@ -83,34 +90,38 @@ class CodeIndexService:
         Raises:
             RuntimeError: If the indexer service is not initialized.
         """
-        if self._state is None:
-            raise RuntimeError(
-                "Indexer is not initialized. Call setup_repo_index first. {}".format(msg or "")
-            )
+        with self._state_lock:
+            if self._state is None:
+                raise RuntimeError(
+                    "Indexer is not initialized. Call setup_repo_index first. {}".format(msg or "")
+                )
 
     @property
     def indexer(self) -> CodeIndexer:
         """Get the current indexer instance."""
         self.assert_initialized()
-        return self._state.indexer
+        with self._state_lock:
+            return self._state.indexer
 
     @property
     def index(self) -> CrossRefIndex:
         """Get the current index instance."""
         self.assert_initialized()
-        assert isinstance(self._state.indexer.index, CrossRefIndex), (
-            "Expected indexer to have a CrossRefIndex, but got "
-            f"{type(self._state.indexer.index).__name__}"
-        )
-        return self._state.indexer.index
+        with self._state_lock:
+            assert isinstance(self._state.indexer.index, CrossRefIndex), (
+                "Expected indexer to have a CrossRefIndex, but got "
+                f"{type(self._state.indexer.index).__name__}"
+            )
+            return self._state.indexer.index
 
     def _clear_indexer(self) -> None:
         """Clear the current indexer instance."""
-        if self._state is not None:
-            logger.info("Clearing current indexer instance.")
-            self._state = None
-        else:
-            logger.warning("No indexer instance to clear.")
+        with self._state_lock:
+            if self._state is not None:
+                logger.info("Clearing current indexer instance.")
+                self._state = None
+            else:
+                logger.warning("No indexer instance to clear.")
 
     @staticmethod
     def _get_cache_config(
@@ -178,46 +189,47 @@ class CodeIndexService:
                 - 'sqlite': Use SQLite format for the index data.
 
         """
-        if self._state is not None:
-            logger.warning("Indexer is already initialized, reinitializing...")
-        l = language_processor_factory(language)
-        assert l is not None, f"No language processor found for '{language}'"
+        with self._state_lock:
+            if self._state is not None:
+                logger.warning("Indexer is already initialized, reinitializing...")
+            l = language_processor_factory(language)
+            assert l is not None, f"No language processor found for '{language}'"
 
-        self._state = IndexState(
-            indexer=CodeIndexer(processor=l, index=CrossRefIndex()),
-            repo_path=repo_path,
-            strategy=strategy,
-        )
+            self._state = IndexState(
+                indexer=CodeIndexer(processor=l, index=CrossRefIndex()),
+                repo_path=repo_path,
+                strategy=strategy,
+            )
 
-        # try to load existing index data
-        cache_path, persist_strategy = self._get_cache_config(repo_path, strategy)
-        if cache_path.exists():
-            logger.info(f"Loading existing index data from {cache_path}")
-            try:
-                self.indexer.load_index(cache_path, persist_strategy)
-            except Exception as e:
-                logger.error(f"Failed to load index data: {e}")
-                raise RuntimeError(f"Failed to load index data from {cache_path}: {e}")
-        else:
-            logger.info(f"No existing index data found at {cache_path}, starting fresh.")
-            try:
-                self.indexer.index_project(project_path=repo_path)
-            except Exception as e:
-                logger.error(f"Failed to index project: {e}")
-                raise RuntimeError(f"Failed to index project at {repo_path}: {e}")
+            # try to load existing index data
+            cache_path, persist_strategy = self._get_cache_config(repo_path, strategy)
+            if cache_path.exists():
+                logger.info(f"Loading existing index data from {cache_path}")
+                try:
+                    self.indexer.load_index(cache_path, persist_strategy)
+                except Exception as e:
+                    logger.error(f"Failed to load index data: {e}")
+                    raise RuntimeError(f"Failed to load index data from {cache_path}: {e}")
+            else:
+                logger.info(f"No existing index data found at {cache_path}, starting fresh.")
+                try:
+                    self.indexer.index_project(project_path=repo_path)
+                except Exception as e:
+                    logger.error(f"Failed to index project: {e}")
+                    raise RuntimeError(f"Failed to index project at {repo_path}: {e}")
 
-            # dump the index data to cache
-            try:
-                cache_path.parent.mkdir(parents=True, exist_ok=True)
-                self.indexer.dump_index(cache_path, persist_strategy)
-                logger.info(f"Index data persisted to {cache_path}")
-            except Exception as e:
-                logger.error(f"Failed to persist index data: {e}")
-                raise RuntimeError(f"Failed to persist index data to {cache_path}: {e}")
+                # dump the index data to cache
+                try:
+                    cache_path.parent.mkdir(parents=True, exist_ok=True)
+                    self.indexer.dump_index(cache_path, persist_strategy)
+                    logger.info(f"Index data persisted to {cache_path}")
+                except Exception as e:
+                    logger.error(f"Failed to persist index data: {e}")
+                    raise RuntimeError(f"Failed to persist index data to {cache_path}: {e}")
 
-        msg = f"Success: indexed repository at {repo_path} with language '{language}'"
-        logger.info(msg)
-        return msg
+            msg = f"Success: indexed repository at {repo_path} with language '{language}'"
+            logger.info(msg)
+            return msg
 
     def query_symbol(self, query: CodeQuery) -> CodeQueryResponse:
         """Query the index for symbols matching the given query.
@@ -267,14 +279,15 @@ class CodeIndexService:
         """
         self.assert_initialized()
 
-        cache_path, persist_strategy = self._get_cache_config(
-            self._state.repo_path, self._state.strategy
-        )
+        with self._state_lock:
+            cache_path, persist_strategy = self._get_cache_config(
+                self._state.repo_path, self._state.strategy
+            )
 
-        try:
-            self.indexer.dump_index(cache_path, persist_strategy)
-            logger.info(f"Index data persisted to {cache_path}")
-            return f"Index data successfully persisted to {cache_path}"
-        except Exception as e:
-            logger.error(f"Failed to persist index data: {e}")
-            raise RuntimeError(f"Failed to persist index data to {cache_path}: {e}")
+            try:
+                self.indexer.dump_index(cache_path, persist_strategy)
+                logger.info(f"Index data persisted to {cache_path}")
+                return f"Index data successfully persisted to {cache_path}"
+            except Exception as e:
+                logger.error(f"Failed to persist index data: {e}")
+                raise RuntimeError(f"Failed to persist index data to {cache_path}: {e}")
