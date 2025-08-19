@@ -50,7 +50,6 @@ from code_index.mcp_server.models import (
     FindPathsRequest,
     GetSubgraphRequest,
     GraphOverviewResponse,
-    TopologicalOrderResponse,
 )
 from code_index.mcp_server.services import (
     CodeIndexService,
@@ -410,20 +409,6 @@ def find_paths(request: FindPathsRequest) -> FindPathsResult:
     )
 
 
-def get_topological_order() -> TopologicalOrderResponse:
-    """Get definitions in topological order.
-
-    Returns definitions ordered from deepest dependencies to entry points.
-    This can be used to understand the dependency structure of the codebase.
-
-    Returns:
-        A TopologicalOrderResponse containing definitions in topological order.
-    """
-    CodeIndexService.get_instance().log_calling(get_topological_order.__name__)
-    definitions = GraphAnalyzerService.get_instance().get_topological_order()
-    return TopologicalOrderResponse(definitions=definitions)
-
-
 # This is a workaround for sphinx autodoc to recognize the docstrings of the undecorated functions above
 # Now register the functions as FastMCP tools and resources
 
@@ -470,7 +455,6 @@ mcp.tool("get_pending_describe_tasks")(get_pending_describe_tasks)
 mcp.tool("get_graph_overview")(get_graph_overview)
 mcp.tool("get_subgraph")(get_subgraph)
 mcp.tool("find_paths")(find_paths)
-mcp.tool("get_topological_order")(get_topological_order)
 
 
 @mcp.prompt()
