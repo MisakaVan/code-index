@@ -1,0 +1,197 @@
+{
+  "type": "simple_index",
+  "data": [
+    {
+      "symbol": {
+        "name": "SomeFunction",
+        "type": "function"
+      },
+      "info": {
+        "definitions": [
+          {
+            "location": {
+              "file_path": "test1.cpp",
+              "start_lineno": 4,
+              "start_col": 0,
+              "end_lineno": 6,
+              "end_col": 1,
+              "start_byte": 42,
+              "end_byte": 94
+            }
+          },
+          {
+            "location": {
+              "file_path": "test1.cpp",
+              "start_lineno": 8,
+              "start_col": 0,
+              "end_lineno": 10,
+              "end_col": 1,
+              "start_byte": 96,
+              "end_byte": 157
+            }
+          }
+        ],
+        "references": [
+          {
+            "location": {
+              "file_path": "test1.cpp",
+              "start_lineno": 13,
+              "start_col": 20,
+              "end_lineno": 13,
+              "end_col": 32,
+              "start_byte": 213,
+              "end_byte": 225
+            }
+          },
+          {
+            "location": {
+              "file_path": "test1.cpp",
+              "start_lineno": 14,
+              "start_col": 26,
+              "end_lineno": 14,
+              "end_col": 38,
+              "start_byte": 259,
+              "end_byte": 271
+            }
+          }
+        ]
+      }
+    },
+    {
+      "symbol": {
+        "name": "main",
+        "type": "function"
+      },
+      "info": {
+        "definitions": [
+          {
+            "location": {
+              "file_path": "test1.cpp",
+              "start_lineno": 12,
+              "start_col": 0,
+              "end_lineno": 21,
+              "end_col": 1,
+              "start_byte": 159,
+              "end_byte": 429
+            },
+            "calls": [
+              {
+                "symbol": {
+                  "name": "SomeFunction",
+                  "type": "function"
+                },
+                "reference": {
+                  "location": {
+                    "file_path": "test1.cpp",
+                    "start_lineno": 13,
+                    "start_col": 20,
+                    "end_lineno": 13,
+                    "end_col": 32,
+                    "start_byte": 213,
+                    "end_byte": 225
+                  }
+                }
+              },
+              {
+                "symbol": {
+                  "name": "OtherFunction",
+                  "type": "function"
+                },
+                "reference": {
+                  "location": {
+                    "file_path": "test1.cpp",
+                    "start_lineno": 18,
+                    "start_col": 27,
+                    "end_lineno": 18,
+                    "end_col": 40,
+                    "start_byte": 388,
+                    "end_byte": 401
+                  }
+                }
+              },
+              {
+                "symbol": {
+                  "name": "OtherFunction",
+                  "type": "function"
+                },
+                "reference": {
+                  "location": {
+                    "file_path": "test1.cpp",
+                    "start_lineno": 17,
+                    "start_col": 21,
+                    "end_lineno": 17,
+                    "end_col": 34,
+                    "start_byte": 340,
+                    "end_byte": 353
+                  }
+                }
+              },
+              {
+                "symbol": {
+                  "name": "SomeFunction",
+                  "type": "function"
+                },
+                "reference": {
+                  "location": {
+                    "file_path": "test1.cpp",
+                    "start_lineno": 14,
+                    "start_col": 26,
+                    "end_lineno": 14,
+                    "end_col": 38,
+                    "start_byte": 259,
+                    "end_byte": 271
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "symbol": {
+        "name": "OtherFunction",
+        "type": "function"
+      },
+      "info": {
+        "definitions": [
+          {
+            "location": {
+              "file_path": "test1.hpp",
+              "start_lineno": 8,
+              "start_col": 0,
+              "end_lineno": 10,
+              "end_col": 1,
+              "start_byte": 111,
+              "end_byte": 158
+            }
+          }
+        ],
+        "references": [
+          {
+            "location": {
+              "file_path": "test1.cpp",
+              "start_lineno": 18,
+              "start_col": 27,
+              "end_lineno": 18,
+              "end_col": 40,
+              "start_byte": 388,
+              "end_byte": 401
+            }
+          },
+          {
+            "location": {
+              "file_path": "test1.cpp",
+              "start_lineno": 17,
+              "start_col": 21,
+              "end_lineno": 17,
+              "end_col": 34,
+              "start_byte": 340,
+              "end_byte": 353
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

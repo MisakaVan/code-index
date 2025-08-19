@@ -1,0 +1,322 @@
+{
+  "type": "simple_index",
+  "data": [
+    {
+      "symbol": {
+        "name": "SomeFunction",
+        "type": "function"
+      },
+      "info": {
+        "definitions": [
+          {
+            "location": {
+              "file_path": "test1.c",
+              "start_lineno": 4,
+              "start_col": 0,
+              "end_lineno": 6,
+              "end_col": 1,
+              "start_byte": 62,
+              "end_byte": 114
+            },
+            "doc": "write some random function definitions"
+          },
+          {
+            "location": {
+              "file_path": "test1.c",
+              "start_lineno": 8,
+              "start_col": 0,
+              "end_lineno": 10,
+              "end_col": 1,
+              "start_byte": 116,
+              "end_byte": 177
+            }
+          }
+        ],
+        "references": [
+          {
+            "location": {
+              "file_path": "test1.c",
+              "start_lineno": 18,
+              "start_col": 26,
+              "end_lineno": 18,
+              "end_col": 48,
+              "start_byte": 332,
+              "end_byte": 354
+            }
+          },
+          {
+            "location": {
+              "file_path": "test1.c",
+              "start_lineno": 17,
+              "start_col": 20,
+              "end_lineno": 17,
+              "end_col": 38,
+              "start_byte": 286,
+              "end_byte": 304
+            }
+          }
+        ]
+      }
+    },
+    {
+      "symbol": {
+        "name": "main",
+        "type": "function"
+      },
+      "info": {
+        "definitions": [
+          {
+            "location": {
+              "file_path": "test1.c",
+              "start_lineno": 16,
+              "start_col": 0,
+              "end_lineno": 32,
+              "end_col": 1,
+              "start_byte": 232,
+              "end_byte": 765
+            },
+            "calls": [
+              {
+                "symbol": {
+                  "name": "SomeFunction",
+                  "type": "function"
+                },
+                "reference": {
+                  "location": {
+                    "file_path": "test1.c",
+                    "start_lineno": 17,
+                    "start_col": 20,
+                    "end_lineno": 17,
+                    "end_col": 38,
+                    "start_byte": 286,
+                    "end_byte": 304
+                  }
+                }
+              },
+              {
+                "symbol": {
+                  "name": "SomeFunction",
+                  "type": "function"
+                },
+                "reference": {
+                  "location": {
+                    "file_path": "test1.c",
+                    "start_lineno": 18,
+                    "start_col": 26,
+                    "end_lineno": 18,
+                    "end_col": 48,
+                    "start_byte": 332,
+                    "end_byte": 354
+                  }
+                }
+              },
+              {
+                "symbol": {
+                  "name": "printf",
+                  "type": "function"
+                },
+                "reference": {
+                  "location": {
+                    "file_path": "test1.c",
+                    "start_lineno": 24,
+                    "start_col": 4,
+                    "end_lineno": 24,
+                    "end_col": 41,
+                    "start_byte": 553,
+                    "end_byte": 590
+                  }
+                }
+              },
+              {
+                "symbol": {
+                  "name": "printf",
+                  "type": "function"
+                },
+                "reference": {
+                  "location": {
+                    "file_path": "test1.c",
+                    "start_lineno": 26,
+                    "start_col": 4,
+                    "end_lineno": 26,
+                    "end_col": 43,
+                    "start_byte": 645,
+                    "end_byte": 684
+                  }
+                }
+              },
+              {
+                "symbol": {
+                  "name": "printf",
+                  "type": "function"
+                },
+                "reference": {
+                  "location": {
+                    "file_path": "test1.c",
+                    "start_lineno": 25,
+                    "start_col": 4,
+                    "end_lineno": 25,
+                    "end_col": 47,
+                    "start_byte": 596,
+                    "end_byte": 639
+                  }
+                }
+              },
+              {
+                "symbol": {
+                  "name": "printf",
+                  "type": "function"
+                },
+                "reference": {
+                  "location": {
+                    "file_path": "test1.c",
+                    "start_lineno": 27,
+                    "start_col": 4,
+                    "end_lineno": 27,
+                    "end_col": 49,
+                    "start_byte": 690,
+                    "end_byte": 735
+                  }
+                }
+              },
+              {
+                "symbol": {
+                  "name": "Foo",
+                  "type": "function"
+                },
+                "reference": {
+                  "location": {
+                    "file_path": "test1.c",
+                    "start_lineno": 29,
+                    "start_col": 4,
+                    "end_lineno": 29,
+                    "end_col": 9,
+                    "start_byte": 742,
+                    "end_byte": 747
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "symbol": {
+        "name": "Foo",
+        "type": "function"
+      },
+      "info": {
+        "definitions": [
+          {
+            "location": {
+              "file_path": "test1.c",
+              "start_lineno": 12,
+              "start_col": 0,
+              "end_lineno": 14,
+              "end_col": 1,
+              "start_byte": 179,
+              "end_byte": 230
+            },
+            "calls": [
+              {
+                "symbol": {
+                  "name": "printf",
+                  "type": "function"
+                },
+                "reference": {
+                  "location": {
+                    "file_path": "test1.c",
+                    "start_lineno": 13,
+                    "start_col": 4,
+                    "end_lineno": 13,
+                    "end_col": 31,
+                    "start_byte": 200,
+                    "end_byte": 227
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "references": [
+          {
+            "location": {
+              "file_path": "test1.c",
+              "start_lineno": 29,
+              "start_col": 4,
+              "end_lineno": 29,
+              "end_col": 9,
+              "start_byte": 742,
+              "end_byte": 747
+            }
+          }
+        ]
+      }
+    },
+    {
+      "symbol": {
+        "name": "printf",
+        "type": "function"
+      },
+      "info": {
+        "references": [
+          {
+            "location": {
+              "file_path": "test1.c",
+              "start_lineno": 13,
+              "start_col": 4,
+              "end_lineno": 13,
+              "end_col": 31,
+              "start_byte": 200,
+              "end_byte": 227
+            }
+          },
+          {
+            "location": {
+              "file_path": "test1.c",
+              "start_lineno": 25,
+              "start_col": 4,
+              "end_lineno": 25,
+              "end_col": 47,
+              "start_byte": 596,
+              "end_byte": 639
+            }
+          },
+          {
+            "location": {
+              "file_path": "test1.c",
+              "start_lineno": 24,
+              "start_col": 4,
+              "end_lineno": 24,
+              "end_col": 41,
+              "start_byte": 553,
+              "end_byte": 590
+            }
+          },
+          {
+            "location": {
+              "file_path": "test1.c",
+              "start_lineno": 26,
+              "start_col": 4,
+              "end_lineno": 26,
+              "end_col": 43,
+              "start_byte": 645,
+              "end_byte": 684
+            }
+          },
+          {
+            "location": {
+              "file_path": "test1.c",
+              "start_lineno": 27,
+              "start_col": 4,
+              "end_lineno": 27,
+              "end_col": 49,
+              "start_byte": 690,
+              "end_byte": 735
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
