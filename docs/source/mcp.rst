@@ -94,6 +94,8 @@ MCP Server Implementation
 
 The CodeIndex MCP Server helps LLMs run code-indexing on projects, and provides interface for querying indexed symbols, source code fetching, and other code-related operations. These functionalities can be used by any MCP-compatible AI application or agent.
 
+All MCP server services are thread-safe, enabling multiple AI agents to safely analyze repositories in parallel and update the code index concurrently without race conditions.
+
 There is a usage example in the ``examples/code_index_agent.py`` file, which uses ``LangChain`` framework to build an agent with mcp tools.
 
 .. automodule:: code_index.mcp_server.server
