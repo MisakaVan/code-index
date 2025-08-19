@@ -212,14 +212,19 @@ int main() {
         # Try to re-submit with a different note
         second_note = LLMNote(description="Updated description")
 
-        # Since allow_resubmit is True by default, this should raise ValueError
-        with pytest.raises(ValueError, match="Task already submitted"):
-            repo_analyse_service.submit_note(symbol_definition, second_note)
+        # Since allow_resubmit is True by default, this should succeed
+        repo_analyse_service.submit_note(symbol_definition, second_note)
+        
+        # Verify the note was updated
+        updated_note = repo_analyse_service.get_llm_note(
+            symbol_definition.symbol, symbol_definition.definition
+        )
+        assert updated_note.description == "Updated description"
 
     def test_resubmission_behavior_with_allow_resubmit_false(
         self, code_index_service, sample_python_code, tmp_path
     ):
-        """Test that re-submission is logged but allowed when allow_resubmit is False."""
+        """Test that re-submission raises error when allow_resubmit is False."""
         # Create a service with allow_resubmit=False
         repo_analyse_service = RepoAnalyseService()
         repo_analyse_service._description_todo.allow_resubmit = False
@@ -243,16 +248,16 @@ int main() {
         first_note = LLMNote(description="First description")
         repo_analyse_service.submit_note(symbol_definition, first_note)
 
-        # Try to re-submit with a different note - should be allowed but logged
+        # Try to re-submit with a different note - should raise ValueError
         second_note = LLMNote(description="Updated description")
-        result = repo_analyse_service.submit_note(symbol_definition, second_note)
-        assert "Note submitted for" in result
+        with pytest.raises(ValueError, match="Task already submitted"):
+            repo_analyse_service.submit_note(symbol_definition, second_note)
 
-        # Verify the note was updated
+        # Verify the original note is still there
         retrieved_note = repo_analyse_service.get_llm_note(
             symbol_definition.symbol, symbol_definition.definition
         )
-        assert retrieved_note.description == "Updated description"
+        assert retrieved_note.description == "First description"
 
     def test_ready_describe_definitions_skips_already_described_definitions(
         self, code_index_service, repo_analyse_service, sample_python_code, tmp_path
@@ -410,9 +415,16 @@ int main() {
         test_note = LLMNote(description="Test description")
         repo_analyse_service.submit_note(symbol_definition, test_note)
 
-        # Try to submit again for the same task (should fail with allow_resubmit=True)
-        with pytest.raises(ValueError, match="Task already submitted"):
-            repo_analyse_service.submit_note(symbol_definition, test_note)
+        # Try to submit again for the same task - since allow_resubmit=True by default,
+        # this should succeed and update the note
+        updated_note = LLMNote(description="Updated test description")
+        repo_analyse_service.submit_note(symbol_definition, updated_note)
+        
+        # Verify the note was updated
+        retrieved_note = repo_analyse_service.get_llm_note(
+            symbol_definition.symbol, symbol_definition.definition
+        )
+        assert retrieved_note.description == "Updated test description"
 
     def test_get_any_undescribed_definition_returns_none_when_all_described(
         self, code_index_service, repo_analyse_service, sample_python_code, tmp_path
