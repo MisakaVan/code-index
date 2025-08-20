@@ -42,7 +42,7 @@ def test_yield_pending_and_pending_count():
 
 
 def test_submit_basic_and_get_result():
-    todos: TodoList[str, int] = TodoList()
+    todos: TodoList[str, int] = TodoList(allow_resubmit=False)
     todos.add_task("job")
     assert todos.get_result("job") is None
     assert todos.is_pending("job") is True
@@ -54,6 +54,22 @@ def test_submit_basic_and_get_result():
     # double submit => error
     with pytest.raises(ValueError):
         todos.submit("job", 100)
+
+
+def test_submit_with_resubmit_allowed():
+    """Test that resubmission works when allow_resubmit=True (default)."""
+    todos: TodoList[str, int] = TodoList()  # default allow_resubmit=True
+    todos.add_task("job")
+    
+    # First submission
+    todos.submit("job", 99)
+    assert todos.get_result("job") == 99
+    assert todos.is_pending("job") is False
+
+    # Resubmission should work and update the result
+    todos.submit("job", 100)
+    assert todos.get_result("job") == 100
+    assert todos.is_pending("job") is False
 
 
 def test_get_result_unknown_and_is_pending_unknown():
