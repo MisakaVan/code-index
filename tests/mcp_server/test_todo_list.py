@@ -60,7 +60,7 @@ def test_submit_with_resubmit_allowed():
     """Test that resubmission works when allow_resubmit=True (default)."""
     todos: TodoList[str, int] = TodoList()  # default allow_resubmit=True
     todos.add_task("job")
-    
+
     # First submission
     todos.submit("job", 99)
     assert todos.get_result("job") == 99

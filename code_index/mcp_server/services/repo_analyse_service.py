@@ -136,7 +136,7 @@ class RepoAnalyseService:
             if skip_existing_notes:
                 full_definition = self.get_full_definition(symbol, pure_definition)
                 if full_definition and full_definition.llm_note is not None:
-                        continue
+                    continue
 
             task_id = SymbolDefinition(
                 symbol=symbol,
