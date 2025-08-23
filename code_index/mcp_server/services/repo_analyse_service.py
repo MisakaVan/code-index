@@ -6,13 +6,29 @@ by symbol/definition, using a todolist structure to manage tasks.
 
 from __future__ import annotations
 
+from enum import Enum
 from threading import RLock
 
+from code_index.analyzer.models import Direction
 from code_index.models import Definition, LLMNote, PureDefinition, Symbol, SymbolDefinition
 from code_index.utils.logger import logger
 
 from .code_index_service import CodeIndexService
+from .graph_analyzer_service import GraphAnalyzerService
 from .todo_list import TodoList
+
+
+class TraversePolicy(Enum):
+    """Policy for traversing definitions when setting up todo list."""
+
+    ARBITRARY = "arbitrary"
+    """Traverse in arbitrary order (original behavior)."""
+
+    BFS_CALLEE_TO_CALLER = "bfs_callee_to_caller"
+    """BFS traversal from deepest dependencies to entry points."""
+
+    BFS_CALLER_TO_CALLEE = "bfs_caller_to_callee"
+    """BFS traversal from entry points to deepest dependencies."""
 
 
 class RepoAnalyseService:
@@ -48,14 +64,24 @@ class RepoAnalyseService:
         # Instance lock for coordinating todolist and index operations
         self._operation_lock = RLock()
 
-    def ready_describe_definitions(self) -> None:
+    def ready_describe_definitions(
+        self,
+        traverse_policy: TraversePolicy | None = None,
+        skip_existing_notes: bool = True,
+    ) -> None:
         """Prepare tasks for LLM to describe all definitions in the codebase.
 
-        This will find those definitions that have no description yet, and create tasks
-        for them in the todolist.
+        Args:
+            traverse_policy: Policy for traversing definitions. If None, defaults to ARBITRARY.
+            skip_existing_notes: If True, skip definitions that already have LLM notes.
+
+        This will find definitions and create tasks for them in the todolist according to the specified policy.
         """
         # Use operation lock to prevent interference with concurrent submit_note calls
         with self._operation_lock:
+            if traverse_policy is None:
+                traverse_policy = TraversePolicy.ARBITRARY
+
             service = CodeIndexService.get_instance()
             try:
                 service.assert_initialized()
@@ -70,24 +96,63 @@ class RepoAnalyseService:
                 _dummy_def_holding_llm_note = Definition.from_pure(_definition).set_note(_note)
                 index.add_definition(_symbol, _dummy_def_holding_llm_note)
 
+        # Get definitions according to the specified traverse policy
+        if traverse_policy == TraversePolicy.ARBITRARY:
+            # Original behavior: iterate through all symbols and definitions arbitrarily
+            definitions_to_process = []
             for symbol in index:
                 for definition in index.get_definitions(symbol):
-                    if definition.llm_note is not None:
-                        continue
-                    task_id = SymbolDefinition(
-                        symbol=symbol,
-                        definition=definition.to_pure(),
-                    )
-                    if task_id in self._description_todo:
-                        continue
-                    self._description_todo.add_task(
-                        task_id=task_id,
-                        payload=None,
-                        callback=cb_insert_note_into_index,
-                    )
-                    logger.info(
-                        f"Added task to describe definition: {symbol.name} at {definition.location}"
-                    )
+                    definitions_to_process.append((symbol, definition.to_pure()))
+        else:
+            # Use graph analyzer for BFS traversal
+            graph_analyzer = GraphAnalyzerService.get_instance()
+
+            if traverse_policy == TraversePolicy.BFS_CALLEE_TO_CALLER:
+                direction = Direction.BACKWARD
+            elif traverse_policy == TraversePolicy.BFS_CALLER_TO_CALLEE:
+                direction = Direction.FORWARD
+            else:
+                raise ValueError(f"Unsupported traverse policy: {traverse_policy}")
+
+            topological_order = graph_analyzer.get_topological_order(direction)
+
+            # Create a map from PureDefinition to its owning Symbol for quick lookup
+            definition_to_symbol_map: dict[PureDefinition, Symbol] = {}
+            for symbol in index:
+                for definition in index.get_definitions(symbol):
+                    definition_to_symbol_map[definition.to_pure()] = symbol
+
+            definitions_to_process = []
+            for definition in topological_order:
+                symbol = definition_to_symbol_map.get(definition)
+                if symbol:
+                    definitions_to_process.append((symbol, definition))
+                else:
+                    logger.warning(f"Could not find symbol for definition: {definition}")
+
+        # Process the definitions according to the order determined by the policy
+        for symbol, pure_definition in definitions_to_process:
+            # Check if we should skip existing notes
+            if skip_existing_notes:
+                full_definition = self.get_full_definition(symbol, pure_definition)
+                if full_definition and full_definition.llm_note is not None:
+                    continue
+
+            task_id = SymbolDefinition(
+                symbol=symbol,
+                definition=pure_definition,
+            )
+            if task_id in self._description_todo:
+                continue
+
+            self._description_todo.add_task(
+                task_id=task_id,
+                payload=None,
+                callback=cb_insert_note_into_index,
+            )
+            logger.info(
+                f"Added task to describe definition: {symbol.name} at {pure_definition.location}"
+            )
 
     def get_description_progress(self) -> str:
         """Get a detailed string representing the progress of description tasks.

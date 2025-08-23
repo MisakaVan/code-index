@@ -104,7 +104,7 @@ class TodoList(OrderedDict[IdType, TaskData[IdType, SubmitType]], Generic[IdType
         self._recently_submitted: list[IdType] = []
 
         self.allow_resubmit = allow_resubmit
-        
+
         # Thread safety lock - use RLock to allow recursive locking within same thread
         self._lock = RLock()
 
@@ -147,7 +147,9 @@ class TodoList(OrderedDict[IdType, TaskData[IdType, SubmitType]], Generic[IdType
         with self._lock:
             if task_id in self:
                 raise KeyError(f"Task id already exists: {task_id!r}")
-            self[task_id] = TaskData(id=task_id, payload=payload, callback=callback, extra=dict(extra))
+            self[task_id] = TaskData(
+                id=task_id, payload=payload, callback=callback, extra=dict(extra)
+            )
             self._pending_ids.add(task_id)
 
     def submit(self, task_id: IdType, value: SubmitType) -> None:
@@ -198,7 +200,7 @@ class TodoList(OrderedDict[IdType, TaskData[IdType, SubmitType]], Generic[IdType
         with self._lock:
             # Create a snapshot of pending ids to avoid modification during iteration
             pending_ids_snapshot = list(self._pending_ids)
-        
+
         for tid in pending_ids_snapshot:
             with self._lock:
                 if tid not in self:

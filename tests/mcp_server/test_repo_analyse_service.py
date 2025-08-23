@@ -214,7 +214,7 @@ int main() {
 
         # Since allow_resubmit is True by default, this should succeed
         repo_analyse_service.submit_note(symbol_definition, second_note)
-        
+
         # Verify the note was updated
         updated_note = repo_analyse_service.get_llm_note(
             symbol_definition.symbol, symbol_definition.definition
@@ -419,7 +419,7 @@ int main() {
         # this should succeed and update the note
         updated_note = LLMNote(description="Updated test description")
         repo_analyse_service.submit_note(symbol_definition, updated_note)
-        
+
         # Verify the note was updated
         retrieved_note = repo_analyse_service.get_llm_note(
             symbol_definition.symbol, symbol_definition.definition

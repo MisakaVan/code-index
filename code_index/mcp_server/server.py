@@ -43,10 +43,17 @@ from typing import Literal
 
 from fastmcp import Context, FastMCP
 
+from code_index.analyzer.models import CallGraph, FindPathsResult
 from code_index.index.code_query import CodeQuery, CodeQueryResponse
-from code_index.mcp_server.models import AllSymbolsResponse
+from code_index.mcp_server.models import (
+    AllSymbolsResponse,
+    FindPathsRequest,
+    GetSubgraphRequest,
+    GraphOverviewResponse,
+)
 from code_index.mcp_server.services import (
     CodeIndexService,
+    GraphAnalyzerService,
     RepoAnalyseService,
     SourceCodeFetchService,
 )
@@ -253,6 +260,47 @@ def setup_describe_definitions_todolist() -> str:
     return "Definition todo list is ready."
 
 
+def setup_describe_definitions_todolist_with_policy(
+    traverse_policy: str | None = None, skip_existing_notes: bool = True
+) -> str:
+    """Setup the todolist of the definitions to examine with specified traverse policy.
+
+    Args:
+        traverse_policy: Policy for traversing definitions. Can be "arbitrary",
+                        "bfs_callee_to_caller", or "bfs_caller_to_callee".
+                        If None, defaults to "arbitrary".
+        skip_existing_notes: If True, skip definitions that already have LLM notes.
+
+    To do this, make sure the repo index has already be set up.
+
+    Returns:
+        str: the success message.
+    """
+    from code_index.mcp_server.services.repo_analyse_service import TraversePolicy
+
+    CodeIndexService.get_instance().log_calling(
+        setup_describe_definitions_todolist_with_policy.__name__,
+        traverse_policy,
+        skip_existing_notes,
+    )
+
+    # Convert string to enum
+    policy = None
+    if traverse_policy is not None:
+        try:
+            policy = TraversePolicy(traverse_policy)
+        except ValueError:
+            raise ValueError(
+                f"Invalid traverse_policy: {traverse_policy}. "
+                f"Must be one of: {[p.value for p in TraversePolicy]}"
+            )
+
+    RepoAnalyseService.get_instance().ready_describe_definitions(
+        traverse_policy=policy, skip_existing_notes=skip_existing_notes
+    )
+    return f"Definition todo list is ready with policy: {traverse_policy or 'arbitrary'}"
+
+
 def get_one_describe_definition_task() -> SymbolDefinition | None:
     """Get an arbitrary definition task from the todo list.
 
@@ -319,6 +367,48 @@ def get_pending_describe_tasks(n: int) -> list[SymbolDefinition]:
     return RepoAnalyseService.get_instance().get_pending_describe_tasks(n)
 
 
+def get_graph_overview() -> GraphOverviewResponse:
+    """Get a general view/stat of the call graph.
+
+    Provides statistics about the call graph including SCCs, entrypoints, and endpoints.
+
+    Returns:
+        A GraphOverviewResponse containing graph statistics, SCC information, entrypoints, and endpoints.
+    """
+    CodeIndexService.get_instance().log_calling(get_graph_overview.__name__)
+    return GraphAnalyzerService.get_instance().get_call_graph_overview()
+
+
+def get_subgraph(request: GetSubgraphRequest) -> CallGraph:
+    """Get a subgraph of the call-graph from specific definition(s).
+
+    Args:
+        request: Contains root definitions and maximum depth for subgraph extraction.
+
+    Returns:
+        A CallGraph representing the subgraph.
+    """
+    CodeIndexService.get_instance().log_calling(get_subgraph.__name__, request)
+    return GraphAnalyzerService.get_instance().get_subgraph(
+        roots=request.roots, depth=request.depth
+    )
+
+
+def find_paths(request: FindPathsRequest) -> FindPathsResult:
+    """Find paths between nodes(definitions).
+
+    Args:
+        request: Contains source definition, destination definition, and max number of paths.
+
+    Returns:
+        A FindPathsResult containing the found paths.
+    """
+    CodeIndexService.get_instance().log_calling(find_paths.__name__, request)
+    return GraphAnalyzerService.get_instance().find_paths(
+        src=request.src, dst=request.dst, k=request.k
+    )
+
+
 # This is a workaround for sphinx autodoc to recognize the docstrings of the undecorated functions above
 # Now register the functions as FastMCP tools and resources
 
@@ -350,6 +440,8 @@ mcp.tool("get_all_symbols", annotations={"readOnlyHint": True})(get_all_symbols)
 
 mcp.tool("setup_describe_definitions")(setup_describe_definitions_todolist)
 
+mcp.tool("setup_describe_definitions_with_policy")(setup_describe_definitions_todolist_with_policy)
+
 mcp.tool("get_one_describe_definition_task")(get_one_describe_definition_task)
 
 mcp.tool("get_full_definition")(get_full_definition)
@@ -359,6 +451,10 @@ mcp.tool("submit_definition_task")(submit_definition_task)
 mcp.tool("get_stats_of_describe_definition_todolist")(describe_tasks_stats)
 
 mcp.tool("get_pending_describe_tasks")(get_pending_describe_tasks)
+
+mcp.tool("get_graph_overview")(get_graph_overview)
+mcp.tool("get_subgraph")(get_subgraph)
+mcp.tool("find_paths")(find_paths)
 
 
 @mcp.prompt()
