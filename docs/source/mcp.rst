@@ -106,7 +106,7 @@ There is a usage example in the ``examples/code_index_agent.py`` file, which use
 Services
 ~~~~~~~~
 
-Services that act as backend for MCP requests, providing access to indexed code data and source code fetching.
+Services that act as backend for MCP requests, providing access to indexed code data, source code fetching, codebase analysis, and call graph operations.
 
 .. autoclass:: code_index.mcp_server.services.CodeIndexService
     :members:
@@ -115,3 +115,20 @@ Services that act as backend for MCP requests, providing access to indexed code 
 .. autoclass:: code_index.mcp_server.services.SourceCodeFetchService
     :members:
     :show-inheritance:
+
+.. autoclass:: code_index.mcp_server.services.RepoAnalyseService
+    :members:
+    :show-inheritance:
+
+.. autoclass:: code_index.mcp_server.services.GraphAnalyzerService
+    :members:
+    :show-inheritance:
+
+Data Models
+~~~~~~~~~~~
+
+Extra Pydantic models used for MCP request/response payloads and data structures.
+
+.. automodule:: code_index.mcp_server.models
+   :members:
+   :show-inheritance:
