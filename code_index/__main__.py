@@ -1,4 +1,5 @@
 import argparse
+import time
 from pathlib import Path
 
 from .index.persist.persist_json import SingleJsonFilePersistStrategy
@@ -51,7 +52,7 @@ def main():
         "--dt",
         type=str,
         default="json",
-        choices=["json", "sqlite"],
+        choices=["json", "sqlite", "none"],
         help="指定导出索引数据的格式。默认为 'json'。",
     )
 
@@ -70,22 +71,28 @@ def main():
     elif args.dump_type == "sqlite":
         persist_strategy = SqlitePersistStrategy()
         default_filename = "index.sqlite"
+    elif args.dump_type == "none":
+        pass
     else:
         logger.error(f"不支持的持久化策略 '{args.dump_type}'。")
         exit(1)
 
-    if args.output is None:
-        # 如果没有指定输出路径，则使用 repo_path/index.json
-        args.output = args.repo_path
+    if persist_strategy:
+        if args.output is None:
+            # 如果没有指定输出路径，则使用 repo_path/index.json
+            args.output = args.repo_path
 
-    # make sure the output path is a file
-    if args.output.is_dir():
-        # fallback to default file name based on dump type
-        logger.info(f"输出路径 '{args.output}' 是一个目录，将使用默认文件名 '{default_filename}'。")
-        args.output = args.output / default_filename
+        # make sure the output path is a file
+        if args.output.is_dir():
+            # fallback to default file name based on dump type
+            logger.info(
+                f"输出路径 '{args.output}' 是一个目录，将使用默认文件名 '{default_filename}'。"
+            )
+            args.output = args.output / default_filename
 
-    logger.info(f"索引结果将导出到: {args.output}")
+        logger.info(f"索引结果将导出到: {args.output}")
 
+    start_time = time.time()
     try:
         processor = language_processor_factory(args.language)
         assert processor is not None, f"未找到适用于 '{args.language}' 的语言处理器。"
@@ -99,14 +106,16 @@ def main():
 
     logger.info("--- 索引结果 ---")
     logger.info(f"索引完成。共索引了 {len(indexer.index)} 个符号。")
+    logger.info(f"索引耗时: {time.time() - start_time:.2f} 秒")
 
-    try:
-        indexer.index.persist_to(args.output, persist_strategy)
-    except Exception as e:
-        logger.error(f"导出索引失败。{e}")
-        exit(1)
+    if persist_strategy:
+        try:
+            indexer.index.persist_to(args.output, persist_strategy)
+        except Exception as e:
+            logger.error(f"导出索引失败。{e}")
+            exit(1)
 
-    logger.success(f"索引数据已导出到 {args.output}")
+        logger.success(f"索引数据已导出到 {args.output}")
 
 
 if __name__ == "__main__":
